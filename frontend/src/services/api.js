@@ -10,7 +10,7 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('rakshasetu_tourist_token') || localStorage.getItem('rakshasetu_token');
-    if (token) {
+    if (token && token !== 'undefined' && token !== 'null') {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -24,14 +24,17 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     if (error.response && error.response.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      const refreshToken = localStorage.getItem('rakshasetu_tourist_refresh_token');
+      const refreshToken = localStorage.getItem('rakshasetu_tourist_refresh_token') || localStorage.getItem('rakshasetu_refresh_token');
 
-      if (refreshToken) {
+      if (refreshToken && refreshToken !== 'undefined' && refreshToken !== 'null') {
         try {
           const res = await axios.post('/api/v1/auth/refresh-token', { refreshToken });
-          if (res.data && res.data.data && res.data.data.accessToken) {
-            const newToken = res.data.data.accessToken;
+          const responseData = res.data;
+          const newToken = responseData?.data?.accessToken || responseData?.accessToken;
+
+          if (newToken) {
             localStorage.setItem('rakshasetu_tourist_token', newToken);
+            localStorage.setItem('rakshasetu_token', newToken);
             originalRequest.headers.Authorization = `Bearer ${newToken}`;
             return api(originalRequest);
           }
@@ -39,6 +42,9 @@ api.interceptors.response.use(
           localStorage.removeItem('rakshasetu_tourist_token');
           localStorage.removeItem('rakshasetu_tourist_refresh_token');
           localStorage.removeItem('rakshasetu_tourist_user');
+          localStorage.removeItem('rakshasetu_token');
+          localStorage.removeItem('rakshasetu_refresh_token');
+          localStorage.removeItem('rakshasetu_user');
           if (window.location.pathname !== '/login') {
             window.location.href = '/login';
           }

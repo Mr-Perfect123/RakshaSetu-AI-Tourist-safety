@@ -10,7 +10,7 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('rakshasetu_token');
-    if (token && token !== 'demo_token') {
+    if (token && token !== 'undefined' && token !== 'null' && token !== 'demo_token') {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -26,11 +26,13 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       const refreshToken = localStorage.getItem('rakshasetu_refresh_token');
 
-      if (refreshToken) {
+      if (refreshToken && refreshToken !== 'undefined' && refreshToken !== 'null') {
         try {
           const res = await axios.post('/api/v1/auth/refresh-token', { refreshToken });
-          if (res.data && res.data.data && res.data.data.accessToken) {
-            const newToken = res.data.data.accessToken;
+          const responseData = res.data;
+          const newToken = responseData?.data?.accessToken || responseData?.accessToken;
+
+          if (newToken) {
             localStorage.setItem('rakshasetu_token', newToken);
             originalRequest.headers.Authorization = `Bearer ${newToken}`;
             return api(originalRequest);

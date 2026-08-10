@@ -1,10 +1,12 @@
-import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
+import React, { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { Navigation, Compass, MapPin, Shield, AlertOctagon, Phone } from 'lucide-react';
 
-const touristIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+// Custom Leaflet Icons for 8 marker types
+const createCustomIcon = (colorUrl) => new L.Icon({
+  iconUrl: colorUrl,
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
@@ -12,87 +14,158 @@ const touristIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
-const policeIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
+const touristIcon = createCustomIcon('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png');
+const destinationIcon = createCustomIcon('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png');
+const safeIcon = createCustomIcon('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png');
+const policeIcon = createCustomIcon('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png');
+const hospitalIcon = createCustomIcon('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png');
+const incidentIcon = createCustomIcon('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png');
 
-const hospitalIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
-
-// Auto-pan component: moves map center when location changes
 const MapAutoPan = ({ position }) => {
   const map = useMap();
-
   useEffect(() => {
     if (position && position[0] && position[1]) {
-      map.flyTo(position, map.getZoom(), { duration: 1.5 });
+      map.flyTo(position, map.getZoom(), { duration: 1.2 });
     }
   }, [position, map]);
-
   return null;
 };
 
-const TouristMap = ({ location = { lat: 28.6120, lng: 77.2050 }, safeLocations = [] }) => {
+const TouristMap = ({
+  location = { lat: 27.1751, lng: 78.0421 },
+  destination = null,
+  safeLocations = [],
+  dangerZones = [],
+  redAlerts = [],
+  incidents = [],
+  showRoute = false
+}) => {
   const position = [parseFloat(location.lat), parseFloat(location.lng)];
+  const destPos = destination ? [parseFloat(destination.latitude || destination.lat), parseFloat(destination.longitude || destination.lng)] : null;
 
   return (
-    <div className="w-full h-full rounded-2xl overflow-hidden shadow-xs border border-slate-200 relative z-0">
-      <MapContainer center={position} zoom={14} scrollWheelZoom={true} className="w-full h-full">
+    <div className="w-full h-full rounded-2xl overflow-hidden shadow-xs border border-slate-200 relative z-0 flex flex-col">
+      <MapContainer center={position} zoom={13} scrollWheelZoom={true} className="w-full h-full flex-1">
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {/* Auto-pan to tourist's real GPS location when it updates */}
         <MapAutoPan position={position} />
 
-        {/* Current Tourist GPS Pin */}
+        {/* 1. Tourist's Current GPS Location (Blue) */}
         <Marker position={position} icon={touristIcon}>
           <Popup>
             <div className="p-1">
-              <span className="px-2 py-0.5 rounded bg-blue-100 text-primary text-[10px] font-bold uppercase">Your Location</span>
-              <p className="font-bold text-xs text-slate-800 mt-1">Live GPS Position</p>
-              <p className="text-[10px] text-slate-500 font-mono">Lat: {location.lat.toFixed(4)}, Lng: {location.lng.toFixed(4)}</p>
+              <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-[10px] font-bold uppercase">Your Location</span>
+              <p className="font-bold text-xs text-slate-800 mt-1 m-0">Live Tourist GPS Position</p>
+              <p className="text-[10px] text-slate-500 font-mono m-0">Lat: {location.lat.toFixed(4)}, Lng: {location.lng.toFixed(4)}</p>
             </div>
           </Popup>
         </Marker>
 
-        <Circle
-          center={position}
-          radius={300}
-          pathOptions={{ color: '#0D47A1', fillColor: '#1565C0', fillOpacity: 0.15 }}
-        />
+        {/* 2. Destination Marker (Gold) */}
+        {destPos && (
+          <Marker position={destPos} icon={destinationIcon}>
+            <Popup>
+              <div className="p-1">
+                <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 text-[10px] font-bold uppercase">Destination</span>
+                <p className="font-bold text-xs text-slate-800 mt-1 m-0">{destination.name}</p>
+                <p className="text-[10px] text-slate-500 m-0">{destination.address}</p>
+              </div>
+            </Popup>
+          </Marker>
+        )}
 
-        {/* Nearby Police & Hospitals */}
+        {/* Route Polyline from Tourist Location to Destination */}
+        {showRoute && destPos && (
+          <Polyline
+            positions={[position, destPos]}
+            pathOptions={{ color: '#0D47A1', weight: 4, dashArray: '8, 8', opacity: 0.8 }}
+          />
+        )}
+
+        {/* 3. Red Alerts Overlay (Dark Red Pulsing Circles) */}
+        {redAlerts.map((alert) => (
+          <Circle
+            key={`alert-${alert.id}`}
+            center={[parseFloat(alert.latitude), parseFloat(alert.longitude)]}
+            radius={alert.radius_meters || 1000}
+            pathOptions={{ color: '#D32F2F', fillColor: '#D32F2F', fillOpacity: 0.3, weight: 2 }}
+          >
+            <Popup>
+              <div className="p-1">
+                <span className="px-2 py-0.5 rounded bg-red-600 text-white font-bold text-[10px] uppercase">🚨 CRITICAL RED ALERT</span>
+                <p className="font-bold text-xs text-slate-900 mt-1 m-0">{alert.title}</p>
+                <p className="text-[11px] text-slate-600 m-0">{alert.description}</p>
+              </div>
+            </Popup>
+          </Circle>
+        ))}
+
+        {/* 4. Danger Zones Overlay (Red Circles) */}
+        {dangerZones.map((zone) => (
+          <Circle
+            key={`zone-${zone.id}`}
+            center={[parseFloat(zone.latitude), parseFloat(zone.longitude)]}
+            radius={zone.radius_meters || 500}
+            pathOptions={{ color: '#E65100', fillColor: '#F57C00', fillOpacity: 0.2, weight: 1.5 }}
+          >
+            <Popup>
+              <div className="p-1">
+                <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold text-[10px] uppercase">⚠️ DANGER ZONE</span>
+                <p className="font-bold text-xs text-slate-800 mt-1 m-0">{zone.name}</p>
+                <p className="text-[11px] text-slate-600 m-0">{zone.description || zone.advisory_message}</p>
+              </div>
+            </Popup>
+          </Circle>
+        ))}
+
+        {/* 5. Safe Locations & Police/Hospitals */}
         {safeLocations.map((loc) => {
-          const icon = loc.type === 'police_station' ? policeIcon : hospitalIcon;
+          const icon = loc.type === 'police_station' ? policeIcon : loc.type === 'hospital' ? hospitalIcon : safeIcon;
           return (
-            <Marker key={loc.id} position={[parseFloat(loc.latitude), parseFloat(loc.longitude)]} icon={icon}>
+            <Marker key={`safe-${loc.id}`} position={[parseFloat(loc.latitude), parseFloat(loc.longitude)]} icon={icon}>
               <Popup>
                 <div className="p-1">
                   <span className="px-2 py-0.5 rounded bg-slate-100 font-bold text-[10px] uppercase text-slate-700">
-                    {loc.type.replace('_', ' ')}
+                    {(loc.type || 'safe_location').replace('_', ' ')}
                   </span>
-                  <p className="font-bold text-xs text-slate-800 mt-1">{loc.name}</p>
-                  <p className="text-[11px] text-slate-600">{loc.address}</p>
-                  <p className="text-xs font-bold text-primary mt-1">📞 {loc.phone}</p>
+                  <p className="font-bold text-xs text-slate-800 mt-1 m-0">{loc.name || loc.station_name || loc.hospital_name}</p>
+                  <p className="text-[11px] text-slate-600 m-0">{loc.address}</p>
+                  <p className="text-xs font-bold text-[#0D47A1] mt-1 m-0">📞 {loc.phone || loc.emergency_helpline}</p>
                 </div>
               </Popup>
             </Marker>
           );
         })}
+
+        {/* 6. Incident Locations (Orange Markers) */}
+        {incidents.map((inc) => (
+          <Marker key={`inc-${inc.id}`} position={[parseFloat(inc.latitude), parseFloat(inc.longitude)]} icon={incidentIcon}>
+            <Popup>
+              <div className="p-1">
+                <span className="px-2 py-0.5 rounded bg-orange-100 text-orange-800 font-bold text-[10px] uppercase">INCIDENT REPORT</span>
+                <p className="font-bold text-xs text-slate-800 mt-1 m-0">{inc.title}</p>
+                <p className="text-[11px] text-slate-600 m-0">{inc.description}</p>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
       </MapContainer>
+
+      {/* Map Legend Footer Bar */}
+      <div className="bg-slate-900 text-white p-2.5 text-[11px] font-semibold flex items-center justify-between overflow-x-auto gap-3 border-t border-slate-800">
+        <div className="flex items-center gap-3 whitespace-nowrap">
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span> You</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Destination</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Safe Area</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-orange-500"></span> Danger Zone</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse"></span> Red Alert</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-violet-500"></span> Police</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-500"></span> Hospital</span>
+        </div>
+      </div>
     </div>
   );
 };

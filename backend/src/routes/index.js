@@ -10,6 +10,11 @@ const locationRoutes = require('./locationRoutes');
 const supportRoutes = require('./supportRoutes');
 const cabinRoutes = require('./cabinRoutes');
 const paymentRoutes = require('./paymentRoutes');
+const vehicleRoutes = require('./vehicleRoutes');
+const foodRoutes = require('./foodRoutes');
+const placeRoutes = require('./placeRoutes');
+const zoneRoutes = require('./zoneRoutes');
+const alertRoutes = require('./alertRoutes');
 
 router.get('/health', (req, res) => {
   res.status(200).json({
@@ -28,5 +33,10 @@ router.use('/locations', locationRoutes);
 router.use('/support', supportRoutes);
 router.use('/cabins', cabinRoutes);
 router.use('/payments', paymentRoutes);
+router.use('/vehicles', vehicleRoutes);
+router.use('/food', foodRoutes);
+router.use('/places', placeRoutes);
+router.use('/zones', zoneRoutes);
+router.use('/alerts', alertRoutes);
 
 module.exports = router;

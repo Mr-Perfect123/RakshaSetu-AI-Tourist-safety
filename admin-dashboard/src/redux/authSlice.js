@@ -4,19 +4,37 @@ import api from '../services/api';
 export const loginUser = createAsyncThunk('auth/loginUser', async (credentials, { rejectWithValue }) => {
   try {
     const res = await api.post('/auth/login', credentials);
-    if (res.data.accessToken) {
-      localStorage.setItem('rakshasetu_token', res.data.accessToken);
+    // res will be the unwrapped payload because of the Axios interceptor
+    const payload = res.data || res;
+    const token = payload.accessToken || res.accessToken;
+    const refreshToken = payload.refreshToken || res.refreshToken;
+    const user = payload.user || res.user;
+
+    if (token) {
+      localStorage.setItem('rakshasetu_token', token);
     }
-    return res.data;
+    if (refreshToken) {
+      localStorage.setItem('rakshasetu_refresh_token', refreshToken);
+    }
+    if (user) {
+      localStorage.setItem('rakshasetu_user', JSON.stringify(user));
+    }
+    return { user, accessToken: token, refreshToken };
   } catch (err) {
-    return rejectWithValue(err.message || 'Login failed');
+    return rejectWithValue(err.message || err.data?.message || 'Login failed');
   }
 });
 
 const authSlice = createSlice({
   name: 'auth',
   initialState: {
-    user: JSON.parse(localStorage.getItem('rakshasetu_user') || 'null'),
+    user: (() => {
+      try {
+        return JSON.parse(localStorage.getItem('rakshasetu_user') || 'null');
+      } catch (e) {
+        return null;
+      }
+    })(),
     token: localStorage.getItem('rakshasetu_token') || null,
     loading: false,
     error: null
@@ -26,6 +44,7 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       localStorage.removeItem('rakshasetu_token');
+      localStorage.removeItem('rakshasetu_refresh_token');
       localStorage.removeItem('rakshasetu_user');
     }
   },
@@ -39,7 +58,6 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload.user;
         state.token = action.payload.accessToken;
-        localStorage.setItem('rakshasetu_user', JSON.stringify(action.payload.user));
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;

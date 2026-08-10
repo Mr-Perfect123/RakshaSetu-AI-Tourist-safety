@@ -4,6 +4,7 @@ const IncidentReport = require('../models/IncidentReport');
 const SafeLocation = require('../models/SafeLocation');
 const EmergencyContact = require('../models/EmergencyContact');
 const ApiResponse = require('../utils/response');
+const ApiError = require('../utils/apiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { executeQuery, inMemoryStore } = require('../config/database');
 
@@ -134,6 +135,27 @@ class AdminController {
     inMemoryStore.audit_logs.unshift(auditEntry);
 
     return res.status(200).json(new ApiResponse(200, auditEntry, 'Broadcast advisory transmitted to all monitored devices.'));
+  });
+
+  static getVehicleBookings = asyncHandler(async (req, res) => {
+    const bookings = await executeQuery(
+      `SELECT vb.*, u.full_name as tourist_name, u.phone as tourist_phone 
+       FROM vehicle_bookings vb 
+       LEFT JOIN users u ON vb.user_id = u.id 
+       ORDER BY vb.id DESC`
+    );
+    return res.status(200).json(new ApiResponse(200, bookings, 'Admin vehicle bookings audit fetched.'));
+  });
+
+  static getFoodOrders = asyncHandler(async (req, res) => {
+    const orders = await executeQuery(
+      `SELECT fo.*, u.full_name as tourist_name, r.name as restaurant_name 
+       FROM food_orders fo 
+       LEFT JOIN users u ON fo.user_id = u.id 
+       LEFT JOIN restaurants r ON fo.restaurant_id = r.id 
+       ORDER BY fo.id DESC`
+    );
+    return res.status(200).json(new ApiResponse(200, orders, 'Admin food orders monitoring fetched.'));
   });
 }
 

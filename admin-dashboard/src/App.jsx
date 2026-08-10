@@ -12,6 +12,10 @@ import AnalyticsPage from './pages/Analytics';
 import SettingsPage from './pages/Settings';
 import DatabaseMgmt from './pages/DatabaseMgmt';
 import AiChat from './pages/AiChat';
+import DangerZonesMgmt from './pages/DangerZonesMgmt';
+import RedAlertsAdmin from './pages/RedAlertsAdmin';
+import VehicleBookingsAdmin from './pages/VehicleBookingsAdmin';
+import FoodOrdersAdmin from './pages/FoodOrdersAdmin';
 import Login from './pages/Login';
 
 const App = () => {
@@ -39,6 +43,10 @@ const App = () => {
                       <Route path="/heatmap" element={<HeatmapPage />} />
                       <Route path="/responders" element={<RespondersPage />} />
                       <Route path="/analytics" element={<AnalyticsPage />} />
+                      <Route path="/zones" element={<DangerZonesMgmt />} />
+                      <Route path="/red-alerts" element={<RedAlertsAdmin />} />
+                      <Route path="/vehicle-bookings" element={<VehicleBookingsAdmin />} />
+                      <Route path="/food-orders" element={<FoodOrdersAdmin />} />
                       <Route path="/database" element={<DatabaseMgmt />} />
                       <Route path="/settings" element={<SettingsPage />} />
                       <Route path="*" element={<Navigate to="/" replace />} />

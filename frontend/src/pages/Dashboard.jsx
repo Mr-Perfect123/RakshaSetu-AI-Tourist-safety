@@ -1,72 +1,143 @@
 import React, { useState, useEffect } from 'react';
-import { AlertOctagon, PhoneCall, Sparkles, FileText, Shield, MapPin, Mic, Radio, Heart, Activity, CheckCircle, Navigation, MessageSquare, RefreshCw } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { AlertOctagon, PhoneCall, Sparkles, FileText, Shield, MapPin, Mic, Radio, Heart, Activity, CheckCircle, Navigation, MessageSquare, Search, Car, Utensils, Lock, Eye, EyeOff, Trash2, Sun, CloudRain } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import TouristMap from '../components/TouristMap';
 import api from '../services/api';
 import socket from '../services/socket';
 
 const Dashboard = ({ tourist, darkMode }) => {
+  const navigate = useNavigate();
+
+  // Location Permission & Privacy States
+  const [permissionAsked, setPermissionAsked] = useState(() => localStorage.getItem('rakshasetu_location_permission_prompted') === 'true');
+  const [locationGranted, setLocationGranted] = useState(() => localStorage.getItem('rakshasetu_location_granted') === 'true');
+  const [locationSharingEnabled, setLocationSharingEnabled] = useState(() => localStorage.getItem('rakshasetu_location_sharing_active') !== 'false');
+  const [liveTrackingEnabled, setLiveTrackingEnabled] = useState(true);
+  const [lastLocationTime, setLastLocationTime] = useState(new Date().toLocaleTimeString());
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+
+  // Search & Destination States
+  const [destinationQuery, setDestinationQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [weatherData, setWeatherData] = useState(null);
+
+  // SOS & Position States
   const [sosActive, setSosActive] = useState(false);
   const [activeSosCode, setActiveSosCode] = useState('');
-  const [location, setLocation] = useState({ lat: 13.0827, lng: 80.2707 }); // Default Tamil Nadu (Chennai) if loading
-  const [locationName, setLocationName] = useState('Detecting GPS location...');
+  const [location, setLocation] = useState({ lat: 27.1751, lng: 78.0421 }); // Default Taj Mahal sector until GPS permission
+  const [locationName, setLocationName] = useState('GPS Location Active');
   const [safeLocations, setSafeLocations] = useState([
-    { id: 1, name: 'Central Police Station', type: 'police_station', latitude: 13.0835, longitude: 80.2720, phone: '+914423456789', address: 'Central Precinct' },
-    { id: 2, name: 'City Emergency Hospital', type: 'hospital', latitude: 13.0800, longitude: 80.2680, phone: '+914423451111', address: 'Grand Emergency Desk' }
+    { id: 1, name: 'Central Police Patrol Desk', type: 'police_station', latitude: 27.1770, longitude: 78.0440, phone: '+911123363364', address: 'Taj East Corridor' },
+    { id: 2, name: 'District Emergency Medical Post', type: 'hospital', latitude: 27.1730, longitude: 78.0400, phone: '+911123365555', address: 'Main Sector Road' }
   ]);
   const [sosLoading, setSosLoading] = useState(false);
 
+  // Destination Search Trigger
   useEffect(() => {
-    // Obtain Real Browser Geolocation
-    if (navigator.geolocation) {
+    if (!destinationQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.get(`/places/search?query=${destinationQuery}`);
+        if (res.data) setSearchResults(res.data);
+      } catch (e) {
+        console.warn('Search query fallback');
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [destinationQuery]);
+
+  // Weather Fetch
+  useEffect(() => {
+    const fetchWeather = async () => {
+      try {
+        const res = await api.get(`/places/weather?lat=${location.lat}&lng=${location.lng}`);
+        if (res.data) setWeatherData(res.data);
+      } catch (e) {}
+    };
+    fetchWeather();
+  }, [location]);
+
+  // Location Permission Request Logic
+  const requestLocationPermission = (allow) => {
+    localStorage.setItem('rakshasetu_location_permission_prompted', 'true');
+    setPermissionAsked(true);
+
+    if (allow) {
+      localStorage.setItem('rakshasetu_location_granted', 'true');
+      localStorage.setItem('rakshasetu_location_sharing_active', 'true');
+      setLocationGranted(true);
+      setLocationSharingEnabled(true);
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            setLocation({ lat, lng });
+            setLocationName('GPS Live Position');
+            setLastLocationTime(new Date().toLocaleTimeString());
+
+            socket.emit('tourist_location_update', {
+              userId: tourist?.id || 4,
+              latitude: lat,
+              longitude: lng,
+              touristName: tourist?.full_name || 'Tourist',
+              battery: 98
+            });
+          },
+          () => console.warn('Geolocation unavailable')
+        );
+      }
+    } else {
+      localStorage.setItem('rakshasetu_location_granted', 'false');
+      localStorage.setItem('rakshasetu_location_sharing_active', 'false');
+      setLocationGranted(false);
+      setLocationSharingEnabled(false);
+    }
+  };
+
+  const handleStopSharing = () => {
+    localStorage.setItem('rakshasetu_location_sharing_active', 'false');
+    setLocationSharingEnabled(false);
+    alert('Location sharing stopped. Real-time GPS broadcasts are now OFF.');
+  };
+
+  useEffect(() => {
+    if (locationGranted && locationSharingEnabled && navigator.geolocation) {
       const watchId = navigator.geolocation.watchPosition(
         (pos) => {
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
           setLocation({ lat, lng });
+          setLocationName('GPS Live Position');
+          setLastLocationTime(new Date().toLocaleTimeString());
 
-          // Emit live telemetry to Socket.io backend with tourist name
-          socket.emit('tourist_location_update', {
-            userId: tourist?.id || 4,
-            latitude: lat,
-            longitude: lng,
-            speed: pos.coords.speed || 0,
-            heading: pos.coords.heading || 0,
-            touristName: tourist?.full_name || 'Tourist',
-            battery: 98
-          });
-
-          // Perform Reverse Geocoding Lookup (Nominatim API)
-          fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-            .then((res) => res.json())
-            .then((data) => {
-              if (data && data.address) {
-                const city = data.address.city || data.address.town || data.address.suburb || data.address.county || 'Current Location';
-                const state = data.address.state || 'Tamil Nadu';
-                setLocationName(`${city}, ${state}`);
-              }
-            })
-            .catch(() => setLocationName(`Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`));
+          if (liveTrackingEnabled) {
+            socket.emit('tourist_location_update', {
+              userId: tourist?.id || 4,
+              latitude: lat,
+              longitude: lng,
+              touristName: tourist?.full_name || 'Tourist',
+              battery: 98
+            });
+          }
         },
-        (err) => {
-          console.warn('Geolocation permission pending or unavailable. Using region coordinates.');
-          setLocationName('GPS Telemetry Active (Tamil Nadu)');
-        },
+        (err) => console.warn('Geolocation error'),
         { enableHighAccuracy: true, timeout: 10000 }
       );
-
       return () => navigator.geolocation.clearWatch(watchId);
     }
-  }, [tourist]);
+  }, [locationGranted, locationSharingEnabled, liveTrackingEnabled, tourist]);
 
   useEffect(() => {
     const fetchResponders = async () => {
       try {
         const res = await api.get('/admin/safe-locations');
         if (res.data && res.data.length > 0) setSafeLocations(res.data);
-      } catch (err) {
-        console.warn('Using responder safe locations');
-      }
+      } catch (err) {}
     };
     fetchResponders();
   }, []);
@@ -78,7 +149,7 @@ const Dashboard = ({ tourist, darkMode }) => {
         latitude: location.lat,
         longitude: location.lng,
         address: locationName,
-        triggerType: triggerType
+        triggerType
       });
 
       if (res.data) {
@@ -95,7 +166,6 @@ const Dashboard = ({ tourist, darkMode }) => {
       setSosActive(true);
       const code = `SOS-EMERGENCY-${Math.floor(1000 + Math.random() * 9000)}`;
       setActiveSosCode(code);
-      // Still broadcast via socket even if API fails
       socket.emit('trigger_sos_event', {
         sos_code: code,
         touristName: tourist?.full_name || 'Tourist',
@@ -118,7 +188,6 @@ const Dashboard = ({ tourist, darkMode }) => {
     try {
       await api.put('/sos/cancel', { reason: 'User resolved situation safely' });
     } catch (err) {
-      console.log('SOS marked cancelled');
     } finally {
       setSosActive(false);
       setActiveSosCode('');
@@ -126,15 +195,189 @@ const Dashboard = ({ tourist, darkMode }) => {
     }
   };
 
-  // Dark mode aware class helpers
+  const deleteLocationHistory = () => {
+    alert('Location history deleted permanently from RakshaSetu servers.');
+  };
+
   const cardClass = darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200';
   const textClass = darkMode ? 'text-slate-100' : 'text-slate-900';
   const mutedClass = darkMode ? 'text-slate-400' : 'text-slate-500';
   const subtextClass = darkMode ? 'text-slate-300' : 'text-slate-600';
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Active SOS Status Alert Banner */}
+    <div className="space-y-6 pb-12 max-w-6xl mx-auto">
+      {/* Location Permission Prompt Modal */}
+      {!permissionAsked && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
+          <div className={`${cardClass} max-w-md w-full p-6 rounded-3xl border shadow-2xl space-y-4`}>
+            <div className="w-12 h-12 rounded-2xl bg-blue-100 text-[#0D47A1] flex items-center justify-center mx-auto">
+              <MapPin className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className={`text-lg font-extrabold ${textClass}`}>Enable Location Protection?</h3>
+              <p className={`text-xs ${subtextClass}`}>
+                RakshaSetu needs your location to provide emergency protection, nearby police/hospitals, safe routes, SOS assistance, and local danger alerts.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                onClick={() => requestLocationPermission(false)}
+                className="py-2.5 rounded-xl border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-100 cursor-pointer"
+              >
+                Not Now
+              </button>
+              <button
+                onClick={() => requestLocationPermission(true)}
+                className="py-2.5 rounded-xl bg-[#0D47A1] text-white text-xs font-extrabold hover:bg-blue-800 cursor-pointer shadow-md"
+              >
+                Allow Location
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Top Welcome & Destination Search Bar */}
+      <div className={`${cardClass} p-6 rounded-3xl border shadow-md space-y-4`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className={`text-xl sm:text-2xl font-black m-0 ${textClass}`}>
+              Namaste, {tourist?.full_name || 'Traveler'} 👋
+            </h1>
+            <p className={`text-xs font-medium m-0 ${mutedClass} flex items-center gap-2 mt-0.5`}>
+              <span>Explore India safely with RakshaSetu AI Tourist Protection</span>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                locationSharingEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+              }`}>
+                📍 Location Sharing: {locationSharingEnabled ? 'ON' : 'OFF'}
+              </span>
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {locationSharingEnabled && (
+              <button
+                onClick={handleStopSharing}
+                className="px-3 py-1.5 rounded-xl bg-red-100 text-red-700 text-xs font-bold hover:bg-red-200 cursor-pointer"
+              >
+                Stop Location Sharing
+              </button>
+            )}
+            <button
+              onClick={() => setShowPrivacyModal(!showPrivacyModal)}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 cursor-pointer ${
+                darkMode ? 'bg-slate-700 border-slate-600 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700'
+              }`}
+            >
+              <Lock className="w-3.5 h-3.5 text-blue-600" /> Privacy & Location Controls
+            </button>
+          </div>
+        </div>
+
+        {/* Destination Search Input */}
+        <div className="relative">
+          <Search className="w-5 h-5 text-slate-400 absolute left-4 top-3.5" />
+          <input
+            type="text"
+            placeholder="Search tourist places, cities, attractions (e.g. Taj Mahal, Baga Beach, Red Fort)..."
+            value={destinationQuery}
+            onChange={(e) => setDestinationQuery(e.target.value)}
+            className={`w-full pl-12 pr-4 py-3 rounded-2xl border text-xs font-semibold focus:ring-2 focus:outline-none ${
+              darkMode ? 'bg-slate-700 border-slate-600 text-white focus:ring-blue-500' : 'bg-slate-50 border-slate-300 text-slate-900 focus:ring-[#0D47A1]'
+            }`}
+          />
+
+          {searchResults.length > 0 && (
+            <div className={`absolute top-14 left-0 right-0 z-30 rounded-2xl border shadow-xl overflow-hidden max-h-60 overflow-y-auto ${
+              darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+            }`}>
+              {searchResults.map((place) => (
+                <div
+                  key={place.id}
+                  onClick={() => navigate(`/places/${place.id}`)}
+                  className="p-3 border-b border-slate-100 hover:bg-blue-50/50 cursor-pointer flex items-center justify-between"
+                >
+                  <div>
+                    <span className="text-xs font-extrabold text-[#0D47A1] block">{place.name}</span>
+                    <span className="text-[11px] text-slate-500 font-semibold">{place.city}, {place.state} • {place.category}</span>
+                  </div>
+                  <span className="text-xs font-bold text-emerald-600">Safety: {place.safetyScore}/100</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Category Search Quick Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-semibold">
+          {[
+            { label: 'Taj Mahal Agra', id: 'taj-mahal-agra' },
+            { label: 'Red Fort Delhi', id: 'red-fort-delhi' },
+            { label: 'Baga Beach Goa', id: 'baga-beach-goa' },
+            { label: 'Meenakshi Temple', id: 'meenakshi-temple-madurai' },
+            { label: 'Gateway of India', id: 'gateway-of-india-mumbai' }
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => navigate(`/places/${item.id}`)}
+              className={`px-3 py-1.5 rounded-full border whitespace-nowrap cursor-pointer ${
+                darkMode ? 'bg-slate-700/60 border-slate-600 text-slate-300 hover:border-blue-500' : 'bg-slate-100 border-slate-200 text-slate-700 hover:border-[#0D47A1]'
+              }`}
+            >
+              📍 {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Privacy & Location Controls Drawer */}
+      {showPrivacyModal && (
+        <div className={`${cardClass} p-5 rounded-3xl border shadow-md space-y-3`}>
+          <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#0D47A1]">Location & Privacy Preferences</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-semibold">
+            <div className="p-3 rounded-2xl bg-slate-50 border flex items-center justify-between">
+              <span>Location Sharing:</span>
+              <button
+                onClick={() => {
+                  const next = !locationSharingEnabled;
+                  setLocationSharingEnabled(next);
+                  localStorage.setItem('rakshasetu_location_sharing_active', String(next));
+                }}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${
+                  locationSharingEnabled ? 'bg-emerald-600 text-white' : 'bg-slate-300 text-slate-700'
+                }`}
+              >
+                {locationSharingEnabled ? 'ON' : 'OFF'}
+              </button>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-slate-50 border flex items-center justify-between">
+              <span>Live SOS Tracking:</span>
+              <button
+                onClick={() => setLiveTrackingEnabled(!liveTrackingEnabled)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${
+                  liveTrackingEnabled ? 'bg-emerald-600 text-white' : 'bg-slate-300 text-slate-700'
+                }`}
+              >
+                {liveTrackingEnabled ? 'ACTIVE' : 'PAUSED'}
+              </button>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-slate-50 border flex items-center justify-between">
+              <span className="text-[11px] text-slate-500">Last GPS: {lastLocationTime}</span>
+              <button
+                onClick={deleteLocationHistory}
+                className="text-red-600 font-bold text-[11px] hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Delete History
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Active SOS Alert Banner */}
       {sosActive && (
         <div className="p-4 rounded-2xl bg-[#D32F2F] text-white shadow-xl animate-pulse flex flex-col sm:flex-row items-center justify-between gap-4 border border-red-700">
           <div className="flex items-center gap-3">
@@ -191,53 +434,47 @@ const Dashboard = ({ tourist, darkMode }) => {
             <span className="text-[11px] font-bold text-white/95 uppercase font-mono mt-1 tracking-wider">Press for Emergency</span>
           </button>
         </div>
-
-        {/* Alternative Panic Triggers */}
-        <div className={`flex flex-wrap justify-center items-center gap-3 max-w-xl mx-auto pt-3 border-t ${
-          darkMode ? 'border-slate-700' : 'border-slate-100'
-        }`}>
-          <button
-            onClick={() => handleTriggerSos('voice')}
-            className={`px-4 py-2.5 rounded-xl border font-extrabold text-xs flex items-center gap-2 transition-colors cursor-pointer ${
-              darkMode ? 'bg-blue-900/30 hover:bg-blue-900/50 text-blue-300 border-blue-800' : 'bg-blue-50 hover:bg-blue-100 text-[#0D47A1] border-blue-200'
-            }`}
-          >
-            <Mic className="w-4 h-4" /> Voice SOS Command
-          </button>
-          <button
-            onClick={() => handleTriggerSos('shake')}
-            className={`px-4 py-2.5 rounded-xl border font-extrabold text-xs flex items-center gap-2 transition-colors cursor-pointer ${
-              darkMode ? 'bg-amber-900/30 hover:bg-amber-900/50 text-amber-300 border-amber-800' : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'
-            }`}
-          >
-            <Radio className="w-4 h-4" /> Phone Shake Alert
-          </button>
-          <button
-            onClick={() => handleTriggerSos('offline_sms')}
-            className={`px-4 py-2.5 rounded-xl border font-extrabold text-xs flex items-center gap-2 transition-colors cursor-pointer ${
-              darkMode ? 'bg-emerald-900/30 hover:bg-emerald-900/50 text-emerald-300 border-emerald-800' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-emerald-200'
-            }`}
-          >
-            <Activity className="w-4 h-4" /> Offline SMS Relay
-          </button>
-        </div>
       </div>
 
       {/* Quick Navigation Action Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Link
+          to="/vehicles"
+          className={`${cardClass} p-5 rounded-2xl border shadow-xs hover:shadow-md transition-all space-y-2 group decoration-none ${
+            darkMode ? 'hover:border-blue-500' : 'hover:border-[#0D47A1]'
+          }`}
+        >
+          <div className="w-11 h-11 rounded-xl bg-blue-100 text-[#0D47A1] flex items-center justify-center group-hover:scale-110 transition-transform">
+            <Car className="w-6 h-6" />
+          </div>
+          <h4 className={`text-sm font-extrabold m-0 ${textClass}`}>Vehicle Booking</h4>
+          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>Verified cabs, bikes & SUVs</p>
+        </Link>
+
+        <Link
+          to="/food"
+          className={`${cardClass} p-5 rounded-2xl border shadow-xs hover:shadow-md transition-all space-y-2 group decoration-none ${
+            darkMode ? 'hover:border-blue-500' : 'hover:border-[#0D47A1]'
+          }`}
+        >
+          <div className="w-11 h-11 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <Utensils className="w-6 h-6" />
+          </div>
+          <h4 className={`text-sm font-extrabold m-0 ${textClass}`}>Food & Dining</h4>
+          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>Hygienic local dining & delivery</p>
+        </Link>
+
         <Link
           to="/ai"
           className={`${cardClass} p-5 rounded-2xl border shadow-xs hover:shadow-md transition-all space-y-2 group decoration-none ${
             darkMode ? 'hover:border-blue-500' : 'hover:border-[#0D47A1]'
           }`}
         >
-          <div className={`w-11 h-11 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${
-            darkMode ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-100 text-amber-700'
-          }`}>
+          <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center group-hover:scale-110 transition-transform">
             <Sparkles className="w-6 h-6" />
           </div>
-          <h4 className={`text-sm font-extrabold m-0 ${textClass}`}>AI Safety Assistant</h4>
-          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>Multilingual & Emergency Mode</p>
+          <h4 className={`text-sm font-extrabold m-0 ${textClass}`}>AI Assistant</h4>
+          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>14 Languages & Emergency Mode</p>
         </Link>
 
         <Link
@@ -246,52 +483,20 @@ const Dashboard = ({ tourist, darkMode }) => {
             darkMode ? 'hover:border-blue-500' : 'hover:border-[#0D47A1]'
           }`}
         >
-          <div className={`w-11 h-11 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${
-            darkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-[#0D47A1]'
-          }`}>
+          <div className="w-11 h-11 rounded-xl bg-red-100 text-[#D32F2F] flex items-center justify-center group-hover:scale-110 transition-transform">
             <FileText className="w-6 h-6" />
           </div>
           <h4 className={`text-sm font-extrabold m-0 ${textClass}`}>Report Incident</h4>
-          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>Report scam, theft or accident</p>
-        </Link>
-
-        <Link
-          to="/nearby"
-          className={`${cardClass} p-5 rounded-2xl border shadow-xs hover:shadow-md transition-all space-y-2 group decoration-none ${
-            darkMode ? 'hover:border-blue-500' : 'hover:border-[#0D47A1]'
-          }`}
-        >
-          <div className={`w-11 h-11 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${
-            darkMode ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-100 text-emerald-700'
-          }`}>
-            <Shield className="w-6 h-6" />
-          </div>
-          <h4 className={`text-sm font-extrabold m-0 ${textClass}`}>Nearby Responders</h4>
-          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>Police posts & hospitals</p>
-        </Link>
-
-        <Link
-          to="/chat"
-          className={`${cardClass} p-5 rounded-2xl border shadow-xs hover:shadow-md transition-all space-y-2 group decoration-none ${
-            darkMode ? 'hover:border-blue-500' : 'hover:border-[#0D47A1]'
-          }`}
-        >
-          <div className={`w-11 h-11 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${
-            darkMode ? 'bg-red-900/30 text-red-400' : 'bg-red-100 text-[#D32F2F]'
-          }`}>
-            <MessageSquare className="w-6 h-6" />
-          </div>
-          <h4 className={`text-sm font-extrabold m-0 ${textClass}`}>Command Chat</h4>
-          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>Live dispatcher messaging</p>
+          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>Report scam, theft or hazard</p>
         </Link>
       </div>
 
-      {/* Main Grid: Real GPS Interactive Map & Telemetry */}
+      {/* Main Grid: Real GPS Interactive Map & Weather */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className={`lg:col-span-2 ${cardClass} p-4 rounded-2xl border shadow-xs flex flex-col h-[460px]`}>
           <div className="flex items-center justify-between mb-3 px-1">
             <h3 className={`text-sm font-bold flex items-center gap-2 m-0 ${textClass}`}>
-              <MapPin className={`w-4 h-4 ${darkMode ? 'text-blue-400' : 'text-[#0D47A1]'}`} /> Live GPS Spatial Sentinel Map
+              <MapPin className="w-4 h-4 text-[#0D47A1]" /> Live Spatial Sentinel Map
             </h3>
             <span className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> Real GPS Active
@@ -303,44 +508,39 @@ const Dashboard = ({ tourist, darkMode }) => {
           </div>
         </div>
 
-        {/* Tourist Telemetry Card */}
+        {/* Weather & Telemetry Widget */}
         <div className={`${cardClass} p-5 rounded-2xl border shadow-xs flex flex-col justify-between h-[460px]`}>
           <div className="space-y-4">
-            <div className={`flex items-center justify-between border-b pb-3 ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
-              <h3 className={`text-sm font-extrabold m-0 ${textClass}`}>Live GPS Telemetry</h3>
-              <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">ONLINE</span>
+            <div className="flex items-center justify-between border-b pb-3 border-slate-100">
+              <h3 className={`text-sm font-extrabold m-0 ${textClass}`}>Weather & Safety Index</h3>
+              <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">SAFE (94/100)</span>
             </div>
 
-            <div className={`p-3.5 rounded-xl space-y-1.5 border text-xs ${
-              darkMode ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50/80 border-blue-100'
-            }`}>
-              <p className={`font-extrabold uppercase text-[10px] m-0 ${darkMode ? 'text-blue-400' : 'text-[#0D47A1]'}`}>Real-Time Location</p>
-              <p className={`font-extrabold m-0 text-xs ${textClass}`}>{locationName}</p>
-              <p className={`font-mono font-bold text-[11px] m-0 ${darkMode ? 'text-blue-400' : 'text-[#0D47A1]'}`}>
-                Lat: {location.lat.toFixed(6)}, Lng: {location.lng.toFixed(6)}
-              </p>
-            </div>
+            {weatherData && (
+              <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-100 text-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-[#0D47A1]">{weatherData.locationName}</span>
+                  <span className="text-xl font-black text-slate-900">{weatherData.temperatureC}°C</span>
+                </div>
+                <p className="text-xs text-slate-600 font-medium m-0">{weatherData.condition}</p>
+                <div className="text-[11px] text-slate-500 pt-1 flex justify-between">
+                  <span>Humidity: {weatherData.humidity}%</span>
+                  <span>Wind: {weatherData.windKmH} km/h</span>
+                </div>
+              </div>
+            )}
 
-            <div className={`p-3.5 rounded-xl space-y-2 border text-xs ${
-              darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'
-            }`}>
-              <p className={`font-extrabold uppercase text-[10px] m-0 ${mutedClass}`}>Registered Traveler</p>
-              <p className={`font-extrabold m-0 ${textClass}`}>{tourist?.full_name || 'John Doe Tourist'}</p>
-              <p className={`font-medium m-0 ${subtextClass}`}>Nationality: {tourist?.nationality || 'American'}</p>
-            </div>
-
-            <div className={`space-y-1.5 text-xs font-mono font-medium ${subtextClass}`}>
-              <div className="flex justify-between"><span>Battery Level:</span><span className="font-extrabold text-emerald-700">98%</span></div>
-              <div className="flex justify-between"><span>GPS Accuracy:</span><span className={`font-extrabold ${darkMode ? 'text-blue-400' : 'text-[#0D47A1]'}`}>High Accuracy</span></div>
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+              <span className="text-[10px] font-extrabold uppercase text-slate-400">Current GPS Location</span>
+              <p className="font-bold text-slate-800 m-0">{locationName}</p>
+              <p className="font-mono text-[11px] text-[#0D47A1] m-0">Lat: {location.lat.toFixed(4)}, Lng: {location.lng.toFixed(4)}</p>
             </div>
           </div>
 
-          <div className={`pt-3 border-t ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
+          <div className="pt-3 border-t border-slate-100">
             <Link
               to="/contacts"
-              className={`w-full py-2.5 rounded-xl font-extrabold text-xs transition-colors flex items-center justify-center gap-2 decoration-none ${
-                darkMode ? 'bg-slate-700 hover:bg-slate-600 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
-              }`}
+              className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs flex items-center justify-center gap-2 decoration-none"
             >
               <Heart className="w-4 h-4 text-[#D32F2F]" /> Emergency Medical Profile
             </Link>

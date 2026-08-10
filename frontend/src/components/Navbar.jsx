@@ -1,10 +1,8 @@
 import React from 'react';
-import { Shield, Bell, User, PhoneCall, Sparkles, LogOut, MessageSquare, Sun, Moon } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Shield, PhoneCall, Sparkles, LogOut, Sun, Moon, Car, Utensils, Compass } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Navbar = ({ tourist, onLogout, darkMode, toggleDarkMode }) => {
-  const navigate = useNavigate();
-
   return (
     <header className={`sticky top-0 z-40 backdrop-blur-md border-b px-4 md:px-8 py-3.5 flex items-center justify-between shadow-xs transition-colors duration-300 ${
       darkMode ? 'bg-slate-900/95 border-slate-700' : 'bg-white/95 border-slate-200'
@@ -27,11 +25,39 @@ const Navbar = ({ tourist, onLogout, darkMode, toggleDarkMode }) => {
         </div>
       </Link>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3">
+        {/* Navigation Quick Links */}
+        <Link
+          to="/vehicles"
+          className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1 transition-all ${
+            darkMode ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+          }`}
+        >
+          <Car className="w-3.5 h-3.5 text-blue-600" /> Rides
+        </Link>
+
+        <Link
+          to="/food"
+          className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1 transition-all ${
+            darkMode ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+          }`}
+        >
+          <Utensils className="w-3.5 h-3.5 text-amber-500" /> Food
+        </Link>
+
+        <Link
+          to="/ai"
+          className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1 transition-all ${
+            darkMode ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-amber-500" /> AI Sentinel
+        </Link>
+
         {/* Dark/Light Mode Toggle */}
         <button
           onClick={toggleDarkMode}
-          className={`theme-toggle-btn p-2.5 rounded-xl transition-all duration-300 cursor-pointer ${
+          className={`p-2.5 rounded-xl transition-all duration-300 cursor-pointer ${
             darkMode
               ? 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 border border-amber-500/30'
               : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
@@ -41,11 +67,9 @@ const Navbar = ({ tourist, onLogout, darkMode, toggleDarkMode }) => {
           {darkMode ? <Sun className="w-4.5 h-4.5" /> : <Moon className="w-4.5 h-4.5" />}
         </button>
 
-
-
         <a
           href="tel:112"
-          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-danger/10 text-danger border border-danger/20 font-bold text-xs hover:bg-danger hover:text-white transition-all"
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#D32F2F]/10 text-[#D32F2F] border border-[#D32F2F]/20 font-bold text-xs hover:bg-[#D32F2F] hover:text-white transition-all"
         >
           <PhoneCall className="w-3.5 h-3.5" /> Call 112
         </a>
@@ -70,8 +94,8 @@ const Navbar = ({ tourist, onLogout, darkMode, toggleDarkMode }) => {
 
         <button
           onClick={onLogout}
-          className={`p-2 rounded-xl transition-colors ${
-            darkMode ? 'text-slate-500 hover:text-red-400 hover:bg-slate-800' : 'text-slate-400 hover:text-danger hover:bg-slate-100'
+          className={`p-2 rounded-xl transition-colors cursor-pointer ${
+            darkMode ? 'text-slate-500 hover:text-red-400 hover:bg-slate-800' : 'text-slate-400 hover:text-red-600 hover:bg-slate-100'
           }`}
           title="Logout"
         >
