@@ -1,0 +1,22 @@
+{
+  "name": "rakshasetu-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Enterprise AI Powered Tourist Protection & Emergency Response System Monorepo",
+  "scripts": {
+    "setup": "node database/migration_runner.js",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:admin": "cd admin-dashboard && npm run dev",
+    "dev:tourist": "cd backend/frontend && npm run dev",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:admin\" \"npm run dev:tourist\"",
+    "build:admin": "cd admin-dashboard && npm run build",
+    "build:tourist": "cd backend/frontend && npm run build",
+    "build": "npm run build:admin && npm run build:tourist",
+    "test": "cd backend && node test_api_runner.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "author": "RakshaSetu Engineering Team",
+  "license": "MIT"
+}

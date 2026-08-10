@@ -1,0 +1,55 @@
+name: RakshaSetu Enterprise CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: Karan@skcet23
+          MYSQL_DATABASE: rakshasetu_db
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20.x
+        cache: 'npm'
+
+    - name: Install Monorepo Dependencies
+      run: npm install
+
+    - name: Run Database Migrations & Auto-Installer
+      run: node database/migration_runner.js
+      env:
+        DB_HOST: 127.0.0.1
+        DB_USER: root
+        DB_PASSWORD: Karan@skcet23
+        DB_NAME: rakshasetu_db
+
+    - name: Run API Pipeline Tests
+      run: cd backend && npm install && node test_api_runner.js
+      env:
+        DB_HOST: 127.0.0.1
+        DB_USER: root
+        DB_PASSWORD: Karan@skcet23
+        DB_NAME: rakshasetu_db
+
+    - name: Build Admin Command Center Web App
+      run: cd admin-dashboard && npm install && npm run build
+
+    - name: Build Tourist Protection Web App
+      run: cd backend/frontend && npm install && npm run build

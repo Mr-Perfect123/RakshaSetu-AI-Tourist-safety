@@ -1,0 +1,263 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #0D47A1;
+  --color-secondary: #1565C0;
+  --color-danger: #D32F2F;
+  --color-success: #2E7D32;
+  --color-warning: #F57C00;
+  --color-bgMain: #F5F7FA;
+}
+
+:root {
+  --primary: #0D47A1;
+  --secondary: #1565C0;
+  --danger: #D32F2F;
+  --success: #2E7D32;
+  --warning: #F57C00;
+  --bg: #F5F7FA;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #F8FAFC;
+  --bg-input: #FFFFFF;
+  --bg-nav: rgba(255, 255, 255, 0.95);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --border-color: #e2e8f0;
+  --border-light: #f1f5f9;
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* ======== DARK MODE THEME ======== */
+.dark {
+  --primary: #60a5fa;
+  --secondary: #3b82f6;
+  --danger: #ef4444;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --bg: #0f172a;
+  --bg-card: #1e293b;
+  --bg-card-hover: #334155;
+  --bg-input: #1e293b;
+  --bg-nav: rgba(15, 23, 42, 0.95);
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border-color: #334155;
+  --border-light: #1e293b;
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Color Fallback Utilities for Tailwind Compatibility */
+.bg-danger { background-color: #D32F2F !important; }
+.text-danger { color: #D32F2F !important; }
+.border-danger { border-color: #D32F2F !important; }
+
+.bg-primary { background-color: #0D47A1 !important; }
+.text-primary { color: #0D47A1 !important; }
+.border-primary { border-color: #0D47A1 !important; }
+
+/* Dark mode override for primary/danger text colors */
+.dark .text-primary { color: #60a5fa !important; }
+.dark .bg-primary { background-color: #2563eb !important; }
+.dark .text-danger { color: #ef4444 !important; }
+
+/* ======== DARK MODE: Global component overrides ======== */
+
+/* Cards and surfaces */
+.dark .bg-white {
+  background-color: var(--bg-card) !important;
+}
+.dark .bg-\[\#F5F7FA\] {
+  background-color: var(--bg) !important;
+}
+
+/* Text colors */
+.dark .text-slate-900,
+.dark .text-slate-800 {
+  color: #f1f5f9 !important;
+}
+.dark .text-slate-700 {
+  color: #cbd5e1 !important;
+}
+.dark .text-slate-600 {
+  color: #94a3b8 !important;
+}
+.dark .text-slate-500 {
+  color: #64748b !important;
+}
+.dark .text-slate-400 {
+  color: #64748b !important;
+}
+
+/* Border colors */
+.dark .border-slate-200,
+.dark .border-slate-100 {
+  border-color: #334155 !important;
+}
+.dark .border-slate-300 {
+  border-color: #475569 !important;
+}
+
+/* Background tints */
+.dark .bg-slate-50,
+.dark .bg-slate-100 {
+  background-color: #1e293b !important;
+}
+.dark .bg-slate-200 {
+  background-color: #334155 !important;
+}
+
+/* Colored accent backgrounds (keep hue, darken) */
+.dark .bg-blue-50,
+.dark .bg-blue-100 {
+  background-color: rgba(37, 99, 235, 0.15) !important;
+}
+.dark .bg-red-50,
+.dark .bg-red-100 {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+}
+.dark .bg-emerald-50,
+.dark .bg-emerald-100 {
+  background-color: rgba(34, 197, 94, 0.15) !important;
+}
+.dark .bg-amber-50,
+.dark .bg-amber-100 {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+}
+
+/* Text accent colors - keep them vibrant in dark mode */
+.dark .text-\[\#0D47A1\] {
+  color: #60a5fa !important;
+}
+.dark .text-blue-800 {
+  color: #93c5fd !important;
+}
+.dark .text-emerald-700,
+.dark .text-emerald-800 {
+  color: #4ade80 !important;
+}
+.dark .text-amber-700,
+.dark .text-amber-900 {
+  color: #fbbf24 !important;
+}
+
+/* Navbar */
+.dark .bg-white\/95 {
+  background-color: rgba(15, 23, 42, 0.95) !important;
+}
+
+/* Inputs */
+.dark input,
+.dark select,
+.dark textarea {
+  color: #f1f5f9 !important;
+  background-color: #1e293b !important;
+  border-color: #475569 !important;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748b !important;
+}
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+  border-color: #3b82f6 !important;
+}
+
+/* Enforce crisp dark text contrast on all inputs and textareas in light mode */
+:not(.dark) input,
+:not(.dark) select,
+:not(.dark) textarea {
+  color: #0f172a !important;
+  background-color: #ffffff;
+}
+
+:not(.dark) input::placeholder,
+:not(.dark) textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* Dropdown select in dark mode */
+.dark select option {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+}
+
+/* Chat bubbles - ai response in dark mode */
+.dark .bg-slate-100.rounded-tl-none {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+/* Blue section backgrounds */
+.dark .bg-blue-50\/80 {
+  background-color: rgba(37, 99, 235, 0.12) !important;
+}
+
+/* Glass card */
+.glass-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-card);
+}
+
+.sos-button-pulse {
+  box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.7);
+  animation: sosPulse 1.8s infinite;
+}
+
+@keyframes sosPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.8);
+  }
+  70% {
+    box-shadow: 0 0 0 24px rgba(211, 47, 47, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(211, 47, 47, 0);
+  }
+}
+
+/* ======== DARK MODE TRANSITION ======== */
+.dark-transition,
+.dark-transition * {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
+}
+
+/* Theme toggle button animation */
+.theme-toggle-btn {
+  transition: transform 0.3s ease, background-color 0.3s ease;
+}
+.theme-toggle-btn:hover {
+  transform: rotate(30deg) scale(1.1);
+}
+
+/* Scrollbar styling for dark mode */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+}
+.dark ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Map container fix for dark mode */
+.dark .leaflet-tile-pane {
+  filter: brightness(0.8) contrast(1.1) saturate(0.8);
+}
