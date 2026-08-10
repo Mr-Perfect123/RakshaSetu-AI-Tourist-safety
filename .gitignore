@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 **/node_modules/
+.pnpm-store/
 
 # Environment variables & secrets
 .env
@@ -19,11 +20,14 @@ dist-ssr/
 **/dist-ssr/
 out/
 **/out/
+.next/
+.nuxt/
 
 # Mobile / Expo / Android / iOS
 .expo/
 **/.expo/
 .expo-shared/
+web-build/
 **/web-build/
 
 # IDE & Editor files
@@ -35,6 +39,9 @@ out/
 *.ntvs*
 *.njsproj
 *.sln
+.gemini/
+.brain/
+.claude/
 
 # Logs & Temporary files
 logs/
@@ -46,10 +53,21 @@ pnpm-debug.log*
 lerna-debug.log*
 tmp/
 temp/
+.cache/
+**/node_modules/.cache/
+.vite/
+**/node_modules/.vite/
 .DS_Store
 Thumbs.db
+*.tmp
+*.bak
 
-# Storage / Uploads (keep directory structure if needed)
+# Testing & Coverage
+coverage/
+**/coverage/
+.nyc_output/
+
+# Storage & Uploads
 backend/uploads/*
 !backend/uploads/.gitkeep
 uploads/
