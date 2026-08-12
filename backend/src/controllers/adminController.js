@@ -31,6 +31,41 @@ class AdminController {
     return res.status(200).json(new ApiResponse(200, stats, 'Admin command center statistics fetched.'));
   });
 
+  /**
+   * Get Real Tourist User Roster with Identity & Location Consent Badges
+   */
+  static getTouristsRoster = asyncHandler(async (req, res) => {
+    const { search, page = 1, limit = 50 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    let sql = `
+      SELECT u.id, u.full_name, u.email, u.phone, u.gender, u.nationality, u.passport_number,
+             u.profile_image, u.profile_image_path, u.status, u.is_verified,
+             u.email_verified, u.phone_verified, u.id_type, u.id_number, u.id_proof_url,
+             u.id_verification_status, u.latitude, u.longitude, u.last_active_at, u.created_at,
+             lp.location_sharing_active,
+             th.blood_group, th.emergency_notes
+      FROM users u
+      LEFT JOIN location_permissions lp ON u.id = lp.user_id
+      LEFT JOIN tourist_health th ON u.id = th.user_id
+      WHERE u.role = 'Tourist'
+    `;
+    const params = [];
+
+    if (search) {
+      sql += ` AND (u.full_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?)`;
+      const s = `%${search}%`;
+      params.push(s, s, s);
+    }
+
+    sql += ` ORDER BY u.id DESC LIMIT ? OFFSET ?`;
+    params.push(parseInt(limit), offset);
+
+    const tourists = await executeQuery(sql, params);
+
+    return res.status(200).json(new ApiResponse(200, tourists, 'Tourist user roster fetched.'));
+  });
+
   static getAllUsers = asyncHandler(async (req, res) => {
     const { role, search, page = 1, limit = 50 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -38,6 +73,9 @@ class AdminController {
     return res.status(200).json(new ApiResponse(200, users, 'Users retrieved successfully.'));
   });
 
+  /**
+   * Get Complete Tourist Profile (Identity, Health, Emergency Contacts, Location Privacy & SOS)
+   */
   static getTouristDetails = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const user = await User.findById(id);
@@ -46,16 +84,87 @@ class AdminController {
       return res.status(404).json(new ApiResponse(404, null, 'Tourist not found.'));
     }
 
+    const healthRows = await executeQuery(`SELECT * FROM tourist_health WHERE user_id = ? LIMIT 1`, [id]);
+    const docRows = await executeQuery(`SELECT * FROM tourist_documents WHERE user_id = ? ORDER BY id DESC`, [id]);
     const contacts = await EmergencyContact.findByUserId(id);
+    const permRows = await executeQuery(`SELECT * FROM location_permissions WHERE user_id = ? LIMIT 1`, [id]);
     const userSos = (await SosRequest.findAll()).filter(s => s.user_id === parseInt(id, 10));
 
     const fullProfile = {
       ...user,
+      health: healthRows[0] || null,
+      identity_documents: docRows || [],
       emergency_contacts: contacts,
+      location_permission: permRows[0] || null,
       sos_history: userSos
     };
 
     return res.status(200).json(new ApiResponse(200, fullProfile, 'Tourist complete record fetched.'));
+  });
+
+  /**
+   * Admin Approve Tourist Government ID
+   */
+  static approveTouristId = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const adminId = req.user.id;
+
+    await executeQuery(`UPDATE users SET id_verification_status = 'approved' WHERE id = ?`, [id]);
+    await executeQuery(
+      `UPDATE tourist_documents SET verification_status = 'approved', reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE user_id = ?`,
+      [adminId, id]
+    );
+
+    return res.status(200).json(new ApiResponse(200, { id, status: 'approved' }, 'Tourist ID verification APPROVED.'));
+  });
+
+  /**
+   * Admin Reject Tourist Government ID
+   */
+  static rejectTouristId = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { rejection_reason = 'Illegible or invalid government document.' } = req.body;
+    const adminId = req.user.id;
+
+    await executeQuery(`UPDATE users SET id_verification_status = 'rejected', id_rejection_reason = ? WHERE id = ?`, [rejection_reason, id]);
+    await executeQuery(
+      `UPDATE tourist_documents SET verification_status = 'rejected', rejection_reason = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE user_id = ?`,
+      [rejection_reason, adminId, id]
+    );
+
+    return res.status(200).json(new ApiResponse(200, { id, status: 'rejected', rejection_reason }, 'Tourist ID verification REJECTED.'));
+  });
+
+  /**
+   * Admin Dispatch Location Request to Tourist
+   */
+  static requestLiveLocation = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const adminId = req.user.id;
+    const { message = 'RakshaSetu Admin is requesting your live location for safety monitoring.' } = req.body;
+
+    const result = await executeQuery(
+      `INSERT INTO location_requests (user_id, requested_by, message, status) VALUES (?, ?, ?, 'pending')`,
+      [id, adminId, message]
+    );
+
+    return res.status(200).json(
+      new ApiResponse(200, { requestId: result.insertId, user_id: id, status: 'pending' }, 'Location sharing request transmitted to tourist.')
+    );
+  });
+
+  /**
+   * Get Location Sharing Requests History
+   */
+  static getLocationRequests = asyncHandler(async (req, res) => {
+    const requests = await executeQuery(
+      `SELECT lr.*, u.full_name as tourist_name, a.full_name as admin_name
+       FROM location_requests lr
+       JOIN users u ON lr.user_id = u.id
+       JOIN users a ON lr.requested_by = a.id
+       ORDER BY lr.id DESC`
+    );
+    return res.status(200).json(new ApiResponse(200, requests, 'Location requests history fetched.'));
   });
 
   static seedDemoTourists = asyncHandler(async (req, res) => {
@@ -156,6 +265,16 @@ class AdminController {
        ORDER BY fo.id DESC`
     );
     return res.status(200).json(new ApiResponse(200, orders, 'Admin food orders monitoring fetched.'));
+  });
+
+  static getTravelBookings = asyncHandler(async (req, res) => {
+    const bookings = await executeQuery(
+      `SELECT tb.*, u.full_name as tourist_name, u.email as tourist_email, u.phone as tourist_phone
+       FROM travel_bookings tb
+       LEFT JOIN users u ON tb.user_id = u.id
+       ORDER BY tb.id DESC`
+    );
+    return res.status(200).json(new ApiResponse(200, bookings, 'Admin travel bookings audit fetched.'));
   });
 }
 

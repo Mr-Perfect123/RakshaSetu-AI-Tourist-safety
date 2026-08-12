@@ -51,7 +51,12 @@ api.interceptors.response.use(
         }
       }
     }
-    return Promise.reject(error.response?.data || error.message);
+    const errorData = error.response?.data;
+    const message = (typeof errorData === 'object' && errorData?.message) || (typeof errorData === 'string' && errorData) || error.message || 'Bad Request (400)';
+    const customError = new Error(typeof message === 'string' ? message : JSON.stringify(message));
+    customError.response = error.response;
+    customError.data = errorData;
+    return Promise.reject(customError);
   }
 );
 

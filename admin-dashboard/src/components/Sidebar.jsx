@@ -14,7 +14,8 @@ import {
   AlertTriangle,
   Car,
   Utensils,
-  ShieldAlert
+  ShieldAlert,
+  Ticket
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -26,6 +27,7 @@ const Sidebar = () => {
     { name: 'Incident Reports', path: '/incidents', icon: FileText },
     { name: 'Danger & Hazard Zones', path: '/zones', icon: AlertTriangle },
     { name: 'Vehicle Bookings', path: '/vehicle-bookings', icon: Car },
+    { name: 'Travel Bookings', path: '/travel-bookings', icon: Ticket },
     { name: 'Food Orders', path: '/food-orders', icon: Utensils },
     { name: 'Crime Risk Heatmap', path: '/heatmap', icon: Flame },
     { name: 'Tourist User Roster', path: '/users', icon: Users },

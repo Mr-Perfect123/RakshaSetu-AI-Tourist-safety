@@ -16,10 +16,11 @@ import DangerZonesMgmt from './pages/DangerZonesMgmt';
 import RedAlertsAdmin from './pages/RedAlertsAdmin';
 import VehicleBookingsAdmin from './pages/VehicleBookingsAdmin';
 import FoodOrdersAdmin from './pages/FoodOrdersAdmin';
+import TravelBookingsAdmin from './pages/TravelBookingsAdmin';
 import Login from './pages/Login';
 
 const App = () => {
-  const token = localStorage.getItem('rakshasetu_token') || 'demo_token';
+  const token = localStorage.getItem('rakshasetu_token') || localStorage.getItem('token') || 'demo_token';
 
   return (
     <BrowserRouter>
@@ -46,6 +47,7 @@ const App = () => {
                       <Route path="/zones" element={<DangerZonesMgmt />} />
                       <Route path="/red-alerts" element={<RedAlertsAdmin />} />
                       <Route path="/vehicle-bookings" element={<VehicleBookingsAdmin />} />
+                      <Route path="/travel-bookings" element={<TravelBookingsAdmin />} />
                       <Route path="/food-orders" element={<FoodOrdersAdmin />} />
                       <Route path="/database" element={<DatabaseMgmt />} />
                       <Route path="/settings" element={<SettingsPage />} />

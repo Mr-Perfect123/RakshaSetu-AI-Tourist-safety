@@ -24,9 +24,16 @@ const initializeSocket = (io) => {
       }
     });
 
-    // Real-time GPS Breadcrumb Tracking from Tourist App
+    // Real-time GPS Breadcrumb Tracking from Tourist App (Privacy-Controlled)
     socket.on('tourist_location_update', (data) => {
-      const { userId, latitude, longitude, speed, heading, touristName } = data;
+      const { userId, latitude, longitude, speed, heading, touristName, locationSharingEnabled = true, isSosActive = false } = data;
+
+      // DO NOT broadcast or track if tourist disabled location sharing AND no active SOS emergency
+      if (!locationSharingEnabled && !isSosActive) {
+        liveTouristLocations.delete(userId);
+        io.to('admin_dispatch').emit('tourist_location_sharing_stopped', { userId, touristName });
+        return;
+      }
 
       // Store latest position in-memory
       liveTouristLocations.set(userId, {
@@ -37,6 +44,8 @@ const initializeSocket = (io) => {
         heading: heading || 0,
         touristName: touristName || `Tourist #${userId}`,
         socketId: socket.id,
+        locationSharingEnabled,
+        isSosActive,
         timestamp: new Date().toISOString()
       });
 
@@ -48,6 +57,8 @@ const initializeSocket = (io) => {
         speed: speed || 0,
         heading: heading || 0,
         touristName: touristName || `Tourist #${userId}`,
+        locationSharingEnabled,
+        isSosActive,
         timestamp: new Date().toISOString()
       });
     });

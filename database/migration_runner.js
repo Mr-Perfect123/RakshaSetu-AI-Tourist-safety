@@ -82,8 +82,24 @@ const runMigrations = async () => {
       if (!executedMigrations.has(file)) {
         console.log(`[Auto-Installer] Executing migration: ${file}...`);
         const filePath = path.join(migrationsDir, file);
-        const sql = fs.readFileSync(filePath, 'utf8');
-        await connection.query(sql);
+        const rawSql = fs.readFileSync(filePath, 'utf8');
+        const statements = rawSql
+          .split(';')
+          .map(s => s.trim())
+          .filter(s => s.length > 0 && !s.startsWith('--'));
+
+        for (const stmt of statements) {
+          try {
+            await connection.query(stmt);
+          } catch (stmtErr) {
+            // Ignore duplicate column (1060), duplicate key (1061), or table exists (1050) errors
+            if ([1060, 1061, 1050].includes(stmtErr.errno)) {
+              console.log(`[Auto-Installer Note] ${stmtErr.message}`);
+            } else {
+              throw stmtErr;
+            }
+          }
+        }
         await connection.query(`INSERT INTO schema_migrations (migration_name) VALUES (?)`, [file]);
         executedCount++;
       }

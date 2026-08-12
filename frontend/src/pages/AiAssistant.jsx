@@ -3,18 +3,107 @@ import { Sparkles, Send, Mic, Volume2, Globe, AlertOctagon, Phone, Shield, MapPi
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
+const LANGUAGE_TRANSLATIONS = {
+  English: {
+    welcome: 'Namaste! I am RakshaSetu AI, your multilingual tourist protection assistant. How can I help secure your journey today?',
+    placeholder: 'Ask RakshaSetu AI in English...',
+    quickQuestions: [
+      "Is this place safe?",
+      "What are the danger zones nearby?",
+      "Is it raining in Coimbatore?",
+      "Which route is safest?",
+      "Find a nearby hospital",
+      "Find police station",
+      "What should I do if I am lost?",
+      "I need medical help emergency"
+    ]
+  },
+  Hindi: {
+    welcome: 'नमस्ते! मैं रक्षासेतु एआई हूँ, आपका बहुभाषी पर्यटक सुरक्षा सहायक। आज आपकी यात्रा को सुरक्षित बनाने में मैं कैसे मदद कर सकता हूँ?',
+    placeholder: 'हिंदी में रक्षासेतु एआई से पूछें...',
+    quickQuestions: [
+      "क्या यह जगह सुरक्षित है?",
+      "पास में कौन से खतरे के क्षेत्र हैं?",
+      "क्या कोयंबटूर में बारिश हो रही है?",
+      "कौन सा रास्ता सबसे सुरक्षित है?",
+      "पास का अस्पताल ढूंढें",
+      "पुलिस स्टेशन ढूंढें",
+      "यदि मैं खो जाऊं तो मुझे क्या करना चाहिए?",
+      "मुझे आपातकालीन चिकित्सा सहायता चाहिए"
+    ]
+  },
+  Tamil: {
+    welcome: 'வணக்கம்! நான் ரக்ஷாசேது AI, உங்கள் பலமொழி சுற்றுலாப் பாதுகாப்பு உதவியாளர். இன்று உங்கள் பயணத்தைப் பாதுகாப்பாக வைக்க நான் எவ்வாறு உதவ முடியும்?',
+    placeholder: 'தமிழில் ரக்ஷாசேது AI இடம் கேட்கவும்...',
+    quickQuestions: [
+      "இந்த இடம் பாதுகாப்பானதா?",
+      "அருகிலுள்ள ஆபத்தான பகுதிகள் எவை?",
+      "கோயம்புத்தூரில் மழை பெய்கிறதா?",
+      "எந்த பாதை மிகவும் பாதுகாப்பானது?",
+      "அருகிலுள்ள மருத்துவமனையைக் கண்டறியவும்",
+      "காவல் நிலையத்தைக் கண்டறியவும்",
+      "நான் வழி தவறினால் என்ன செய்ய வேண்டும்?",
+      "எனக்கு அவசர மருத்துவ உதவி தேவை"
+    ]
+  },
+  Telugu: {
+    welcome: 'నమస్కారం! నేను రక్షాసేతు AI, మీ బహుభాషా పర్యాటక రక్షణ సహాయకుడిని. ఈరోజు మీ ప్రయాణాన్ని సురక్షితంగా ఉంచడంలో నేను ఎలా సహాయపడగలను?',
+    placeholder: 'తెలుగులో రక్షాసేతు AI ని అడగండి...',
+    quickQuestions: [
+      "ఈ ప్రదేశం సురక్షితమేనా?",
+      "సమీపంలో ఉన్న ప్రమాదకర మండలాలు ఏమిటి?",
+      "కోయంబత్తూరులో వర్షం పడుతుందా?",
+      "ఏ మార్గం అత్యంత సురక్షితమైనది?",
+      "సమీప ఆసుపత్రిని కనుగొనండి",
+      "పోలీస్ స్టేషన్ కనుగొనండి",
+      "నేను దారి తప్పితే ఏమి చేయాలి?",
+      "నాకు అత్యవసర వైద్య సహాయం కావాలి"
+    ]
+  },
+  French: {
+    welcome: 'Bonjour! Je suis RakshaSetu AI, votre assistant polyglotte de protection des touristes. Comment puis-je vous aider aujourd\'hui?',
+    placeholder: 'Posez votre question en français...',
+    quickQuestions: [
+      "Cet endroit est-il sûr?",
+      "Quelles sont les zones dangereuses à proximité?",
+      "Pleut-il à Coimbatore?",
+      "Quel itinéraire est le plus sûr?",
+      "Trouver un hôpital à proximité",
+      "Trouver un poste de police",
+      "Que faire si je suis perdu?",
+      "J'ai besoin d'une aide médicale d'urgence"
+    ]
+  },
+  Spanish: {
+    welcome: '¡Hola! Soy RakshaSetu AI, tu asistente multilingüe de protección al turista. ¿Cómo puedo ayudarte a proteger tu viaje hoy?',
+    placeholder: 'Pregunta a RakshaSetu AI en español...',
+    quickQuestions: [
+      "¿Es seguro este lugar?",
+      "¿Cuáles son las zonas peligrosas cercanas?",
+      "¿Está lloviendo en Coimbatore?",
+      "¿Qué ruta es la más segura?",
+      "Encontrar un hospital cercano",
+      "Encontrar estación de policía",
+      "¿Qué debo hacer si me pierdo?",
+      "Necesito ayuda médica de emergencia"
+    ]
+  }
+};
+
 const AiAssistant = ({ darkMode }) => {
   const navigate = useNavigate();
+  const [language, setLanguage] = useState('English');
+  const langConfig = LANGUAGE_TRANSLATIONS[language] || LANGUAGE_TRANSLATIONS.English;
+
   const [messages, setMessages] = useState([
     {
       id: 1,
       sender: 'ai',
-      text: 'Namaste! I am RakshaSetu AI, your multilingual tourist protection assistant. How can I help secure your journey today?',
+      text: langConfig.welcome,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
   const [input, setInput] = useState('');
-  const [language, setLanguage] = useState('English');
   const [loading, setLoading] = useState(false);
   const [emergencyMode, setEmergencyMode] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -25,7 +114,7 @@ const AiAssistant = ({ darkMode }) => {
     { label: 'हिन्दी (Hindi)', code: 'Hindi' },
     { label: 'தமிழ் (Tamil)', code: 'Tamil' },
     { label: 'తెలుగు (Telugu)', code: 'Telugu' },
-    { label: 'मराठी (Marathi)', code: 'Marathi' },
+    { label: 'మராठी (Marathi)', code: 'Marathi' },
     { label: 'বাংলা (Bengali)', code: 'Bengali' },
     { label: 'ಕನ್ನಡ (Kannada)', code: 'Kannada' },
     { label: 'മലയാളം (Malayalam)', code: 'Malayalam' },
@@ -37,6 +126,20 @@ const AiAssistant = ({ darkMode }) => {
     { label: '中文 (Chinese)', code: 'Chinese' },
     { label: 'العربية (Arabic)', code: 'Arabic' }
   ];
+
+  // Update initial welcome message when language changes
+  useEffect(() => {
+    setMessages((prev) => {
+      const updated = [...prev];
+      if (updated.length > 0 && updated[0].id === 1) {
+        updated[0] = {
+          ...updated[0],
+          text: langConfig.welcome
+        };
+      }
+      return updated;
+    });
+  }, [language]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -85,7 +188,7 @@ const AiAssistant = ({ darkMode }) => {
         {
           id: Date.now() + 1,
           sender: 'ai',
-          text: `🚨 RakshaSetu Safety System: Area is monitored. For immediate emergency police assistance, call 112 or press the SOS button.`,
+          text: `🚨 RakshaSetu Safety System (${language}): Active protection enabled. For immediate emergency police assistance, call 112 or press the SOS button.`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -141,7 +244,7 @@ const AiAssistant = ({ darkMode }) => {
           </div>
           <div>
             <h1 className={`text-lg font-black m-0 ${textClass}`}>RakshaSetu AI Safety Assistant</h1>
-            <p className="text-xs text-slate-500 m-0 font-medium">Powered by Gemini-Flash-Latest REST Engine</p>
+            <p className="text-xs text-slate-500 m-0 font-medium">Multilingual Intelligence • Gemini-Flash Engine</p>
           </div>
         </div>
 
@@ -247,6 +350,21 @@ const AiAssistant = ({ darkMode }) => {
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Quick Tourist Question Pills (Dynamically Translated per selected language) */}
+        <div className="px-1 pt-2 pb-1 overflow-x-auto flex items-center gap-2 text-xs font-semibold whitespace-nowrap">
+          {langConfig.quickQuestions.map((q, idx) => (
+            <button
+              key={idx}
+              onClick={() => handleSendMessage(q)}
+              className={`px-3 py-1 rounded-full border cursor-pointer text-[11px] transition-colors ${
+                darkMode ? 'bg-slate-700/80 border-slate-600 text-slate-200 hover:border-purple-400' : 'bg-purple-50 border-purple-200 text-purple-900 hover:bg-purple-100'
+              }`}
+            >
+              💡 {q}
+            </button>
+          ))}
+        </div>
+
         {/* Input Bar */}
         <div className="pt-3 border-t border-slate-100 flex items-center gap-2">
           <button
@@ -261,7 +379,7 @@ const AiAssistant = ({ darkMode }) => {
 
           <input
             type="text"
-            placeholder={`Ask RakshaSetu AI in ${language}...`}
+            placeholder={langConfig.placeholder}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}

@@ -5,8 +5,8 @@ const errorHandler = (err, req, res, next) => {
   let error = err;
 
   if (!(error instanceof ApiError)) {
-    const statusCode = error.statusCode || 500;
-    const message = error.message || 'Internal Server Error';
+    const statusCode = error.statusCode || error.status || (error.name === 'MulterError' ? 400 : 500);
+    const message = error.message || 'Bad Request';
     error = new ApiError(statusCode, message, [], err.stack);
   }
 

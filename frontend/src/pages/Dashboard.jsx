@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertOctagon, PhoneCall, Sparkles, FileText, Shield, MapPin, Mic, Radio, Heart, Activity, CheckCircle, Navigation, MessageSquare, Search, Car, Utensils, Lock, Eye, EyeOff, Trash2, Sun, CloudRain } from 'lucide-react';
+import { AlertOctagon, PhoneCall, Sparkles, FileText, Shield, MapPin, Mic, Radio, Heart, Activity, CheckCircle, Navigation, MessageSquare, Search, Car, Utensils, Lock, Eye, EyeOff, Trash2, Sun, CloudRain, ExternalLink } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import TouristMap from '../components/TouristMap';
 import api from '../services/api';
@@ -19,12 +19,13 @@ const Dashboard = ({ tourist, darkMode }) => {
   // Search & Destination States
   const [destinationQuery, setDestinationQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [weatherData, setWeatherData] = useState(null);
 
   // SOS & Position States
   const [sosActive, setSosActive] = useState(false);
   const [activeSosCode, setActiveSosCode] = useState('');
-  const [location, setLocation] = useState({ lat: 27.1751, lng: 78.0421 }); // Default Taj Mahal sector until GPS permission
+  const [location, setLocation] = useState({ lat: 27.1751, lng: 78.0421 }); // Default Taj Mahal sector
   const [locationName, setLocationName] = useState('GPS Location Active');
   const [safeLocations, setSafeLocations] = useState([
     { id: 1, name: 'Central Police Patrol Desk', type: 'police_station', latitude: 27.1770, longitude: 78.0440, phone: '+911123363364', address: 'Taj East Corridor' },
@@ -32,20 +33,23 @@ const Dashboard = ({ tourist, darkMode }) => {
   ]);
   const [sosLoading, setSosLoading] = useState(false);
 
-  // Destination Search Trigger
+  // Dynamic Destination Search Trigger (Queries ANY city/place globally)
   useEffect(() => {
     if (!destinationQuery.trim()) {
       setSearchResults([]);
       return;
     }
+    setIsSearching(true);
     const timer = setTimeout(async () => {
       try {
-        const res = await api.get(`/places/search?query=${destinationQuery}`);
+        const res = await api.get(`/places/search?query=${encodeURIComponent(destinationQuery)}`);
         if (res.data) setSearchResults(res.data);
       } catch (e) {
         console.warn('Search query fallback');
+      } finally {
+        setIsSearching(false);
       }
-    }, 300);
+    }, 350);
     return () => clearTimeout(timer);
   }, [destinationQuery]);
 
@@ -213,25 +217,39 @@ const Dashboard = ({ tourist, darkMode }) => {
             <div className="w-12 h-12 rounded-2xl bg-blue-100 text-[#0D47A1] flex items-center justify-center mx-auto">
               <MapPin className="w-6 h-6" />
             </div>
-            <div className="text-center space-y-1">
-              <h3 className={`text-lg font-extrabold ${textClass}`}>Enable Location Protection?</h3>
-              <p className={`text-xs ${subtextClass}`}>
-                RakshaSetu needs your location to provide emergency protection, nearby police/hospitals, safe routes, SOS assistance, and local danger alerts.
+            <div className="space-y-2">
+              <h3 className={`text-lg font-black text-center ${textClass}`}>Location Protection Permission</h3>
+              <p className={`text-xs font-semibold ${subtextClass}`}>
+                RakshaSetu needs your location to provide:
               </p>
+              <ul className="text-xs font-medium space-y-1 text-slate-600 dark:text-slate-300 pl-4 list-disc">
+                <li>live safety monitoring</li>
+                <li>route navigation</li>
+                <li>nearby emergency services</li>
+                <li>danger-zone alerts</li>
+                <li>SOS assistance</li>
+              </ul>
+              <p className="text-xs font-extrabold text-[#0D47A1] text-center pt-1 m-0">Allow location sharing?</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
+            <div className="grid grid-cols-3 gap-2 pt-2">
               <button
                 onClick={() => requestLocationPermission(false)}
-                className="py-2.5 rounded-xl border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-100 cursor-pointer"
+                className="py-2.5 rounded-xl border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-100 cursor-pointer text-center"
               >
-                Not Now
+                Deny
+              </button>
+              <button
+                onClick={() => setShowPrivacyModal(true)}
+                className="py-2.5 rounded-xl border border-blue-200 text-blue-700 text-xs font-bold hover:bg-blue-50 cursor-pointer text-center"
+              >
+                Privacy Settings
               </button>
               <button
                 onClick={() => requestLocationPermission(true)}
-                className="py-2.5 rounded-xl bg-[#0D47A1] text-white text-xs font-extrabold hover:bg-blue-800 cursor-pointer shadow-md"
+                className="py-2.5 rounded-xl bg-[#0D47A1] text-white text-xs font-extrabold hover:bg-blue-800 cursor-pointer shadow-md text-center"
               >
-                Allow Location
+                Allow
               </button>
             </div>
           </div>
@@ -275,12 +293,12 @@ const Dashboard = ({ tourist, darkMode }) => {
           </div>
         </div>
 
-        {/* Destination Search Input */}
+        {/* Dynamic Destination Search Input (Queries ANY place globally) */}
         <div className="relative">
           <Search className="w-5 h-5 text-slate-400 absolute left-4 top-3.5" />
           <input
             type="text"
-            placeholder="Search tourist places, cities, attractions (e.g. Taj Mahal, Baga Beach, Red Fort)..."
+            placeholder="Search ANY tourist place, city, landmark, beach, fort, hotel (e.g. Taj Mahal, Ooty, Kodaikanal, Manali, Chennai)..."
             value={destinationQuery}
             onChange={(e) => setDestinationQuery(e.target.value)}
             className={`w-full pl-12 pr-4 py-3 rounded-2xl border text-xs font-semibold focus:ring-2 focus:outline-none ${
@@ -288,21 +306,67 @@ const Dashboard = ({ tourist, darkMode }) => {
             }`}
           />
 
+          {isSearching && (
+            <div className="absolute right-4 top-3.5 text-xs text-blue-600 font-bold flex items-center gap-1">
+              <Activity className="w-4 h-4 animate-spin" /> Geocoding...
+            </div>
+          )}
+
           {searchResults.length > 0 && (
-            <div className={`absolute top-14 left-0 right-0 z-30 rounded-2xl border shadow-xl overflow-hidden max-h-60 overflow-y-auto ${
+            <div className={`absolute top-14 left-0 right-0 z-30 rounded-2xl border shadow-xl overflow-hidden max-h-96 overflow-y-auto ${
               darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
             }`}>
               {searchResults.map((place) => (
                 <div
                   key={place.id}
-                  onClick={() => navigate(`/places/${place.id}`)}
-                  className="p-3 border-b border-slate-100 hover:bg-blue-50/50 cursor-pointer flex items-center justify-between"
+                  className="p-3.5 border-b border-slate-100 hover:bg-blue-50/60 cursor-pointer space-y-2 transition-colors"
                 >
-                  <div>
-                    <span className="text-xs font-extrabold text-[#0D47A1] block">{place.name}</span>
-                    <span className="text-[11px] text-slate-500 font-semibold">{place.city}, {place.state} • {place.category}</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-extrabold text-[#0D47A1]">{place.name}</span>
+                        <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-900 font-bold text-[9px] uppercase">{place.category || 'Attraction'}</span>
+                      </div>
+                      <span className="text-xs text-slate-600 font-medium block mt-0.5">{place.address || `${place.city}, ${place.state}, ${place.country}`}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        Lat: {place.latitude?.toFixed(4)}, Lng: {place.longitude?.toFixed(4)} | City: {place.city} | State: {place.state}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-black text-xs">
+                        Safety: {place.safetyScore || 90}/100
+                      </span>
+                    </div>
                   </div>
-                  <span className="text-xs font-bold text-emerald-600">Safety: {place.safetyScore}/100</span>
+
+                  {/* Search Result Action Toolbar */}
+                  <div className="flex items-center gap-2 pt-1 overflow-x-auto text-[11px] font-bold">
+                    <button
+                      onClick={() => navigate(`/places/${place.id}`)}
+                      className="px-2.5 py-1 rounded-lg bg-[#0D47A1] text-white hover:bg-blue-800 transition-colors shadow-xs"
+                    >
+                      🛡 View Safety
+                    </button>
+                    <button
+                      onClick={() => navigate(`/places/${place.id}?tab=map`)}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 transition-colors shadow-xs"
+                    >
+                      🗺 View on Map
+                    </button>
+                    <button
+                      onClick={() => navigate(`/places/${place.id}?route=true`)}
+                      className="px-2.5 py-1 rounded-lg bg-purple-700 text-white hover:bg-purple-800 transition-colors shadow-xs"
+                    >
+                      🚗 Get Route
+                    </button>
+                    <button
+                      onClick={() => navigate(`/places/${place.id}`)}
+                      className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 hover:bg-slate-200 transition-colors"
+                    >
+                      Explore Place →
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -316,7 +380,9 @@ const Dashboard = ({ tourist, darkMode }) => {
             { label: 'Red Fort Delhi', id: 'red-fort-delhi' },
             { label: 'Baga Beach Goa', id: 'baga-beach-goa' },
             { label: 'Meenakshi Temple', id: 'meenakshi-temple-madurai' },
-            { label: 'Gateway of India', id: 'gateway-of-india-mumbai' }
+            { label: 'Gateway of India', id: 'gateway-of-india-mumbai' },
+            { label: 'Ooty Hill Station', id: 'ooty-tamil-nadu' },
+            { label: 'Kodaikanal Lake', id: 'kodaikanal-lake' }
           ].map((item) => (
             <button
               key={item.id}
@@ -474,7 +540,7 @@ const Dashboard = ({ tourist, darkMode }) => {
             <Sparkles className="w-6 h-6" />
           </div>
           <h4 className={`text-sm font-extrabold m-0 ${textClass}`}>AI Assistant</h4>
-          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>14 Languages & Emergency Mode</p>
+          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>15 Languages & Emergency Mode</p>
         </Link>
 
         <Link

@@ -9,6 +9,8 @@ import ResetPassword from './pages/ResetPassword';
 import OtpVerification from './pages/OtpVerification';
 import PlaceDetails from './pages/PlaceDetails';
 import VehicleBooking from './pages/VehicleBooking';
+import TravelBooking from './pages/TravelBooking';
+import SafetyMap from './pages/SafetyMap';
 import FoodModule from './pages/FoodModule';
 import AiAssistant from './pages/AiAssistant';
 import Incidents from './pages/Incidents';
@@ -16,6 +18,7 @@ import NearbyHelp from './pages/NearbyHelp';
 import EmergencyContacts from './pages/EmergencyContacts';
 import LiveChat from './pages/LiveChat';
 import FloatingChatbot from './components/FloatingChatbot';
+import PrivacySettings from './pages/PrivacySettings';
 import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
@@ -75,6 +78,7 @@ function App() {
             <Routes>
               {/* Public Routes */}
               <Route path="/places/:id" element={<PlaceDetails darkMode={darkMode} />} />
+              <Route path="/places/details/:id" element={<PlaceDetails darkMode={darkMode} />} />
               <Route path="/login" element={<Login onLoginSuccess={(u) => setTourist(u)} darkMode={darkMode} />} />
               <Route path="/register" element={<Register onLoginSuccess={(u) => setTourist(u)} darkMode={darkMode} />} />
               <Route path="/forgot-password" element={<ForgotPassword darkMode={darkMode} />} />
@@ -88,12 +92,15 @@ function App() {
                   tourist ? (
                     <Routes>
                       <Route path="/" element={<Dashboard tourist={tourist} darkMode={darkMode} />} />
+                      <Route path="/safety-map" element={<SafetyMap darkMode={darkMode} />} />
+                      <Route path="/travel" element={<TravelBooking darkMode={darkMode} />} />
                       <Route path="/vehicles" element={<VehicleBooking darkMode={darkMode} />} />
                       <Route path="/food" element={<FoodModule darkMode={darkMode} />} />
                       <Route path="/ai" element={<AiAssistant darkMode={darkMode} />} />
                       <Route path="/incidents" element={<Incidents darkMode={darkMode} />} />
                       <Route path="/nearby" element={<NearbyHelp darkMode={darkMode} />} />
                       <Route path="/contacts" element={<EmergencyContacts tourist={tourist} darkMode={darkMode} />} />
+                      <Route path="/privacy" element={<PrivacySettings darkMode={darkMode} />} />
                       <Route path="/chat" element={<LiveChat tourist={tourist} darkMode={darkMode} />} />
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>

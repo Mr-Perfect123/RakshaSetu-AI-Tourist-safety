@@ -6,13 +6,13 @@ class EmergencyContact {
     return await executeQuery(sql, [userId]);
   }
 
-  static async create({ userId, contactName, contactPhone, relationship = 'Family', isPrimary = false }) {
+  static async create({ userId, contactName, contactPhone, relationship = 'Family', email = null, isPrimary = false }) {
     const sql = `
-      INSERT INTO emergency_contacts (user_id, contact_name, contact_phone, relationship, is_primary)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO emergency_contacts (user_id, contact_name, contact_phone, relationship, email, is_primary)
+      VALUES (?, ?, ?, ?, ?, ?)
     `;
-    const result = await executeQuery(sql, [userId, contactName, contactPhone, relationship, isPrimary]);
-    return { id: result.insertId, userId, contactName, contactPhone, relationship, isPrimary };
+    const result = await executeQuery(sql, [userId, contactName, contactPhone, relationship, email || null, isPrimary]);
+    return { id: result.insertId, userId, contactName, contactPhone, relationship, email, isPrimary };
   }
 
   static async delete(id, userId) {

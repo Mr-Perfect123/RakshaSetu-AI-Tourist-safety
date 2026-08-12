@@ -64,8 +64,8 @@ const authorizeRoles = (...roles) => {
   };
 };
 
-module.exports = {
-  authenticateJWT,
-  optionalAuth,
-  authorizeRoles
-};
+authenticateJWT.authenticateJWT = authenticateJWT;
+authenticateJWT.optionalAuth = optionalAuth;
+authenticateJWT.authorizeRoles = authorizeRoles;
+
+module.exports = authenticateJWT;

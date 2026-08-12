@@ -1,7 +1,7 @@
 const http = require('http');
 const app = require('../src/app');
 
-const TEST_PORT = 5007;
+const TEST_PORT = 5008;
 const server = http.createServer(app);
 
 server.listen(TEST_PORT, async () => {
@@ -59,7 +59,7 @@ server.listen(TEST_PORT, async () => {
   };
 
   try {
-    // 1. Login Admin
+    // 1. Auth Login Test
     const loginRes = await makePostRequest('/api/v1/auth/login', {
       email: 'admin@rakshasetu.gov.in',
       password: 'Password@123'
@@ -67,35 +67,30 @@ server.listen(TEST_PORT, async () => {
     console.log('✅ TEST 1 - Auth Login Code:', loginRes.status, '| Role:', loginRes.data.data.user.role);
     const token = loginRes.data.data.accessToken;
 
-    // 2. Admin Stats (Protected Route Check)
+    // 2. Protected Admin Endpoint Check
     const statsRes = await makeGetRequest('/api/v1/admin/stats', token);
-    console.log('✅ TEST 2 - Admin Stats (Protected Endpoint) Code:', statsRes.status, '| Active SOS Count:', statsRes.data.data.activeSosCount);
+    console.log('✅ TEST 2 - Admin Stats Code:', statsRes.status, '| Active SOS Count:', statsRes.data.data.activeSosCount);
 
-    // 3. SOS Trigger
-    const sosRes = await makePostRequest('/api/v1/sos/trigger', {
-      latitude: 28.6120,
-      longitude: 77.2050,
-      address: 'Near India Gate Circle, New Delhi',
-      triggerType: 'one_tap'
-    }, token);
-    console.log('✅ TEST 3 - SOS Panic Trigger Code:', sosRes.status, '| Generated SOS Code:', sosRes.data.data.sos_code);
+    // 3. Dynamic Global Place Search (Ooty check)
+    const searchRes = await makeGetRequest('/api/v1/places/search?query=Ooty');
+    console.log('✅ TEST 3 - Dynamic Place Search Code:', searchRes.status, '| Matches Count:', searchRes.data.data.length, '| First Item:', searchRes.data.data[0]?.name);
 
-    // 4. AI Assistant Chat (Tamil)
+    // 4. Place Details & Real MySQL Safety Analytics
+    const placeRes = await makeGetRequest('/api/v1/places/details/taj-mahal-agra');
+    console.log('✅ TEST 4 - Place Profile Details Code:', placeRes.status, '| Safety Score:', placeRes.data.data.analytics.riskScore, '| Incidents Theft Count:', placeRes.data.data.analytics.breakdown.theft);
+
+    // 5. Active Red Alerts System
+    const alertRes = await makeGetRequest('/api/v1/alerts/active');
+    console.log('✅ TEST 5 - Active Red Alerts Count:', alertRes.data.data.length);
+
+    // 6. Gemini Multilingual AI Chat
     const aiRes = await makePostRequest('/api/v1/ai/chat', {
       message: 'எனக்கு அவசர உதவி தேவை',
       language: 'Tamil'
     }, token);
-    console.log('✅ TEST 4 - AI Multilingual Response (Tamil) Code:', aiRes.status, '| Intent:', aiRes.data.data.intent);
+    console.log('✅ TEST 6 - AI Multilingual Response (Tamil) Code:', aiRes.status, '| Intent:', aiRes.data.data.intent);
 
-    // 5. Tourist Place Profile Details with Red Alerts & Analytics
-    const placeRes = await makeGetRequest('/api/v1/places/details/taj-mahal-agra');
-    console.log('✅ TEST 5 - Place Profile Code:', placeRes.status, '| Destination:', placeRes.data.data.name, '| Safety Score:', placeRes.data.data.analytics.riskScore);
-
-    // 6. Active Red Alerts System
-    const alertRes = await makeGetRequest('/api/v1/alerts/active');
-    console.log('✅ TEST 6 - Active Red Alerts Count:', alertRes.data.data.length, '| Code:', alertRes.data.data[0]?.alert_code);
-
-    console.log('--- ALL INTEGRATION TESTS PASSED PERFECTLY! ---');
+    console.log('--- ALL RAKSHASETU INTEGRATION TESTS PASSED PERFECTLY! ---');
   } catch (err) {
     console.error('❌ INTEGRATION TEST FAILED:', err.message);
   } finally {

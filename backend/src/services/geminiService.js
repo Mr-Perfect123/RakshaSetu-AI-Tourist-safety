@@ -9,7 +9,10 @@ class GeminiService {
   static async callGeminiRestApi(prompt) {
     let apiKey = process.env.GEMINI_API_KEY || '';
     if (!apiKey || apiKey === 'mock_gemini_api_key' || apiKey === 'your_gemini_api_key_here') {
-      apiKey = null;
+      return {
+        text: null,
+        error: 'GEMINI_API_KEY is not configured or uses default placeholder.'
+      };
     }
 
     const modelName = process.env.GEMINI_MODEL || 'gemini-flash-latest';
