@@ -30,7 +30,7 @@ const App = () => {
           path="/*"
           element={
             token ? (
-              <div className="min-h-screen bg-[#F5F7FA] flex flex-col">
+              <div className="min-h-screen app-admin-bg flex flex-col">
                 <Navbar />
                 <div className="flex flex-1">
                   <Sidebar />

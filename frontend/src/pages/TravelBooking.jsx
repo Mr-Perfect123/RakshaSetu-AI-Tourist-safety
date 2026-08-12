@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Plane, Train, Bus, Car, Key, ArrowRight, ArrowLeft, Calendar, Clock, MapPin, CheckCircle2, ShieldCheck, Ticket } from 'lucide-react';
+import { Plane, Train, Bus, Car, Key, ArrowRight, ArrowLeft, Calendar, Clock, MapPin, CheckCircle2, ShieldCheck, Ticket, CreditCard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import PaymentModal from '../components/PaymentModal';
 
 const TRAVEL_TYPES = [
   { key: 'flight', label: 'Flights', icon: Plane, desc: 'Domestic & Regional Flights' },
@@ -24,6 +25,8 @@ const TravelBooking = ({ darkMode }) => {
   const [myBookings, setMyBookings] = useState([]);
   const [activeTab, setActiveTab] = useState('search'); // 'search' or 'my-bookings'
   const [bookingSuccess, setBookingSuccess] = useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentBookingDetails, setPaymentBookingDetails] = useState(null);
 
   const searchOptions = async () => {
     setLoading(true);
@@ -66,6 +69,13 @@ const TravelBooking = ({ darkMode }) => {
 
       if (res.data) {
         setBookingSuccess(res.data);
+        setPaymentBookingDetails({
+          amount: option.fare * passengers,
+          booking_code: res.data.booking_code,
+          title: `${option.travel_type.toUpperCase()} Ticket (${option.operator_name})`,
+          type: 'travel'
+        });
+        setShowPaymentModal(true);
         fetchMyBookings();
       }
     } catch (err) {
@@ -306,6 +316,17 @@ const TravelBooking = ({ darkMode }) => {
           )}
         </div>
       )}
+
+      {/* Payment Modal */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        bookingDetails={paymentBookingDetails}
+        onPaymentSuccess={() => {
+          fetchMyBookings();
+        }}
+        darkMode={darkMode}
+      />
     </div>
   );
 };

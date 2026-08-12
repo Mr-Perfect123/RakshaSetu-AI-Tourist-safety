@@ -1,0 +1,27 @@
+warning: in the working copy of 'admin-dashboard/src/components/Navbar.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'admin-dashboard/src/index.css', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'admin-dashboard/src/pages/Incidents.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'admin-dashboard/src/services/socket.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'admin-dashboard/vite.config.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'frontend/src/App.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'frontend/src/index.css', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'frontend/src/services/socket.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'frontend/vite.config.js', LF will be replaced by CRLF the next time Git touches it
+ admin-dashboard/src/App.jsx                  |   2 [32m+[m[31m-[m
+ admin-dashboard/src/components/Navbar.jsx    | 189 [32m++++++++++++++++++[m[31m-------[m
+ admin-dashboard/src/index.css                |  27 [32m+++[m[31m-[m
+ admin-dashboard/src/pages/Incidents.jsx      | 200 [32m+++++++++++++++++++++[m[31m------[m
+ admin-dashboard/src/services/socket.js       |  11 [32m+[m[31m-[m
+ admin-dashboard/vite.config.js               |   6 [32m+[m
+ backend/src/controllers/paymentController.js |  35 [32m++++[m[31m-[m
+ backend/src/controllers/vehicleController.js |   7 [32m+[m[31m-[m
+ backend/src/routes/paymentRoutes.js          |   1 [32m+[m
+ backend/src/services/geminiService.js        | 162 [32m++++++++++++++[m[31m--------[m
+ frontend/src/App.jsx                         |   2 [32m+[m[31m-[m
+ frontend/src/index.css                       |  41 [32m+++++[m[31m-[m
+ frontend/src/pages/FoodModule.jsx            |  21 [32m++[m[31m-[m
+ frontend/src/pages/TravelBooking.jsx         |  23 [32m++[m[31m-[m
+ frontend/src/pages/VehicleBooking.jsx        | 103 [32m++++++++++[m[31m----[m
+ frontend/src/services/socket.js              |  13 [32m+[m[31m-[m
+ frontend/vite.config.js                      |   6 [32m+[m
+ 17 files changed, 645 insertions(+), 204 deletions(-)

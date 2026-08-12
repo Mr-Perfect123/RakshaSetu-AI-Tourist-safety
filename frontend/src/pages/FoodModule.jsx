@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Utensils, ShoppingBag, Star, Clock, MapPin, Plus, Minus, ArrowLeft, CheckCircle2, ShieldCheck, Search, Trash2 } from 'lucide-react';
+import { Utensils, ShoppingBag, Star, Clock, MapPin, Plus, Minus, ArrowLeft, CheckCircle2, ShieldCheck, Search, Trash2, CreditCard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import PaymentModal from '../components/PaymentModal';
 
 const FoodModule = ({ darkMode }) => {
   const [restaurants, setRestaurants] = useState([]);
@@ -14,6 +15,7 @@ const FoodModule = ({ darkMode }) => {
   const [myOrders, setMyOrders] = useState([]);
   const [orderResult, setOrderResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   useEffect(() => {
     const fetchRestaurants = async () => {
@@ -80,6 +82,7 @@ const FoodModule = ({ darkMode }) => {
       });
 
       setOrderResult(res.data);
+      setShowPaymentModal(true);
       setCart([]);
       fetchMyOrders();
     } catch (err) {
@@ -344,6 +347,22 @@ const FoodModule = ({ darkMode }) => {
           )}
         </div>
       )}
+
+      {/* Payment Modal */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        bookingDetails={{
+          amount: orderResult?.total_amount || orderResult?.totalAmount,
+          booking_code: orderResult?.order_code,
+          title: `Food Order (${selectedRestaurant?.name || 'Restaurant'})`,
+          type: 'food'
+        }}
+        onPaymentSuccess={() => {
+          fetchMyOrders();
+        }}
+        darkMode={darkMode}
+      />
     </div>
   );
 };

@@ -1,24 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { Car, Bike, Truck, Bus, Calendar, Clock, MapPin, CheckCircle2, ShieldCheck, UserCheck, ArrowRight, ArrowLeft, AlertCircle, History, Phone, Star, Shield, RefreshCw, Route } from 'lucide-react';
+import { Car, Bike, Truck, Bus, Calendar, Clock, MapPin, CheckCircle2, ShieldCheck, UserCheck, ArrowRight, ArrowLeft, AlertCircle, History, Phone, Star, Shield, RefreshCw, Route, CreditCard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import PaymentModal from '../components/PaymentModal';
 
-// Distance estimator formula from pickup -> destination text inputs
+// Enhanced distance estimator formula from pickup -> destination text inputs
 const estimateDistanceBetweenLocations = (pickupText, destText) => {
-  const p = pickupText.toLowerCase();
-  const d = destText.toLowerCase();
+  if (!pickupText || !destText) return 5.0;
+  const p = pickupText.toLowerCase().trim();
+  const d = destText.toLowerCase().trim();
 
-  // Known airport/outstation distance patterns
-  if (p.includes('airport') || d.includes('airport')) return 22.4;
-  if (p.includes('railway') || d.includes('railway')) return 14.2;
-  if (p.includes('marudamalai') || d.includes('marudamalai')) return 16.8;
+  if (p === d) return 1.5;
+
+  // Known location pairs
+  if ((p.includes('railway') && d.includes('marudamalai')) || (d.includes('railway') && p.includes('marudamalai'))) return 16.8;
+  if ((p.includes('airport') && d.includes('railway')) || (d.includes('airport') && p.includes('railway'))) return 11.4;
+  if ((p.includes('airport') && d.includes('marudamalai')) || (d.includes('airport') && p.includes('marudamalai'))) return 24.2;
+  if (p.includes('airport') || d.includes('airport')) return 18.5;
+  if (p.includes('railway') || d.includes('railway')) return 8.4;
   if (p.includes('taj') || d.includes('taj')) return 210.0;
-  if (p.includes('delhi') || d.includes('delhi')) return 18.5;
-  if (p.includes('goa') || d.includes('goa')) return 35.0;
+  if (p.includes('delhi') || d.includes('delhi')) return 14.2;
+  if (p.includes('goa') || d.includes('goa')) return 32.5;
 
-  // Default sector route calculation based on string hash variance
-  const hash = (p + d).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return parseFloat((8.5 + (hash % 185) / 10).toFixed(1));
+  // Hash-based deterministic dynamic distance formula for custom typed places
+  let hash1 = 0;
+  let hash2 = 0;
+  for (let i = 0; i < p.length; i++) hash1 = (hash1 * 31 + p.charCodeAt(i)) % 10007;
+  for (let i = 0; i < d.length; i++) hash2 = (hash2 * 37 + d.charCodeAt(i)) % 10007;
+
+  const diff = Math.abs(hash1 - hash2);
+  const dist = 3.2 + (diff % 380) / 10;
+  return parseFloat(dist.toFixed(1));
 };
 
 const VehicleBooking = ({ darkMode }) => {
@@ -28,6 +40,7 @@ const VehicleBooking = ({ darkMode }) => {
   const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0]);
   const [bookingTime, setBookingTime] = useState('10:00');
   const [passengers, setPassengers] = useState(2);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   // Auto-calculated distance from map route (NO manual typing required)
   const distanceKm = estimateDistanceBetweenLocations(pickup, destination);
@@ -73,6 +86,7 @@ const VehicleBooking = ({ darkMode }) => {
 
       if (res.data) {
         setBookingResult(res.data);
+        setShowPaymentModal(true);
         fetchMyBookings();
       }
     } catch (err) {
@@ -307,33 +321,47 @@ const VehicleBooking = ({ darkMode }) => {
             {bookingResult && (
               <div className="p-6 rounded-3xl bg-slate-900 text-white shadow-xl space-y-4 border border-slate-800">
                 <div className="flex items-center justify-between">
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-white font-extrabold text-[10px] uppercase">
-                    Status: {bookingResult.status || 'CONFIRMED'}
+                  <span className={`px-2.5 py-0.5 rounded-full text-white font-extrabold text-[10px] uppercase ${
+                    bookingResult.payment_status === 'paid' ? 'bg-emerald-600' : 'bg-amber-500'
+                  }`}>
+                    Payment: {bookingResult.payment_status?.toUpperCase() || 'CONFIRMED'}
                   </span>
                   <span className="text-[10px] font-mono text-slate-400">{bookingResult.booking_code}</span>
                 </div>
 
                 <div className="flex items-center gap-3">
                   <img
-                    src={bookingResult.driver_photo || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80'}
-                    alt={bookingResult.driver_name}
+                    src={bookingResult.driver_photo || bookingResult.driver?.photo || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80'}
+                    alt={bookingResult.driver_name || bookingResult.driver?.name}
                     className="w-12 h-12 rounded-full object-cover border-2 border-emerald-400"
                   />
                   <div>
-                    <h4 className="text-sm font-extrabold text-white m-0">{bookingResult.driver_name}</h4>
+                    <h4 className="text-sm font-extrabold text-white m-0">
+                      {bookingResult.driver_name || bookingResult.driver?.name || 'Karthik Raja (Verified)'}
+                    </h4>
                     <span className="text-xs text-amber-400 font-bold flex items-center gap-1">
-                      <Star className="w-3.5 h-3.5 fill-amber-400" /> {bookingResult.driver_rating || 4.90} • Verified
+                      <Star className="w-3.5 h-3.5 fill-amber-400" /> {bookingResult.driver_rating || bookingResult.driver?.rating || 4.95} • Verified Driver
                     </span>
-                    <span className="text-[11px] text-slate-300 font-mono block">{bookingResult.vehicle_registration}</span>
+                    <span className="text-[11px] text-slate-300 font-mono block">
+                      🚗 {bookingResult.vehicle_registration || bookingResult.driver?.registration_number || 'TN-37-RS-1001'}
+                    </span>
                   </div>
                 </div>
 
                 <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Contact Driver:</span>
-                  <a href={`tel:${bookingResult.driver_phone}`} className="text-emerald-400 font-extrabold hover:underline">
-                    📞 {bookingResult.driver_phone}
+                  <span className="text-slate-400">Driver Contact:</span>
+                  <a href={`tel:${bookingResult.driver_phone || bookingResult.driver?.phone || '+919443322110'}`} className="text-emerald-400 font-extrabold hover:underline">
+                    📞 {bookingResult.driver_phone || bookingResult.driver?.phone || '+919443322110'}
                   </a>
                 </div>
+
+                <button
+                  onClick={() => setShowPaymentModal(true)}
+                  className="w-full py-2.5 rounded-xl bg-emerald-600 text-white font-extrabold text-xs uppercase hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  <span>{bookingResult.payment_status === 'paid' ? 'View Payment Receipt' : `Pay ₹${bookingResult.estimated_fare} Now`}</span>
+                </button>
               </div>
             )}
           </div>
@@ -352,11 +380,15 @@ const VehicleBooking = ({ darkMode }) => {
                   <div className="space-y-1">
                     <span className="text-xs font-extrabold text-[#0D47A1] block">{b.booking_code} • {b.vehicle_category?.toUpperCase()}</span>
                     <span className="text-xs text-slate-700 font-bold block">{b.pickup_location} → {b.destination}</span>
-                    <span className="text-[11px] text-slate-500 font-semibold">Driver: {b.driver_name || 'Assigned'} ({b.vehicle_registration || 'TN-37-RS'})</span>
+                    <span className="text-[11px] text-slate-500 font-semibold">Driver: {b.driver_name || b.driver?.name || 'Assigned Driver'} ({b.vehicle_registration || b.driver?.registration_number || 'TN-37-RS'})</span>
                   </div>
                   <div className="text-right space-y-1">
                     <span className="text-sm font-black text-slate-900 block">₹{b.estimated_fare}</span>
-                    <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 uppercase">{b.status}</span>
+                    <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase ${
+                      b.payment_status === 'paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {b.payment_status || b.status}
+                    </span>
                   </div>
                 </div>
               ))}
@@ -364,6 +396,23 @@ const VehicleBooking = ({ darkMode }) => {
           )}
         </div>
       )}
+
+      {/* Payment Modal */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        bookingDetails={{
+          amount: bookingResult?.estimated_fare,
+          booking_code: bookingResult?.booking_code,
+          title: `${selectedCategory.toUpperCase()} Cab Ride`,
+          type: 'vehicle'
+        }}
+        onPaymentSuccess={() => {
+          fetchMyBookings();
+          setBookingResult(prev => prev ? { ...prev, payment_status: 'paid' } : null);
+        }}
+        darkMode={darkMode}
+      />
     </div>
   );
 };

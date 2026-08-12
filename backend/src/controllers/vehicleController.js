@@ -150,7 +150,12 @@ class VehicleController {
       passengers,
       estimated_fare: calculatedFare,
       status: 'confirmed',
-      payment_status: 'test_mode',
+      payment_status: 'pending',
+      driver_name: selectedVehicle.driver_name,
+      driver_phone: selectedVehicle.driver_phone,
+      driver_photo: selectedVehicle.image_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+      driver_rating: selectedVehicle.rating || 4.90,
+      vehicle_registration: selectedVehicle.registration_number,
       driver: {
         id: selectedVehicle.id || 1,
         name: selectedVehicle.driver_name,

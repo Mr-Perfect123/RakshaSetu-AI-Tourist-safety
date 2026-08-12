@@ -112,7 +112,7 @@ function App() {
 
   return (
     <BrowserRouter>
-      <div className={`min-h-screen flex flex-col font-sans ${darkMode ? 'dark bg-[#0f172a] text-slate-100' : 'bg-[#F5F7FA] text-slate-800'}`}>
+      <div className={`min-h-screen flex flex-col font-sans app-tourist-bg bg-security-grid ${darkMode ? 'dark text-slate-100' : 'text-slate-800'}`}>
         
         {/* Session Expired Banner Notification */}
         {sessionExpiredNotice && (
