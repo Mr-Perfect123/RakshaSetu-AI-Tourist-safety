@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Dashboard from './pages/Dashboard';
+import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
@@ -20,22 +21,26 @@ import LiveChat from './pages/LiveChat';
 import FloatingChatbot from './components/FloatingChatbot';
 import PrivacySettings from './pages/PrivacySettings';
 import ErrorBoundary from './components/ErrorBoundary';
+import { Clock, AlertTriangle } from 'lucide-react';
+
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 Minutes Inactivity Timeout Limit
 
 function App() {
+  const [sessionExpiredNotice, setSessionExpiredNotice] = useState(false);
+
   const [tourist, setTourist] = useState(() => {
     const saved = localStorage.getItem('rakshasetu_tourist_user');
-    return saved ? JSON.parse(saved) : {
-      id: 4,
-      full_name: 'John Doe Tourist',
-      email: 'john.tourist@example.com',
-      phone: '+919876543213',
-      nationality: 'American',
-      passport_number: 'US-98421034',
-      gender: 'male',
-      blood_group: 'O+',
-      emergency_medical_info: 'Asthma - Carries inhaler',
-      hotel_address: 'The Grand Heritage Hotel, Connaught Place, New Delhi'
-    };
+    const lastAct = localStorage.getItem('rakshasetu_last_activity');
+    if (saved) {
+      if (lastAct && (Date.now() - parseInt(lastAct, 10) > SESSION_TIMEOUT_MS)) {
+        localStorage.removeItem('rakshasetu_tourist_token');
+        localStorage.removeItem('rakshasetu_tourist_user');
+        localStorage.removeItem('rakshasetu_last_activity');
+        return null;
+      }
+      return JSON.parse(saved);
+    }
+    return null;
   });
 
   const [darkMode, setDarkMode] = useState(() => {
@@ -62,53 +67,132 @@ function App() {
     }
   }, [darkMode]);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback((dueToTimeout = false) => {
     localStorage.removeItem('rakshasetu_tourist_token');
     localStorage.removeItem('rakshasetu_tourist_user');
+    localStorage.removeItem('rakshasetu_last_activity');
     setTourist(null);
-  };
+
+    if (dueToTimeout) {
+      setSessionExpiredNotice(true);
+      setTimeout(() => setSessionExpiredNotice(false), 7000);
+    }
+  }, []);
+
+  // Update Activity Timestamp on User Interaction
+  const updateActivity = useCallback(() => {
+    if (tourist) {
+      const now = Date.now();
+      const last = localStorage.getItem('rakshasetu_last_activity');
+      if (!last || (now - parseInt(last, 10) > 10000)) { // Throttled every 10s
+        localStorage.setItem('rakshasetu_last_activity', String(now));
+      }
+    }
+  }, [tourist]);
+
+  useEffect(() => {
+    if (!tourist) return;
+
+    const events = ['mousemove', 'keydown', 'click', 'touchstart', 'scroll'];
+    events.forEach(e => window.addEventListener(e, updateActivity));
+
+    // Check Session Expiration Every 15 Seconds
+    const interval = setInterval(() => {
+      const lastAct = localStorage.getItem('rakshasetu_last_activity');
+      if (lastAct && (Date.now() - parseInt(lastAct, 10) > SESSION_TIMEOUT_MS)) {
+        handleLogout(true);
+      }
+    }, 15000);
+
+    return () => {
+      events.forEach(e => window.removeEventListener(e, updateActivity));
+      clearInterval(interval);
+    };
+  }, [tourist, updateActivity, handleLogout]);
 
   return (
     <BrowserRouter>
       <div className={`min-h-screen flex flex-col font-sans ${darkMode ? 'dark bg-[#0f172a] text-slate-100' : 'bg-[#F5F7FA] text-slate-800'}`}>
-        <Navbar tourist={tourist} onLogout={handleLogout} darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+        
+        {/* Session Expired Banner Notification */}
+        {sessionExpiredNotice && (
+          <div className="bg-amber-600 text-white px-4 py-2.5 text-xs font-semibold flex items-center justify-between shadow-lg sticky top-0 z-50 animate-bounce">
+            <div className="flex items-center gap-2 max-w-7xl mx-auto">
+              <Clock className="w-4 h-4 text-amber-200" />
+              <span>Session timed out after 30 minutes of inactivity. Please sign in again to continue.</span>
+            </div>
+            <button 
+              onClick={() => setSessionExpiredNotice(false)} 
+              className="text-amber-200 hover:text-white font-bold ml-4"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        <Navbar tourist={tourist} onLogout={() => handleLogout(false)} darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
 
         <main className="flex-1 px-4 md:px-8 py-6">
           <ErrorBoundary>
             <Routes>
-              {/* Public Routes */}
+              {/* Public & Landing Page Routes */}
+              <Route path="/landing" element={<LandingPage tourist={tourist} onLogout={() => handleLogout(false)} darkMode={darkMode} />} />
               <Route path="/places/:id" element={<PlaceDetails darkMode={darkMode} />} />
               <Route path="/places/details/:id" element={<PlaceDetails darkMode={darkMode} />} />
-              <Route path="/login" element={<Login onLoginSuccess={(u) => setTourist(u)} darkMode={darkMode} />} />
-              <Route path="/register" element={<Register onLoginSuccess={(u) => setTourist(u)} darkMode={darkMode} />} />
+              <Route 
+                path="/login" 
+                element={
+                  <Login 
+                    onLoginSuccess={(u) => {
+                      setTourist(u);
+                      localStorage.setItem('rakshasetu_last_activity', String(Date.now()));
+                    }} 
+                    darkMode={darkMode} 
+                  />
+                } 
+              />
+              <Route 
+                path="/register" 
+                element={
+                  <Register 
+                    onLoginSuccess={(u) => {
+                      setTourist(u);
+                      localStorage.setItem('rakshasetu_last_activity', String(Date.now()));
+                    }} 
+                    darkMode={darkMode} 
+                  />
+                } 
+              />
               <Route path="/forgot-password" element={<ForgotPassword darkMode={darkMode} />} />
               <Route path="/reset-password" element={<ResetPassword darkMode={darkMode} />} />
               <Route path="/verify-otp" element={<OtpVerification darkMode={darkMode} />} />
 
-              {/* Protected Routes */}
-              <Route
-                path="/*"
+              {/* Home Route: Landing Page if not logged in, Dashboard if logged in */}
+              <Route 
+                path="/" 
                 element={
                   tourist ? (
-                    <Routes>
-                      <Route path="/" element={<Dashboard tourist={tourist} darkMode={darkMode} />} />
-                      <Route path="/safety-map" element={<SafetyMap darkMode={darkMode} />} />
-                      <Route path="/travel" element={<TravelBooking darkMode={darkMode} />} />
-                      <Route path="/vehicles" element={<VehicleBooking darkMode={darkMode} />} />
-                      <Route path="/food" element={<FoodModule darkMode={darkMode} />} />
-                      <Route path="/ai" element={<AiAssistant darkMode={darkMode} />} />
-                      <Route path="/incidents" element={<Incidents darkMode={darkMode} />} />
-                      <Route path="/nearby" element={<NearbyHelp darkMode={darkMode} />} />
-                      <Route path="/contacts" element={<EmergencyContacts tourist={tourist} darkMode={darkMode} />} />
-                      <Route path="/privacy" element={<PrivacySettings darkMode={darkMode} />} />
-                      <Route path="/chat" element={<LiveChat tourist={tourist} darkMode={darkMode} />} />
-                      <Route path="*" element={<Navigate to="/" replace />} />
-                    </Routes>
+                    <Dashboard tourist={tourist} darkMode={darkMode} />
                   ) : (
-                    <Navigate to="/login" replace />
+                    <LandingPage tourist={tourist} onLogout={() => handleLogout(false)} darkMode={darkMode} />
                   )
-                }
+                } 
               />
+
+              {/* Protected Routes */}
+              <Route path="/safety-map" element={tourist ? <SafetyMap darkMode={darkMode} /> : <Navigate to="/login" replace />} />
+              <Route path="/travel" element={tourist ? <TravelBooking darkMode={darkMode} /> : <Navigate to="/login" replace />} />
+              <Route path="/vehicles" element={tourist ? <VehicleBooking darkMode={darkMode} /> : <Navigate to="/login" replace />} />
+              <Route path="/food" element={tourist ? <FoodModule darkMode={darkMode} /> : <Navigate to="/login" replace />} />
+              <Route path="/ai" element={tourist ? <AiAssistant darkMode={darkMode} /> : <Navigate to="/login" replace />} />
+              <Route path="/incidents" element={tourist ? <Incidents darkMode={darkMode} /> : <Navigate to="/login" replace />} />
+              <Route path="/nearby" element={tourist ? <NearbyHelp darkMode={darkMode} /> : <Navigate to="/login" replace />} />
+              <Route path="/contacts" element={tourist ? <EmergencyContacts tourist={tourist} darkMode={darkMode} /> : <Navigate to="/login" replace />} />
+              <Route path="/privacy" element={tourist ? <PrivacySettings darkMode={darkMode} /> : <Navigate to="/login" replace />} />
+              <Route path="/chat" element={tourist ? <LiveChat tourist={tourist} darkMode={darkMode} /> : <Navigate to="/login" replace />} />
+
+              {/* Catch-all fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </ErrorBoundary>
         </main>

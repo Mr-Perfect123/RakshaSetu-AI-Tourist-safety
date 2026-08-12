@@ -149,21 +149,33 @@ class VehicleController {
       booking_time: bookingTime,
       passengers,
       estimated_fare: calculatedFare,
-      base_fare: baseFare,
-      distance_km: dist,
-      distance_charge: distanceCharge,
-      taxes_fees: taxesFees,
       status: 'confirmed',
-      trip_status: 'CONFIRMED',
       payment_status: 'test_mode',
-      driver_name: selectedVehicle.driver_name,
-      driver_phone: selectedVehicle.driver_phone,
-      driver_photo: selectedVehicle.image_url,
-      driver_rating: selectedVehicle.rating,
-      vehicle_registration: selectedVehicle.registration_number
+      driver: {
+        id: selectedVehicle.id || 1,
+        name: selectedVehicle.driver_name,
+        phone: selectedVehicle.driver_phone,
+        photo: selectedVehicle.image_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+        rating: selectedVehicle.rating || 4.90,
+        registration_number: selectedVehicle.registration_number
+      }
     };
 
-    return res.status(201).json(new ApiResponse(201, booking, 'Dynamic vehicle booking confirmed with verified driver.'));
+    // Broadcast activity to Admin Dashboard
+    try {
+      const { broadcastTouristActivity } = require('../socket/sosSocket');
+      broadcastTouristActivity({
+        id: booking.id,
+        type: 'vehicle_booking',
+        title: `Ride Booked (${category.toUpperCase()})`,
+        description: `Pickup: ${pickupLocation} → Drop: ${destination} (Fare: ₹${calculatedFare})`,
+        touristName: req.user?.full_name || 'Tourist User',
+        touristPhone: req.user?.phone || '+919876543210',
+        details: booking
+      });
+    } catch (err) {}
+
+    return res.status(201).json(new ApiResponse(201, booking, '🚕 Ride booked successfully! Driver assigned.'));
   });
 
   static getUserBookings = asyncHandler(async (req, res) => {

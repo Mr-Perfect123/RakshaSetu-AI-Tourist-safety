@@ -32,6 +32,19 @@ class SosController {
       nationality: req.user.nationality
     });
 
+    try {
+      const { broadcastTouristActivity } = require('../socket/sosSocket');
+      broadcastTouristActivity({
+        id: sos.id || Date.now(),
+        type: 'sos_alert',
+        title: `🚨 SOS Emergency Triggered (${sos.sos_code || 'ACTIVE'})`,
+        description: `Location: ${address || `Lat: ${latitude}, Lng: ${longitude}`}`,
+        touristName: req.user.full_name,
+        touristPhone: req.user.phone,
+        details: sos
+      });
+    } catch (err) {}
+
     return res.status(201).json(
       new ApiResponse(201, sos, '🚨 EMERGENCY SOS DISPATCHED SUCCESSFUL! First Responders & Emergency Contacts Notified.')
     );

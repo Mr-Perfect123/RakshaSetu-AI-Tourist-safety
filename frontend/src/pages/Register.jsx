@@ -185,15 +185,60 @@ const Register = ({ onLoginSuccess, darkMode }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F7FA] flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 sm:p-8 space-y-6">
+    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden py-10">
+      
+      {/* Full-Screen Scenic Background Image with Smooth Parallax Zoom */}
+      <div className="absolute inset-0 z-0 overflow-hidden">
+        <img 
+          src="https://images.unsplash.com/photo-1506461883276-594a12b11ce3?auto=format&fit=crop&w=1920&q=80" 
+          alt="Jaipur Palace Fort" 
+          className="w-full h-full object-cover animate-bg-zoom filter brightness-90"
+        />
+        <div className="absolute inset-0 bg-gradient-to-tr from-slate-950/90 via-slate-900/80 to-slate-950/85 backdrop-blur-[2px]" />
+      </div>
+
+      {/* Floating Decorative Safety Badges */}
+      <div className="hidden lg:block absolute top-12 left-10 z-10 animate-float">
+        <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white flex items-center gap-2.5 shadow-2xl">
+          <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center font-bold">
+            <Shield className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <p className="text-xs font-bold m-0">Instant Verification</p>
+            <p className="text-[10px] text-slate-300 m-0">National Safety Protocol</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="hidden lg:block absolute bottom-12 right-10 z-10 animate-float-delayed">
+        <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white flex items-center gap-2.5 shadow-2xl">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+            <CheckCircle2 className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <p className="text-xs font-bold m-0">100% Encrypted</p>
+            <p className="text-[10px] text-slate-300 m-0">Tourist Privacy Guaranteed</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Back to Home Link */}
+      <Link 
+        to="/" 
+        className="absolute top-6 left-6 z-20 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold backdrop-blur-md border border-white/20 transition-all decoration-none"
+      >
+        <ArrowLeft className="w-4 h-4" /> Back to Home
+      </Link>
+
+      {/* Glassmorphism Main Registration Container with Slide-up Animation */}
+      <div className="relative z-20 w-full max-w-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-3xl border border-white/40 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6 animate-slide-up">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 bg-primary text-white rounded-2xl flex items-center justify-center mx-auto shadow-md">
-            <Shield className="w-7 h-7" />
+          <div className="w-14 h-14 bg-gradient-to-br from-indigo-600 to-purple-700 text-white rounded-2xl flex items-center justify-center mx-auto shadow-xl shadow-purple-900/30 animate-pulse-slow">
+            <Shield className="w-8 h-8" />
           </div>
-          <h1 className="text-xl font-black text-primary uppercase tracking-wide">RAKSHASETU</h1>
-          <p className="text-xs font-semibold text-slate-500">AI Powered Tourist Protection & Identity Verification System</p>
+          <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">RAKSHASETU AI</h1>
+          <p className="text-xs font-bold text-slate-600 dark:text-slate-400">AI Powered Tourist Protection & Identity Verification System</p>
         </div>
 
         {/* Multi-step Progress Indicator */}

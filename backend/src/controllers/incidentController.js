@@ -31,6 +31,20 @@ class IncidentController {
       videoUrls
     });
 
+    // Broadcast incident activity to Admin Dashboard
+    try {
+      const { broadcastTouristActivity } = require('../socket/sosSocket');
+      broadcastTouristActivity({
+        id: report.id || Date.now(),
+        type: 'incident_report',
+        title: `Incident Report (${severity ? severity.toUpperCase() : 'MEDIUM'})`,
+        description: `${title || category}: ${description || 'No description'} @ ${locationName || 'GPS Location'}`,
+        touristName: req.user?.full_name || 'Tourist User',
+        touristPhone: req.user?.phone || '+919876543210',
+        details: report
+      });
+    } catch (err) {}
+
     return res.status(201).json(new ApiResponse(201, report, 'Incident report submitted successfully for review.'));
   });
 

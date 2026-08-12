@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Utensils, CheckCircle2, Search, Clock, ShoppingBag } from 'lucide-react';
 import api from '../services/api';
+import socket from '../services/socket';
 
 const FoodOrdersAdmin = () => {
   const [orders, setOrders] = useState([]);
@@ -19,6 +20,26 @@ const FoodOrdersAdmin = () => {
       }
     };
     fetchOrders();
+
+    // Listen to real-time restaurant / food orders
+    socket.on('new_food_order', (newOrder) => {
+      setOrders((prev) => [
+        {
+          id: newOrder.id || Date.now(),
+          order_code: newOrder.details?.order_code || `FD-RS-${Date.now().toString().slice(-6)}`,
+          tourist_name: newOrder.touristName || 'Tourist User',
+          restaurant_name: newOrder.details?.restaurant_name || 'Hygienic Partner Restaurant',
+          delivery_address: newOrder.details?.delivery_address || 'Hotel Reception',
+          total_amount: newOrder.details?.total_amount || 450,
+          status: 'placed'
+        },
+        ...prev
+      ]);
+    });
+
+    return () => {
+      socket.off('new_food_order');
+    };
   }, []);
 
   return (
@@ -32,6 +53,10 @@ const FoodOrdersAdmin = () => {
             Real-time audit log of tourist food deliveries and verified restaurant fulfillment
           </p>
         </div>
+        <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-bold flex items-center gap-1.5 border border-amber-200">
+          <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+          Live Orders Stream
+        </span>
       </div>
 
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
@@ -48,7 +73,7 @@ const FoodOrdersAdmin = () => {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {orders.map((o) => (
-              <tr key={o.id} className="hover:bg-slate-50">
+              <tr key={o.id} className="hover:bg-slate-50 transition-colors">
                 <td className="p-4 font-mono font-bold text-[#0D47A1]">{o.order_code}</td>
                 <td className="p-4 font-bold text-slate-800">{o.tourist_name || 'Tourist User'}</td>
                 <td className="p-4 font-semibold text-slate-700">{o.restaurant_name || 'Hygienic Restaurant'}</td>

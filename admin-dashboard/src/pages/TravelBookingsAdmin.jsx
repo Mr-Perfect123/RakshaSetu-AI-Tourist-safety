@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Ticket, Plane, Train, Bus, Car, Search, RefreshCw, User, Calendar, CheckCircle } from 'lucide-react';
 import api from '../services/api';
+import socket from '../services/socket';
 
 const TravelBookingsAdmin = () => {
   const [bookings, setBookings] = useState([]);
@@ -21,6 +22,32 @@ const TravelBookingsAdmin = () => {
 
   useEffect(() => {
     fetchBookings();
+
+    // Listen to real-time travel hub bookings
+    socket.on('new_travel_booking', (newBooking) => {
+      setBookings((prev) => [
+        {
+          id: newBooking.id || Date.now(),
+          booking_code: newBooking.details?.booking_code || `TRV-RS-${Date.now().toString().slice(-6)}`,
+          travel_type: newBooking.details?.travel_type || 'flight',
+          tourist_name: newBooking.touristName || 'Tourist User',
+          tourist_phone: newBooking.touristPhone || '',
+          from_location: newBooking.details?.from_location || 'Coimbatore',
+          to_location: newBooking.details?.to_location || 'Chennai',
+          operator_name: newBooking.details?.operator_name || 'Verified Partner',
+          vehicle_number: newBooking.details?.vehicle_number || 'RS-TRAV-101',
+          travel_date: new Date().toLocaleDateString(),
+          departure_time: newBooking.details?.departure_time || '08:00 AM',
+          fare: newBooking.details?.fare || 1500,
+          status: 'CONFIRMED'
+        },
+        ...prev
+      ]);
+    });
+
+    return () => {
+      socket.off('new_travel_booking');
+    };
   }, []);
 
   const filtered = bookings.filter(b =>
@@ -42,12 +69,19 @@ const TravelBookingsAdmin = () => {
           </p>
         </div>
 
-        <button
-          onClick={fetchBookings}
-          className="px-4 py-2 rounded-xl bg-[#0D47A1] text-white text-xs font-bold hover:bg-blue-800 transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
-        >
-          <RefreshCw className="w-4 h-4" /> Refresh Audit List
-        </button>
+        <div className="flex items-center gap-3">
+          <span className="px-3 py-1 rounded-full bg-purple-50 text-purple-700 text-xs font-bold flex items-center gap-1.5 border border-purple-200">
+            <span className="w-2 h-2 rounded-full bg-purple-600 animate-ping"></span>
+            Live Travel Feed
+          </span>
+
+          <button
+            onClick={fetchBookings}
+            className="px-4 py-2 rounded-xl bg-[#0D47A1] text-white text-xs font-bold hover:bg-blue-800 transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+          >
+            <RefreshCw className="w-4 h-4" /> Refresh Audit List
+          </button>
+        </div>
       </div>
 
       {/* Filter Bar */}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Car, CheckCircle2, Search, Clock, MapPin } from 'lucide-react';
+import { Car, CheckCircle2, Search, Clock, MapPin, Bell } from 'lucide-react';
 import api from '../services/api';
+import socket from '../services/socket';
 
 const VehicleBookingsAdmin = () => {
   const [bookings, setBookings] = useState([]);
@@ -19,6 +20,29 @@ const VehicleBookingsAdmin = () => {
       }
     };
     fetchBookings();
+
+    // Listen to real-time tourist ride bookings
+    socket.on('new_vehicle_booking', (newBooking) => {
+      setBookings((prev) => [
+        {
+          id: newBooking.id || Date.now(),
+          booking_code: newBooking.details?.booking_code || `BK-RS-${Date.now().toString().slice(-6)}`,
+          tourist_name: newBooking.touristName || 'Tourist User',
+          vehicle_category: newBooking.details?.vehicle_category || 'SEDAN',
+          pickup_location: newBooking.details?.pickup_location || 'GPS Location',
+          destination: newBooking.details?.destination || 'Destination',
+          booking_date: new Date().toLocaleDateString(),
+          booking_time: new Date().toLocaleTimeString(),
+          estimated_fare: newBooking.details?.estimated_fare || 250,
+          status: 'confirmed'
+        },
+        ...prev
+      ]);
+    });
+
+    return () => {
+      socket.off('new_vehicle_booking');
+    };
   }, []);
 
   return (
@@ -32,6 +56,10 @@ const VehicleBookingsAdmin = () => {
             Real-time audit log of all tourist transport dispatches and verified driver assignments
           </p>
         </div>
+        <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold flex items-center gap-1.5 border border-blue-200">
+          <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping"></span>
+          Live Dispatch Feed
+        </span>
       </div>
 
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
@@ -49,7 +77,7 @@ const VehicleBookingsAdmin = () => {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {bookings.map((b) => (
-              <tr key={b.id} className="hover:bg-slate-50">
+              <tr key={b.id} className="hover:bg-slate-50 transition-colors">
                 <td className="p-4 font-mono font-bold text-[#0D47A1]">{b.booking_code}</td>
                 <td className="p-4 font-bold text-slate-800">{b.tourist_name || 'Tourist User'}</td>
                 <td className="p-4 font-semibold text-slate-600 uppercase">{b.vehicle_category}</td>

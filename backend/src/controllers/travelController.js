@@ -214,12 +214,26 @@ class TravelController {
       departure_time: departureTime,
       arrival_time: arrivalTime,
       duration,
-      fare,
+        fare,
       status: 'confirmed',
       payment_status: 'paid'
     };
 
-    return res.status(201).json(new ApiResponse(201, booking, `${travelType.toUpperCase()} booking confirmed successfully.`));
+    // Broadcast travel activity to Admin Dashboard
+    try {
+      const { broadcastTouristActivity } = require('../socket/sosSocket');
+      broadcastTouristActivity({
+        id: booking.id,
+        type: 'travel_booking',
+        title: `Travel Booking (${travelType.toUpperCase()})`,
+        description: `${fromLocation || 'Coimbatore'} → ${toLocation || 'Chennai'} via ${operatorName || 'Verified Partner'} (Fare: ₹${fare})`,
+        touristName: req.user?.full_name || 'Tourist User',
+        touristPhone: req.user?.phone || '+919876543210',
+        details: booking
+      });
+    } catch (err) {}
+
+    return res.status(201).json(new ApiResponse(201, booking, '🎫 Travel ticket booked successfully. Ticket confirmed!'));
   });
 
   /**

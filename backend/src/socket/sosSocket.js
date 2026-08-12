@@ -142,8 +142,40 @@ const broadcastSosStatusChange = (sosId, status, details = {}) => {
   }
 };
 
+const broadcastTouristActivity = (activity) => {
+  if (ioInstance) {
+    const payload = {
+      id: activity.id || Date.now(),
+      type: activity.type || 'general', // 'vehicle_booking', 'food_booking', 'travel_booking', 'sos_alert', 'incident_report'
+      title: activity.title || 'Tourist Activity',
+      description: activity.description || '',
+      touristName: activity.touristName || 'Tourist',
+      touristPhone: activity.touristPhone || '',
+      details: activity.details || {},
+      timestamp: new Date().toISOString()
+    };
+
+    logger.info(`[WebSocket] Broadcasting tourist activity: ${payload.type} - ${payload.title}`);
+    
+    // Broadcast to all admin and dispatch rooms
+    ioInstance.to('admin_dispatch').to('police_dispatch').emit('tourist_activity', payload);
+
+    // Specific event broadcasts for admin sub-dashboards
+    if (activity.type === 'vehicle_booking') {
+      ioInstance.to('admin_dispatch').emit('new_vehicle_booking', payload);
+    } else if (activity.type === 'food_booking') {
+      ioInstance.to('admin_dispatch').emit('new_food_order', payload);
+    } else if (activity.type === 'travel_booking') {
+      ioInstance.to('admin_dispatch').emit('new_travel_booking', payload);
+    } else if (activity.type === 'incident_report') {
+      ioInstance.to('admin_dispatch').emit('new_incident_report', payload);
+    }
+  }
+};
+
 module.exports = {
   initializeSocket,
   broadcastSosAlert,
-  broadcastSosStatusChange
+  broadcastSosStatusChange,
+  broadcastTouristActivity
 };

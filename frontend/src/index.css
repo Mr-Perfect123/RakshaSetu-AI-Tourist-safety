@@ -57,6 +57,82 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* Light mode text contrast enforcement */
+:not(.dark) {
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #475569;
+}
+
+:not(.dark) p, 
+:not(.dark) span, 
+:not(.dark) label, 
+:not(.dark) li {
+  color: inherit;
+}
+
+/* Custom Purple Button Glow */
+.btn-purple-glow {
+  background-color: #5b21b6;
+  box-shadow: 0 4px 20px -2px rgba(91, 33, 182, 0.4);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn-purple-glow:hover {
+  background-color: #4c1d95;
+  box-shadow: 0 8px 25px -2px rgba(91, 33, 182, 0.6);
+  transform: translateY(-1px);
+}
+
+/* Landing Page Card Hover Lift */
+.card-hover-lift {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card-hover-lift:hover {
+  transform: translateY(-4px);
+}
+
+/* Keyframe Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bgZoom {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float 5s ease-in-out 2s infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-bg-zoom {
+  animation: bgZoom 30s ease-in-out infinite;
+}
+
 /* Color Fallback Utilities for Tailwind Compatibility */
 .bg-danger { background-color: #D32F2F !important; }
 .text-danger { color: #D32F2F !important; }

@@ -74,6 +74,20 @@ class FoodController {
       estimated_delivery_min: 30
     };
 
+    // Broadcast food activity to Admin Dashboard
+    try {
+      const { broadcastTouristActivity } = require('../socket/sosSocket');
+      broadcastTouristActivity({
+        id: order.id,
+        type: 'food_booking',
+        title: `Restaurant / Food Order Placed`,
+        description: `Order #${orderCode} - Amount: ₹${totalAmount} to ${deliveryAddress || 'Hotel Address'}`,
+        touristName: req.user?.full_name || 'Tourist User',
+        touristPhone: req.user?.phone || '+919876543210',
+        details: order
+      });
+    } catch (err) {}
+
     return res.status(201).json(new ApiResponse(201, order, 'Food order placed successfully with hotel delivery.'));
   });
 

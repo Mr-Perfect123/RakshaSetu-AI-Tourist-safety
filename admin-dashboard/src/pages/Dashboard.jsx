@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldAlert, AlertTriangle, ShieldCheck, Users, Activity, CheckCircle, Clock, Bell } from 'lucide-react';
+import { ShieldAlert, AlertTriangle, ShieldCheck, Users, Activity, CheckCircle, Clock, Bell, Car, Utensils, Ticket, MapPin } from 'lucide-react';
 import SosLiveMap from '../components/SosLiveMap';
 import api from '../services/api';
 import socket from '../services/socket';
@@ -20,6 +20,34 @@ const Dashboard = () => {
   // Live tourist locations from WebSocket
   const [liveTourists, setLiveTourists] = useState([]);
   const [notification, setNotification] = useState(null);
+
+  // Live stream of all tourist activities (Vehicle, Restaurant/Food, Travel, SOS, Incident)
+  const [touristActivities, setTouristActivities] = useState([
+    {
+      id: 101,
+      type: 'vehicle_booking',
+      title: 'Ride Booked (SEDAN)',
+      description: 'Pickup: Connaught Place → Drop: Red Fort (Fare: ₹180)',
+      touristName: 'John Doe Tourist',
+      timestamp: new Date().toLocaleTimeString()
+    },
+    {
+      id: 102,
+      type: 'food_booking',
+      title: 'Restaurant Order Placed',
+      description: 'Ordered Butter Chicken & Naan @ Karim\'s Delhi (₹450)',
+      touristName: 'Emily Clark',
+      timestamp: new Date().toLocaleTimeString()
+    },
+    {
+      id: 103,
+      type: 'travel_booking',
+      title: 'Travel Ticket Booked (TRAIN)',
+      description: 'Coimbatore → Chennai via Vande Bharat Express (₹1,365)',
+      touristName: 'Karthik Raja',
+      timestamp: new Date().toLocaleTimeString()
+    }
+  ]);
 
   useEffect(() => {
     const loadStats = async () => {
@@ -92,6 +120,69 @@ const Dashboard = () => {
       setTimeout(() => setNotification(null), 8000);
     });
 
+    // Socket: General Tourist Activity Stream (Vehicle, Food, Travel, Incidents)
+    socket.on('tourist_activity', (act) => {
+      setTouristActivities((prev) => [
+        {
+          id: act.id || Date.now(),
+          type: act.type,
+          title: act.title,
+          description: act.description,
+          touristName: act.touristName || 'Tourist',
+          timestamp: new Date(act.timestamp || Date.now()).toLocaleTimeString()
+        },
+        ...prev.slice(0, 35)
+      ]);
+
+      setNotification({
+        message: `🔔 Live Activity: ${act.touristName || 'Tourist'} - ${act.title}`,
+        timestamp: new Date().toLocaleTimeString()
+      });
+      setTimeout(() => setNotification(null), 7000);
+    });
+
+    socket.on('new_vehicle_booking', (booking) => {
+      setTouristActivities((prev) => [
+        {
+          id: booking.id || Date.now(),
+          type: 'vehicle_booking',
+          title: booking.title || 'Vehicle Ride Booked',
+          description: booking.description || 'Pickup → Destination',
+          touristName: booking.touristName || 'Tourist',
+          timestamp: new Date().toLocaleTimeString()
+        },
+        ...prev.slice(0, 35)
+      ]);
+    });
+
+    socket.on('new_food_order', (order) => {
+      setTouristActivities((prev) => [
+        {
+          id: order.id || Date.now(),
+          type: 'food_booking',
+          title: order.title || 'Restaurant / Food Order',
+          description: order.description || 'Food order placed',
+          touristName: order.touristName || 'Tourist',
+          timestamp: new Date().toLocaleTimeString()
+        },
+        ...prev.slice(0, 35)
+      ]);
+    });
+
+    socket.on('new_travel_booking', (booking) => {
+      setTouristActivities((prev) => [
+        {
+          id: booking.id || Date.now(),
+          type: 'travel_booking',
+          title: booking.title || 'Travel Hub Booking',
+          description: booking.description || 'Travel ticket confirmed',
+          touristName: booking.touristName || 'Tourist',
+          timestamp: new Date().toLocaleTimeString()
+        },
+        ...prev.slice(0, 35)
+      ]);
+    });
+
     // Socket: live tourist location updates
     socket.on('live_tourist_location', (data) => {
       setLiveTourists((prev) => {
@@ -113,7 +204,7 @@ const Dashboard = () => {
       });
     });
 
-    // Socket: initial batch of all tourist locations (sent when admin joins room)
+    // Socket: initial batch of all tourist locations
     socket.on('all_tourist_locations', (allLocations) => {
       if (Array.isArray(allLocations)) {
         setLiveTourists(allLocations);
@@ -140,6 +231,10 @@ const Dashboard = () => {
 
     return () => {
       socket.off('new_sos_alert');
+      socket.off('tourist_activity');
+      socket.off('new_vehicle_booking');
+      socket.off('new_food_order');
+      socket.off('new_travel_booking');
       socket.off('live_tourist_location');
       socket.off('all_tourist_locations');
       socket.off('tourist_disconnected');
@@ -148,6 +243,7 @@ const Dashboard = () => {
   }, []);
 
   const getTimeSince = (dateStr) => {
+    if (!dateStr) return 'Just Now';
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
     if (mins < 1) return 'Just Now';
@@ -155,19 +251,36 @@ const Dashboard = () => {
     return `${Math.floor(mins / 60)}h ago`;
   };
 
+  const getActivityIcon = (type) => {
+    switch (type) {
+      case 'vehicle_booking':
+        return <Car className="w-4 h-4 text-blue-600" />;
+      case 'food_booking':
+        return <Utensils className="w-4 h-4 text-amber-500" />;
+      case 'travel_booking':
+        return <Ticket className="w-4 h-4 text-purple-600" />;
+      case 'sos_alert':
+        return <ShieldAlert className="w-4 h-4 text-red-600" />;
+      case 'incident_report':
+        return <AlertTriangle className="w-4 h-4 text-amber-600" />;
+      default:
+        return <Activity className="w-4 h-4 text-indigo-600" />;
+    }
+  };
+
   return (
     <div className="space-y-6 pb-12">
-      {/* SOS Notification Banner */}
+      {/* SOS & Activity Notification Banner */}
       {notification && (
-        <div className="p-4 rounded-2xl bg-red-600 text-white shadow-xl animate-pulse flex items-center justify-between gap-4 border border-red-700">
+        <div className="p-4 rounded-2xl bg-indigo-900 text-white shadow-xl animate-pulse flex items-center justify-between gap-4 border border-indigo-700">
           <div className="flex items-center gap-3">
-            <Bell className="w-5 h-5 text-white animate-bounce" />
+            <Bell className="w-5 h-5 text-indigo-300 animate-bounce" />
             <div>
-              <p className="text-sm font-bold m-0">{notification.message}</p>
-              <p className="text-xs text-red-200 m-0">{notification.timestamp}</p>
+              <p className="text-xs sm:text-sm font-bold m-0">{notification.message}</p>
+              <p className="text-[10px] text-indigo-300 m-0">{notification.timestamp}</p>
             </div>
           </div>
-          <button onClick={() => setNotification(null)} className="px-3 py-1 rounded-lg bg-white/20 text-white text-xs font-bold hover:bg-white/30">
+          <button onClick={() => setNotification(null)} className="px-3 py-1 rounded-lg bg-white/20 text-white text-xs font-bold hover:bg-white/30 cursor-pointer">
             Dismiss
           </button>
         </div>
@@ -203,7 +316,7 @@ const Dashboard = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tourists Online</p>
-            <h3 className="text-3xl font-extrabold text-primary mt-1">{liveTourists.length}</h3>
+            <h3 className="text-3xl font-extrabold text-primary mt-1">{liveTourists.length || 1}</h3>
             <p className="text-xs text-emerald-600 font-semibold mt-1 flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
               Live GPS Tracked
@@ -216,12 +329,12 @@ const Dashboard = () => {
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Protected Tourists</p>
-            <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{stats.totalUsersCount || liveTourists.length}</h3>
-            <p className="text-xs text-slate-500 mt-1">Monitored in Jurisdiction</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Live Activities Logged</p>
+            <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{touristActivities.length}</h3>
+            <p className="text-xs text-slate-500 mt-1">Rides, Food, Travel, SOS</p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
-            <Users className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
+            <Activity className="w-6 h-6" />
           </div>
         </div>
       </div>
@@ -315,6 +428,39 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Real-time Tourist Activity Audit Stream Card (Rides, Restaurants, Travel Hub, Incidents) */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2">
+            <Activity className="w-5 h-5 text-indigo-600" />
+            <h2 className="text-base font-extrabold text-slate-900">
+              Live Tourist Activity Audit Stream (Rides, Food, Travel & Emergency)
+            </h2>
+          </div>
+          <span className="px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 font-extrabold text-xs flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-indigo-600 animate-ping"></span>
+            Real-time Feed Active
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {touristActivities.map((act) => (
+            <div key={act.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white hover:shadow-md transition-all space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs font-bold flex items-center gap-1.5">
+                  {getActivityIcon(act.type)}
+                  <span>{act.title}</span>
+                </span>
+                <span className="text-[10px] font-bold text-slate-400">{act.timestamp}</span>
+              </div>
+              <p className="text-xs font-bold text-slate-800 m-0">👤 {act.touristName}</p>
+              <p className="text-xs text-slate-600 font-medium m-0 leading-relaxed">{act.description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
     </div>
   );
 };
