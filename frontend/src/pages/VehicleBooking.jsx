@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import PaymentModal from '../components/PaymentModal';
 
-// Enhanced distance estimator formula from pickup -> destination text inputs
+// Enhanced intercity and intracity distance calculator
 const estimateDistanceBetweenLocations = (pickupText, destText) => {
   if (!pickupText || !destText) return 5.0;
   const p = pickupText.toLowerCase().trim();
@@ -12,24 +12,48 @@ const estimateDistanceBetweenLocations = (pickupText, destText) => {
 
   if (p === d) return 1.5;
 
-  // Known location pairs
-  if ((p.includes('railway') && d.includes('marudamalai')) || (d.includes('railway') && p.includes('marudamalai'))) return 16.8;
-  if ((p.includes('airport') && d.includes('railway')) || (d.includes('airport') && p.includes('railway'))) return 11.4;
-  if ((p.includes('airport') && d.includes('marudamalai')) || (d.includes('airport') && p.includes('marudamalai'))) return 24.2;
-  if (p.includes('airport') || d.includes('airport')) return 18.5;
-  if (p.includes('railway') || d.includes('railway')) return 8.4;
-  if (p.includes('taj') || d.includes('taj')) return 210.0;
-  if (p.includes('delhi') || d.includes('delhi')) return 14.2;
-  if (p.includes('goa') || d.includes('goa')) return 32.5;
+  const hasBoth = (a, b) => (p.includes(a) && d.includes(b)) || (p.includes(b) && d.includes(a));
 
-  // Hash-based deterministic dynamic distance formula for custom typed places
-  let hash1 = 0;
-  let hash2 = 0;
+  // 1. Intercity Routes (Long Distance)
+  if (hasBoth('coimbatore', 'chennai')) return 505.0;
+  if (hasBoth('coimbatore', 'bangalore') || hasBoth('coimbatore', 'bengaluru')) return 365.0;
+  if (hasBoth('coimbatore', 'ooty')) return 85.5;
+  if (hasBoth('coimbatore', 'madurai')) return 215.0;
+  if (hasBoth('coimbatore', 'kochi') || hasBoth('coimbatore', 'ernakulam')) return 190.0;
+  if (hasBoth('coimbatore', 'mysore')) return 200.0;
+  if (hasBoth('delhi', 'taj') || hasBoth('delhi', 'agra')) return 230.0;
+  if (hasBoth('delhi', 'jaipur')) return 280.0;
+  if (hasBoth('delhi', 'chandigarh')) return 245.0;
+  if (hasBoth('goa', 'mumbai')) return 580.0;
+  if (hasBoth('mumbai', 'pune')) return 148.0;
+
+  // Single intercity destination checks
+  if ((d.includes('chennai') && !p.includes('chennai')) || (p.includes('chennai') && !d.includes('chennai'))) return 505.0;
+  if ((d.includes('bangalore') && !p.includes('bangalore')) || (p.includes('bangalore') && !d.includes('bangalore'))) return 365.0;
+  if ((d.includes('madurai') && !p.includes('madurai')) || (p.includes('madurai') && !d.includes('madurai'))) return 215.0;
+
+  // 2. Intracity Landmark Pairs
+  if (hasBoth('railway', 'marudamalai')) return 16.8;
+  if (hasBoth('airport', 'railway')) return 11.4;
+  if (hasBoth('airport', 'marudamalai')) return 24.2;
+  if (hasBoth('railway', 'isha')) return 30.5;
+  if (hasBoth('airport', 'isha')) return 42.0;
+  if (hasBoth('railway', 'gandhipuram')) return 3.5;
+  if (hasBoth('connaught', 'airport')) return 18.5;
+  if (hasBoth('connaught', 'red fort')) return 5.2;
+
+  // 3. Single Landmark Fallbacks
+  if (p.includes('marudamalai') || d.includes('marudamalai')) return 16.8;
+  if (p.includes('isha') || d.includes('isha')) return 30.5;
+  if (p.includes('airport') || d.includes('airport')) return 18.5;
+
+  // 4. Custom Typed Locations (Deterministic Hash Formula)
+  let hash1 = 0, hash2 = 0;
   for (let i = 0; i < p.length; i++) hash1 = (hash1 * 31 + p.charCodeAt(i)) % 10007;
   for (let i = 0; i < d.length; i++) hash2 = (hash2 * 37 + d.charCodeAt(i)) % 10007;
 
   const diff = Math.abs(hash1 - hash2);
-  const dist = 3.2 + (diff % 380) / 10;
+  const dist = 3.2 + (diff % 220) / 10;
   return parseFloat(dist.toFixed(1));
 };
 
