@@ -162,15 +162,16 @@ const SosMonitor = () => {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      {/* Header Bar — Frosted Glass Container for High Text Visibility */}
+      <div className="bg-slate-900/90 border border-slate-700 text-white backdrop-blur-md p-5 rounded-3xl shadow-md flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-extrabold text-primary flex items-center gap-2">
-            <AlertOctagon className="w-6 h-6 text-danger" /> SOS Emergency Dispatch Queue
+          <h1 className="text-xl font-extrabold text-white flex items-center gap-2 m-0">
+            <AlertOctagon className="w-6 h-6 text-red-500 animate-pulse" /> SOS Emergency Dispatch Queue
           </h1>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs font-semibold text-slate-300 m-0 mt-0.5">
             Live monitoring of distress signals and real-time police dispatch
             {sosList.filter(s => s.status === 'active').length > 0 && (
-              <span className="ml-2 px-2 py-0.5 rounded-full bg-danger text-white text-[10px] font-bold animate-pulse">
+              <span className="ml-2 px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-bold animate-pulse">
                 {sosList.filter(s => s.status === 'active').length} ACTIVE
               </span>
             )}
@@ -206,7 +207,7 @@ const SosMonitor = () => {
           <p className="text-xs text-slate-500 mt-1">All clear in the jurisdiction. Monitoring WebSocket for new distress signals.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase">
               <tr>

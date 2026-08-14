@@ -108,7 +108,7 @@ const Navbar = () => {
   }, [dispatch]);
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
+    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-md">
       {/* Global Real-time Live Alert Toast Banner */}
       {activeNotification && (
         <div className={`px-6 py-2.5 text-white flex items-center justify-between text-xs font-bold shadow-lg animate-in slide-in-from-top duration-200 ${

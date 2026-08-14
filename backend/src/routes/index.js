@@ -17,6 +17,7 @@ const placeRoutes = require('./placeRoutes');
 const zoneRoutes = require('./zoneRoutes');
 const alertRoutes = require('./alertRoutes');
 const travelRoutes = require('./travelRoutes');
+const activityRoutes = require('./activityRoutes');
 
 router.get('/health', (req, res) => {
   res.status(200).json({
@@ -43,5 +44,6 @@ router.use('/places', placeRoutes);
 router.use('/zones', zoneRoutes);
 router.use('/alerts', alertRoutes);
 router.use('/travel', travelRoutes);
+router.use('/activities', activityRoutes);
 
 module.exports = router;

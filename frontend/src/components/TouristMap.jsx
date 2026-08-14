@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Navigation, Compass, MapPin, Shield, AlertOctagon, Phone } from 'lucide-react';
+import { Compass } from 'lucide-react';
 
-// Custom Leaflet Icons for 8 marker types
+// Custom Leaflet Icons for marker types
 const createCustomIcon = (colorUrl) => new L.Icon({
   iconUrl: colorUrl,
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
@@ -20,15 +20,34 @@ const safeIcon = createCustomIcon('https://raw.githubusercontent.com/pointhi/lea
 const policeIcon = createCustomIcon('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png');
 const hospitalIcon = createCustomIcon('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png');
 const incidentIcon = createCustomIcon('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png');
+const hotelIcon = createCustomIcon('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png');
+const restaurantIcon = createCustomIcon('https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png');
 
 const MapAutoPan = ({ position }) => {
   const map = useMap();
   useEffect(() => {
     if (position && position[0] && position[1]) {
-      map.flyTo(position, map.getZoom(), { duration: 1.2 });
+      map.flyTo(position, 14, { duration: 1.2 });
     }
   }, [position, map]);
   return null;
+};
+
+const TargetLocationButton = ({ onMyLocationClick }) => {
+  const map = useMap();
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (onMyLocationClick) onMyLocationClick(map);
+      }}
+      className="absolute top-4 right-4 z-[400] bg-white/95 backdrop-blur-md text-slate-900 px-3.5 py-2 rounded-2xl border border-slate-300 shadow-xl font-extrabold text-xs flex items-center gap-2 hover:bg-slate-100 transition-all cursor-pointer"
+      title="Recenter Map on My Live GPS Location"
+    >
+      <Compass className="w-4 h-4 text-blue-600 shrink-0" />
+      <span>⦿ My Location</span>
+    </button>
+  );
 };
 
 const TouristMap = ({
@@ -38,20 +57,23 @@ const TouristMap = ({
   dangerZones = [],
   redAlerts = [],
   incidents = [],
-  showRoute = false
+  nearbyPlaces = [],
+  showRoute = false,
+  onMyLocationClick = null
 }) => {
   const position = [parseFloat(location.lat), parseFloat(location.lng)];
   const destPos = destination ? [parseFloat(destination.latitude || destination.lat), parseFloat(destination.longitude || destination.lng)] : null;
 
   return (
     <div className="w-full h-full rounded-2xl overflow-hidden shadow-xs border border-slate-200 relative z-0 flex flex-col">
-      <MapContainer center={position} zoom={13} scrollWheelZoom={true} className="w-full h-full flex-1">
+      <MapContainer center={position} zoom={14} scrollWheelZoom={true} className="w-full h-full flex-1">
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
         <MapAutoPan position={position} />
+        <TargetLocationButton onMyLocationClick={onMyLocationClick} />
 
         {/* 1. Tourist's Current GPS Location (Blue) */}
         <Marker position={position} icon={touristIcon}>
@@ -86,7 +108,7 @@ const TouristMap = ({
         )}
 
         {/* 3. Red Alerts Overlay (Dark Red Pulsing Circles) */}
-        {redAlerts.map((alert) => (
+        {(redAlerts || []).map((alert) => (
           <Circle
             key={`alert-${alert.id}`}
             center={[parseFloat(alert.latitude), parseFloat(alert.longitude)]}
@@ -104,7 +126,7 @@ const TouristMap = ({
         ))}
 
         {/* 4. Danger Zones Overlay (Red Circles) */}
-        {dangerZones.map((zone) => (
+        {(dangerZones || []).map((zone) => (
           <Circle
             key={`zone-${zone.id}`}
             center={[parseFloat(zone.latitude), parseFloat(zone.longitude)]}
@@ -122,7 +144,7 @@ const TouristMap = ({
         ))}
 
         {/* 5. Safe Locations & Police/Hospitals */}
-        {safeLocations.map((loc) => {
+        {(safeLocations || []).map((loc) => {
           const icon = loc.type === 'police_station' ? policeIcon : loc.type === 'hospital' ? hospitalIcon : safeIcon;
           return (
             <Marker key={`safe-${loc.id}`} position={[parseFloat(loc.latitude), parseFloat(loc.longitude)]} icon={icon}>
@@ -140,8 +162,36 @@ const TouristMap = ({
           );
         })}
 
-        {/* 6. Incident Locations (Orange Markers) */}
-        {incidents.map((inc) => (
+        {/* 6. Nearby Service Amenities (Hotels, Restaurants, Pharmacies, ATMs, Fuel) */}
+        {(nearbyPlaces || []).map((place) => {
+          const catLower = (place.category || '').toLowerCase();
+          const icon = catLower.includes('police')
+            ? policeIcon
+            : catLower.includes('hospital') || catLower.includes('pharmacy')
+              ? hospitalIcon
+              : catLower.includes('hotel')
+                ? hotelIcon
+                : restaurantIcon;
+
+          return (
+            <Marker key={`nearby-${place.id}`} position={[parseFloat(place.latitude), parseFloat(place.longitude)]} icon={icon}>
+              <Popup>
+                <div className="p-1 max-w-xs space-y-1">
+                  <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-900 font-bold text-[10px] uppercase">{place.category}</span>
+                  <h4 className="font-extrabold text-xs text-slate-900 m-0">{place.name}</h4>
+                  <p className="text-[11px] text-slate-600 m-0 leading-tight">{place.address}</p>
+                  <div className="text-[10px] font-bold text-[#0D47A1] flex justify-between pt-1">
+                    <span>📍 {place.formattedDistance || `${place.distanceKm} km`}</span>
+                    <span>📞 {place.phone}</span>
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+
+        {/* 7. Incident Locations (Orange Markers) */}
+        {(incidents || []).map((inc) => (
           <Marker key={`inc-${inc.id}`} position={[parseFloat(inc.latitude), parseFloat(inc.longitude)]} icon={incidentIcon}>
             <Popup>
               <div className="p-1">
@@ -157,13 +207,13 @@ const TouristMap = ({
       {/* Map Legend Footer Bar */}
       <div className="bg-slate-900 text-white p-2.5 text-[11px] font-semibold flex items-center justify-between overflow-x-auto gap-3 border-t border-slate-800">
         <div className="flex items-center gap-3 whitespace-nowrap">
-          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span> You</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span> You (Live GPS)</span>
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Destination</span>
-          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Safe Area</span>
-          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-orange-500"></span> Danger Zone</span>
-          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse"></span> Red Alert</span>
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-violet-500"></span> Police</span>
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-500"></span> Hospital</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-yellow-400"></span> Hotel</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-gray-400"></span> Restaurant</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-orange-500"></span> Danger Zone</span>
         </div>
       </div>
     </div>

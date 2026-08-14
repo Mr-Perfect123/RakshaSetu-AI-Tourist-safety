@@ -34,6 +34,18 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // Security Rate Limiting
 app.use('/api', globalRateLimiter);
 
+// Root API Status Endpoint
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'ONLINE',
+    service: 'RakshaSetu AI Tourist Safety & Emergency Dispatch API Engine',
+    version: '1.0.0',
+    documentation: 'RakshaSetu Multi-Tenant Protection Network',
+    healthCheck: '/api/v1/health',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // API v1 Routes
 app.use('/api/v1', routes);
 

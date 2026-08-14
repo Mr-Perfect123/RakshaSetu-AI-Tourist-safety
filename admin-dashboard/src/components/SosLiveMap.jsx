@@ -33,9 +33,9 @@ const SosLiveMap = ({ activeSosList = [], safeLocations = [] }) => {
         />
 
         {/* Active Emergency SOS Markers */}
-        {activeSosList.map((sos) => (
-          <React.Fragment key={sos.id}>
-            <Marker position={[parseFloat(sos.latitude), parseFloat(sos.longitude)]} icon={sosIcon}>
+        {(activeSosList || []).map((sos) => (
+          <React.Fragment key={sos.id || sos.sos_code || Math.random()}>
+            <Marker position={[parseFloat(sos.latitude || 28.6139), parseFloat(sos.longitude || 77.2090)]} icon={sosIcon}>
               <Popup>
                 <div className="p-1">
                   <div className="text-danger font-bold text-xs uppercase mb-1">🚨 ACTIVE EMERGENCY SOS</div>
@@ -46,7 +46,7 @@ const SosLiveMap = ({ activeSosList = [], safeLocations = [] }) => {
               </Popup>
             </Marker>
             <Circle
-              center={[parseFloat(sos.latitude), parseFloat(sos.longitude)]}
+              center={[parseFloat(sos.latitude || 28.6139), parseFloat(sos.longitude || 77.2090)]}
               radius={400}
               pathOptions={{ color: '#D32F2F', fillColor: '#D32F2F', fillOpacity: 0.25 }}
             />
@@ -54,8 +54,8 @@ const SosLiveMap = ({ activeSosList = [], safeLocations = [] }) => {
         ))}
 
         {/* Verified Safe Locations (Police & Hospitals) */}
-        {safeLocations.map((loc) => (
-          <Marker key={loc.id} position={[parseFloat(loc.latitude), parseFloat(loc.longitude)]} icon={safeIcon}>
+        {(safeLocations || []).map((loc) => (
+          <Marker key={loc.id || Math.random()} position={[parseFloat(loc.latitude || 28.6139), parseFloat(loc.longitude || 77.2090)]} icon={safeIcon}>
             <Popup>
               <div className="p-1">
                 <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase">{loc.type}</span>

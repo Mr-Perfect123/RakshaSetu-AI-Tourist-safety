@@ -107,9 +107,12 @@ class VehicleController {
     const bookingDate = date || new Date().toISOString().split('T')[0];
     const bookingTime = time || new Date().toTimeString().split(' ')[0];
 
+    // REQUIREMENT 18: Generate secure 6-digit Ride OTP at booking time
+    const rideOtp = Math.floor(100000 + Math.random() * 900000).toString();
+
     const sql = `INSERT INTO vehicle_bookings 
-      (booking_code, user_id, vehicle_id, vehicle_category, pickup_location, pickup_lat, pickup_lng, destination, dest_lat, dest_lng, booking_date, booking_time, passengers, estimated_fare, status, payment_status, driver_id, driver_name, driver_phone, driver_photo, driver_rating, vehicle_registration, base_fare, distance_km, distance_charge, taxes_fees)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', 'test_mode', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      (booking_code, user_id, vehicle_id, vehicle_category, pickup_location, pickup_lat, pickup_lng, destination, dest_lat, dest_lng, booking_date, booking_time, passengers, estimated_fare, ride_otp, status, payment_status, driver_id, driver_name, driver_phone, driver_photo, driver_rating, vehicle_registration, base_fare, distance_km, distance_charge, taxes_fees)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OTP_PENDING', 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     const result = await executeQuery(sql, [
       bookingCode,
@@ -126,6 +129,7 @@ class VehicleController {
       bookingTime,
       passengers,
       calculatedFare,
+      rideOtp,
       selectedVehicle.id || 1,
       selectedVehicle.driver_name,
       selectedVehicle.driver_phone,
@@ -149,8 +153,10 @@ class VehicleController {
       booking_time: bookingTime,
       passengers,
       estimated_fare: calculatedFare,
-      status: 'confirmed',
-      payment_status: 'pending',
+      final_fare: calculatedFare,
+      ride_otp: rideOtp,
+      status: 'OTP_PENDING',
+      payment_status: 'PENDING',
       driver_name: selectedVehicle.driver_name,
       driver_phone: selectedVehicle.driver_phone,
       driver_photo: selectedVehicle.image_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
@@ -166,21 +172,126 @@ class VehicleController {
       }
     };
 
-    // Broadcast activity to Admin Dashboard
+    // Broadcast activity to Admin Dashboard via Socket.IO
     try {
       const { broadcastTouristActivity } = require('../socket/sosSocket');
       broadcastTouristActivity({
         id: booking.id,
         type: 'vehicle_booking',
-        title: `Ride Booked (${category.toUpperCase()})`,
-        description: `Pickup: ${pickupLocation} → Drop: ${destination} (Fare: ₹${calculatedFare})`,
+        title: `Cab Booked (OTP Generated)`,
+        description: `Pickup: ${pickupLocation} → Drop: ${destination} (Estimated Fare: ₹${calculatedFare}). Ride OTP: ${rideOtp}`,
         touristName: req.user?.full_name || 'Tourist User',
         touristPhone: req.user?.phone || '+919876543210',
         details: booking
       });
     } catch (err) {}
 
-    return res.status(201).json(new ApiResponse(201, booking, '🚕 Ride booked successfully! Driver assigned.'));
+    return res.status(201).json(new ApiResponse(201, booking, `🚕 Ride booked! Driver assigned. Share Ride OTP: ${rideOtp} to start.`));
+  });
+
+  /**
+   * REQUIREMENT 19: Verify Ride OTP & Start Ride
+   */
+  static verifyOtp = asyncHandler(async (req, res) => {
+    const { bookingId, otp } = req.body;
+    if (!bookingId || !otp) {
+      throw new ApiError(400, 'Booking ID and Ride OTP are required.');
+    }
+
+    const bookings = await executeQuery(`SELECT * FROM vehicle_bookings WHERE id = ? LIMIT 1`, [bookingId]);
+    if (!bookings || bookings.length === 0) {
+      throw new ApiError(404, 'Booking not found.');
+    }
+
+    const booking = bookings[0];
+    if (booking.ride_otp && booking.ride_otp.toString() !== otp.toString()) {
+      throw new ApiError(400, 'Invalid Ride OTP. Ride cannot start.');
+    }
+
+    await executeQuery(
+      `UPDATE vehicle_bookings SET status = 'RIDE_STARTED' WHERE id = ?`,
+      [bookingId]
+    );
+
+    booking.status = 'RIDE_STARTED';
+
+    try {
+      const { broadcastTouristActivity } = require('../socket/sosSocket');
+      broadcastTouristActivity({
+        id: bookingId,
+        type: 'ride_started',
+        title: `Ride Started (OTP Verified)`,
+        description: `Ride #${booking.booking_code || bookingId} is now in progress.`,
+        touristName: req.user?.full_name || 'Tourist User',
+        details: booking
+      });
+    } catch (e) {}
+
+    return res.status(200).json(new ApiResponse(200, booking, 'Ride OTP verified successfully! Ride STARTED.'));
+  });
+
+  /**
+   * REQUIREMENT 20 & 21: Complete Ride & Calculate Final Fare (Before Payment)
+   */
+  static completeRide = asyncHandler(async (req, res) => {
+    const { bookingId, actualDistanceKm, actualDurationMins } = req.body;
+    const bookings = await executeQuery(`SELECT * FROM vehicle_bookings WHERE id = ? LIMIT 1`, [bookingId]);
+    if (!bookings || bookings.length === 0) {
+      throw new ApiError(404, 'Booking not found.');
+    }
+
+    const booking = bookings[0];
+    const dist = parseFloat(actualDistanceKm || booking.distance_km || 16.8);
+    const perKm = parseFloat(booking.per_km_rate || 18);
+    const base = parseFloat(booking.base_fare || 80);
+    const finalFare = Math.round(base + dist * perKm + 40);
+
+    await executeQuery(
+      `UPDATE vehicle_bookings SET status = 'RIDE_COMPLETED', estimated_fare = ?, payment_status = 'PAYMENT_PENDING' WHERE id = ?`,
+      [finalFare, bookingId]
+    );
+
+    booking.status = 'RIDE_COMPLETED';
+    booking.final_fare = finalFare;
+    booking.payment_status = 'PAYMENT_PENDING';
+
+    try {
+      const { broadcastTouristActivity } = require('../socket/sosSocket');
+      broadcastTouristActivity({
+        id: bookingId,
+        type: 'ride_completed',
+        title: `Ride Completed (Payment Pending)`,
+        description: `Destination reached! Final Fare: ₹${finalFare}. Awaiting payment.`,
+        touristName: req.user?.full_name || 'Tourist User',
+        details: booking
+      });
+    } catch (e) {}
+
+    return res.status(200).json(new ApiResponse(200, booking, `Ride COMPLETED! Final fare: ₹${finalFare}. Please complete payment.`));
+  });
+
+  /**
+   * REQUIREMENT 20: Complete Post-Ride Payment
+   */
+  static completePayment = asyncHandler(async (req, res) => {
+    const { bookingId } = req.body;
+    await executeQuery(
+      `UPDATE vehicle_bookings SET payment_status = 'PAID', status = 'COMPLETED' WHERE id = ?`,
+      [bookingId]
+    );
+
+    try {
+      const { broadcastTouristActivity } = require('../socket/sosSocket');
+      broadcastTouristActivity({
+        id: bookingId,
+        type: 'payment_completed',
+        title: `Payment Completed`,
+        description: `Payment for ride #${bookingId} completed successfully. Status: PAID.`,
+        touristName: req.user?.full_name || 'Tourist User'
+      });
+    } catch (e) {}
+
+    return res.status(200).json(new ApiResponse(200, { id: bookingId, status: 'COMPLETED', payment_status: 'PAID' }, 'Payment completed successfully!'));
   });
 
   static getUserBookings = asyncHandler(async (req, res) => {

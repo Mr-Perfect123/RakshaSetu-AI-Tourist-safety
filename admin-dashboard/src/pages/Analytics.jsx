@@ -46,13 +46,16 @@ const AnalyticsPage = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      <div>
-        <h1 className="text-xl font-extrabold text-primary flex items-center gap-2">
-          <BarChart3 className="w-6 h-6 text-primary" /> Tourist Protection & Response Analytics
-        </h1>
-        <p className="text-xs text-slate-500">
-          Aggregated emergency response speed metrics, incident trends & tourist safety insights
-        </p>
+      {/* Header Bar — Frosted Glass Container for High Text Visibility */}
+      <div className="bg-slate-900/90 border border-slate-700 text-white backdrop-blur-md p-5 rounded-3xl shadow-md flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-extrabold text-white flex items-center gap-2 m-0">
+            <BarChart3 className="w-6 h-6 text-blue-400" /> Tourist Protection & Response Analytics
+          </h1>
+          <p className="text-xs font-semibold text-slate-300 m-0 mt-0.5">
+            Aggregated emergency response speed metrics, incident trends & tourist safety insights
+          </p>
+        </div>
       </div>
 
       {/* KPI Counters */}

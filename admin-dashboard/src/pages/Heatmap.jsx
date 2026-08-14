@@ -90,7 +90,7 @@ const HeatmapPage = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Leaflet Map displaying crime risk circles */}
-        <div className="lg:col-span-2 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col h-[560px]">
+        <div className="lg:col-span-2 bg-white/85 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col h-[560px]">
           <div className="flex items-center justify-between mb-3 px-1">
             <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
               <MapPin className="w-4 h-4 text-danger" /> Jurisdiction Crime Risk Radar
@@ -131,7 +131,7 @@ const HeatmapPage = () => {
         </div>
 
         {/* AI Danger Predictor Panel */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col h-[560px] justify-between">
+        <div className="bg-white/85 backdrop-blur-md p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col h-[560px] justify-between">
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-primary font-bold border-b border-slate-100 pb-3">
               <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />

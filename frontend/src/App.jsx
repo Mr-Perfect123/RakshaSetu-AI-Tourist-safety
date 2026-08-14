@@ -23,6 +23,8 @@ import PrivacySettings from './pages/PrivacySettings';
 import ErrorBoundary from './components/ErrorBoundary';
 import { Clock, AlertTriangle } from 'lucide-react';
 
+import { LanguageProvider } from './context/LanguageContext';
+
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 Minutes Inactivity Timeout Limit
 
 function App() {
@@ -111,8 +113,9 @@ function App() {
   }, [tourist, updateActivity, handleLogout]);
 
   return (
-    <BrowserRouter>
-      <div className={`min-h-screen flex flex-col font-sans app-tourist-bg bg-security-grid ${darkMode ? 'dark text-slate-100' : 'text-slate-800'}`}>
+    <LanguageProvider tourist={tourist}>
+      <BrowserRouter>
+        <div className={`min-h-screen flex flex-col font-sans app-tourist-bg bg-security-grid ${darkMode ? 'dark text-slate-100' : 'text-slate-800'}`}>
         
         {/* Session Expired Banner Notification */}
         {sessionExpiredNotice && (
@@ -199,6 +202,7 @@ function App() {
         {tourist && <FloatingChatbot tourist={tourist} darkMode={darkMode} />}
       </div>
     </BrowserRouter>
+  </LanguageProvider>
   );
 }
 

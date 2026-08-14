@@ -173,18 +173,21 @@ const LiveChat = ({ tourist, darkMode }) => {
 
   return (
     <div className="space-y-4 pb-12 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between">
+      {/* Header Bar — Frosted Glass Container for High Text Visibility */}
+      <div className={`p-4 sm:p-5 rounded-3xl border shadow-md flex items-center justify-between ${
+        darkMode ? 'bg-slate-900/90 border-slate-700 text-white' : 'bg-white/95 border-slate-200 text-slate-900'
+      } backdrop-blur-md`}>
         <div className="flex items-center gap-3">
           <Link to="/" className={`p-2 rounded-xl border transition-colors ${
-            darkMode ? 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+            darkMode ? 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
           }`}>
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
-            <h1 className={`text-xl font-extrabold flex items-center gap-2 m-0 ${darkMode ? 'text-blue-400' : 'text-[#0D47A1]'}`}>
-              <MessageSquare className="w-6 h-6" /> Live Emergency Dispatcher & Gemini AI Chat
+            <h1 className={`text-xl font-extrabold flex items-center gap-2 m-0 ${darkMode ? 'text-blue-400' : 'text-blue-900'}`}>
+              <MessageSquare className="w-6 h-6 text-blue-600" /> Live Emergency Dispatcher & Gemini AI Chat
             </h1>
-            <p className={`text-xs font-medium m-0 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            <p className={`text-xs font-semibold m-0 mt-0.5 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
               Direct encrypted channel with Police HQ Dispatchers & Gemini AI Sentinel
             </p>
           </div>

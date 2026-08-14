@@ -62,24 +62,32 @@ const NearbyHelp = ({ darkMode }) => {
 
   return (
     <div className="space-y-6 pb-12 max-w-6xl mx-auto">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Top Header — Frosted Glass Container for High Text Visibility */}
+      <div className={`p-4 sm:p-5 rounded-3xl border shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+        darkMode ? 'bg-slate-900/90 border-slate-700 text-white' : 'bg-white/95 border-slate-200 text-slate-900'
+      } backdrop-blur-md`}>
         <div className="flex items-center gap-3">
-          <Link to="/" className={`p-2.5 rounded-xl border decoration-none ${cardClass}`}>
+          <Link to="/" className={`p-2.5 rounded-xl border decoration-none ${
+            darkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
+          }`}>
             <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
           </Link>
           <div>
-            <h1 className={`text-xl sm:text-2xl font-black m-0 flex items-center gap-2 ${textClass}`}>
-              <Building2 className="w-7 h-7 text-[#0D47A1]" /> Smart Nearby Places Discovery
+            <h1 className={`text-xl sm:text-2xl font-black m-0 flex items-center gap-2 ${
+              darkMode ? 'text-blue-400' : 'text-blue-900'
+            }`}>
+              <Building2 className="w-7 h-7 text-blue-600" /> Smart Nearby Places Discovery
             </h1>
-            <p className={`text-xs font-semibold m-0 ${mutedClass}`}>
+            <p className={`text-xs font-semibold m-0 ${
+              darkMode ? 'text-slate-300' : 'text-slate-700'
+            }`}>
               Location-aware hotels, restaurants, cafes, emergency police & medical desks
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1.5">
+          <span className="px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-900 text-xs font-black flex items-center gap-1.5 border border-emerald-300">
             <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping"></span> GPS Centered: {locationName}
           </span>
         </div>

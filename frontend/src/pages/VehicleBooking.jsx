@@ -4,34 +4,8 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import PaymentModal from '../components/PaymentModal';
 
-// Enhanced distance estimator formula from pickup -> destination text inputs
-const estimateDistanceBetweenLocations = (pickupText, destText) => {
-  if (!pickupText || !destText) return 5.0;
-  const p = pickupText.toLowerCase().trim();
-  const d = destText.toLowerCase().trim();
-
-  if (p === d) return 1.5;
-
-  // Known location pairs
-  if ((p.includes('railway') && d.includes('marudamalai')) || (d.includes('railway') && p.includes('marudamalai'))) return 16.8;
-  if ((p.includes('airport') && d.includes('railway')) || (d.includes('airport') && p.includes('railway'))) return 11.4;
-  if ((p.includes('airport') && d.includes('marudamalai')) || (d.includes('airport') && p.includes('marudamalai'))) return 24.2;
-  if (p.includes('airport') || d.includes('airport')) return 18.5;
-  if (p.includes('railway') || d.includes('railway')) return 8.4;
-  if (p.includes('taj') || d.includes('taj')) return 210.0;
-  if (p.includes('delhi') || d.includes('delhi')) return 14.2;
-  if (p.includes('goa') || d.includes('goa')) return 32.5;
-
-  // Hash-based deterministic dynamic distance formula for custom typed places
-  let hash1 = 0;
-  let hash2 = 0;
-  for (let i = 0; i < p.length; i++) hash1 = (hash1 * 31 + p.charCodeAt(i)) % 10007;
-  for (let i = 0; i < d.length; i++) hash2 = (hash2 * 37 + d.charCodeAt(i)) % 10007;
-
-  const diff = Math.abs(hash1 - hash2);
-  const dist = 3.2 + (diff % 380) / 10;
-  return parseFloat(dist.toFixed(1));
-};
+import TouristMap from '../components/TouristMap';
+import axios from 'axios';
 
 const VehicleBooking = ({ darkMode }) => {
   const [selectedCategory, setSelectedCategory] = useState('sedan');
@@ -42,30 +16,117 @@ const VehicleBooking = ({ darkMode }) => {
   const [passengers, setPassengers] = useState(2);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  // Auto-calculated distance from map route (NO manual typing required)
-  const distanceKm = estimateDistanceBetweenLocations(pickup, destination);
-  const estimatedTimeMins = Math.round((distanceKm / 35) * 60) || 25;
+  // Routing & Coordinate States
+  const [pickupCoords, setPickupCoords] = useState({ lat: 11.0017, lng: 76.9629, name: 'Coimbatore Railway Station' });
+  const [destCoords, setDestCoords] = useState({ lat: 11.0478, lng: 76.8524, name: 'Marudamalai Temple' });
+  const [distanceKm, setDistanceKm] = useState(16.8);
+  const [estimatedTimeMins, setEstimatedTimeMins] = useState(28);
+  const [routeCoordinates, setRouteCoordinates] = useState([]);
+  const [isRouting, setIsRouting] = useState(false);
 
   const [fareEstimate, setFareEstimate] = useState(null);
   const [bookingResult, setBookingResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [myBookings, setMyBookings] = useState([]);
-  const [activeTab, setActiveTab] = useState('book'); // 'book' or 'history'
+  const [activeTab, setActiveTab] = useState('book');
 
-  const calculateFare = async () => {
+  // Real OSRM Routing Engine
+  const calculateRouteAndFare = async () => {
+    if (!pickup.trim() || !destination.trim()) return;
+    setIsRouting(true);
+
     try {
-      const res = await api.post('/vehicles/estimate-fare', {
-        category: selectedCategory,
-        distanceKm
-      });
-      if (res.data) setFareEstimate(res.data);
-    } catch (e) {
-      setFareEstimate({ baseFare: 80, perKmRate: 18, distanceCharge: Math.round(distanceKm * 18), taxesFees: 40, estimatedFare: Math.round(80 + distanceKm * 18 + 40) });
+      // 1. Geocode Pickup & Destination via OpenStreetMap Nominatim
+      let pLat = pickupCoords.lat;
+      let pLng = pickupCoords.lng;
+      let dLat = destCoords.lat;
+      let dLng = destCoords.lng;
+
+      try {
+        const [pRes, dRes] = await Promise.all([
+          axios.get(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(pickup)}&format=json&limit=1`, { headers: { 'User-Agent': 'RakshaSetu/1.0' }, timeout: 3000 }),
+          axios.get(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(destination)}&format=json&limit=1`, { headers: { 'User-Agent': 'RakshaSetu/1.0' }, timeout: 3000 })
+        ]);
+
+        if (pRes.data && pRes.data[0]) {
+          pLat = parseFloat(pRes.data[0].lat);
+          pLng = parseFloat(pRes.data[0].lon);
+          setPickupCoords({ lat: pLat, lng: pLng, name: pickup });
+        }
+        if (dRes.data && dRes.data[0]) {
+          dLat = parseFloat(dRes.data[0].lat);
+          dLng = parseFloat(dRes.data[0].lon);
+          setDestCoords({ lat: dLat, lng: dLng, name: destination });
+        }
+      } catch (geoErr) {
+        console.warn('Geocoding fallback');
+      }
+
+      // 2. Fetch OSRM Driving Route
+      try {
+        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${pLng},${pLat};${dLng},${dLat}?overview=full&geometries=geojson`;
+        const routeRes = await axios.get(osrmUrl, { timeout: 4000 });
+
+        if (routeRes.data && routeRes.data.routes && routeRes.data.routes[0]) {
+          const r = routeRes.data.routes[0];
+          const distKm = Math.max(Math.round((r.distance / 1000) * 10) / 10, 1.0);
+          const durationMin = Math.max(Math.round(r.duration / 60), 3);
+
+          setDistanceKm(distKm);
+          setEstimatedTimeMins(durationMin);
+
+          if (r.geometry && Array.isArray(r.geometry.coordinates)) {
+            const leafCoords = r.geometry.coordinates.map(c => [c[1], c[0]]);
+            setRouteCoordinates(leafCoords);
+          }
+        }
+      } catch (osrmErr) {
+        // Fallback distance calculation via Haversine formula
+        const R = 6371;
+        const dLatRad = ((dLat - pLat) * Math.PI) / 180;
+        const dLonRad = ((dLng - pLng) * Math.PI) / 180;
+        const a = Math.sin(dLatRad / 2) * Math.sin(dLatRad / 2) + Math.cos((pLat * Math.PI) / 180) * Math.cos((dLat * Math.PI) / 180) * Math.sin(dLonRad / 2) * Math.sin(dLonRad / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const haversineDist = Math.round(R * c * 10) / 10 || 12.5;
+
+        setDistanceKm(haversineDist);
+        setEstimatedTimeMins(Math.round((haversineDist / 35) * 60));
+      }
+
+      // 3. Estimate Dynamic Fare
+      try {
+        const res = await api.post('/vehicles/estimate-fare', {
+          category: selectedCategory,
+          distanceKm
+        });
+        if (res.data) {
+          setFareEstimate(res.data?.data || res.data);
+        }
+      } catch (e) {
+        const rates = { hatchback: 14, sedan: 18, suv: 24, luxury: 45, electric: 16 };
+        const perKm = rates[selectedCategory] || 18;
+        const base = selectedCategory === 'luxury' ? 250 : 80;
+        const distCharge = Math.round(distanceKm * perKm);
+        const total = Math.round(base + distCharge + 40);
+
+        setFareEstimate({
+          baseFare: base,
+          perKmRate: perKm,
+          distanceCharge: distCharge,
+          taxesFees: 40,
+          estimatedFare: total
+        });
+      }
+    } finally {
+      setIsRouting(false);
     }
   };
 
   useEffect(() => {
-    calculateFare();
+    const timer = setTimeout(() => {
+      calculateRouteAndFare();
+    }, 400);
+    return () => clearTimeout(timer);
   }, [selectedCategory, pickup, destination]);
 
   const handleBookingSubmit = async (e) => {
@@ -84,8 +145,9 @@ const VehicleBooking = ({ darkMode }) => {
         passengers
       });
 
-      if (res.data) {
-        setBookingResult(res.data);
+      const dataObj = res.data?.data || res.data;
+      if (dataObj) {
+        setBookingResult(dataObj);
         setShowPaymentModal(true);
         fetchMyBookings();
       }
@@ -99,7 +161,8 @@ const VehicleBooking = ({ darkMode }) => {
   const fetchMyBookings = async () => {
     try {
       const res = await api.get('/vehicles/my-bookings');
-      if (res.data) setMyBookings(res.data);
+      const list = res.data?.data || res.data || [];
+      if (Array.isArray(list)) setMyBookings(list);
     } catch (e) {}
   };
 
@@ -112,28 +175,36 @@ const VehicleBooking = ({ darkMode }) => {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Header Bar — Frosted Glass Container for High Text Visibility */}
+      <div className={`p-4 sm:p-5 rounded-3xl border shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+        darkMode ? 'bg-slate-900/90 border-slate-700 text-white' : 'bg-white/95 border-slate-200 text-slate-900'
+      } backdrop-blur-md`}>
         <div className="flex items-center gap-3">
           <Link to="/" className={`p-2.5 rounded-xl border decoration-none ${
-            darkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-600'
+            darkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
           }`}>
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-xl font-extrabold m-0 text-[#0D47A1] flex items-center gap-2">
+            <h1 className={`text-xl font-extrabold m-0 flex items-center gap-2 ${
+              darkMode ? 'text-blue-400' : 'text-blue-900'
+            }`}>
               <Car className="w-6 h-6 text-blue-600" /> Dynamic Vehicle & Taxi Dispatch Hub
             </h1>
-            <p className="text-xs text-slate-500 m-0">Verified drivers, real-time GPS tracking & 24/7 Police Command link</p>
+            <p className={`text-xs font-semibold m-0 ${
+              darkMode ? 'text-slate-300' : 'text-slate-700'
+            }`}>
+              Verified drivers, real-time GPS tracking & 24/7 Police Command link
+            </p>
           </div>
         </div>
 
         {/* Tab Toggle */}
-        <div className="flex bg-slate-100 p-1 rounded-xl">
+        <div className="flex bg-slate-200/80 dark:bg-slate-800 p-1 rounded-xl">
           <button
             onClick={() => setActiveTab('book')}
             className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'book' ? 'bg-[#0D47A1] text-white shadow-xs' : 'text-slate-600 hover:bg-slate-200'
+              activeTab === 'book' ? 'bg-[#0D47A1] text-white shadow-xs' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700'
             }`}
           >
             Book Taxi / Cab
@@ -141,7 +212,7 @@ const VehicleBooking = ({ darkMode }) => {
           <button
             onClick={() => setActiveTab('history')}
             className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'history' ? 'bg-[#0D47A1] text-white shadow-xs' : 'text-slate-600 hover:bg-slate-200'
+              activeTab === 'history' ? 'bg-[#0D47A1] text-white shadow-xs' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700'
             }`}
           >
             My Rides ({myBookings.length})
@@ -152,8 +223,8 @@ const VehicleBooking = ({ darkMode }) => {
       {activeTab === 'book' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Booking Form (Cols 1 & 2) */}
-          <div className={`lg:col-span-2 ${cardBg} p-6 rounded-3xl border shadow-xs space-y-6`}>
-            <h2 className="text-xs font-extrabold uppercase tracking-wider text-[#0D47A1] m-0">1. Select Vehicle Category</h2>
+          <div className={`lg:col-span-2 ${darkMode ? 'bg-slate-900/90 border-slate-700 text-white' : 'bg-white/95 border-slate-200 text-slate-900'} backdrop-blur-md p-6 rounded-3xl border shadow-md space-y-6`}>
+            <h2 className={`text-xs font-black uppercase tracking-wider ${darkMode ? 'text-blue-400' : 'text-blue-900'} m-0`}>1. Select Vehicle Category</h2>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {[

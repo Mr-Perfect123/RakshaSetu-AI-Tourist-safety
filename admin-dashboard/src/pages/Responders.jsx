@@ -56,12 +56,13 @@ const RespondersPage = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Header Bar — Frosted Glass Container for High Text Visibility */}
+      <div className="bg-slate-900/90 border border-slate-700 text-white backdrop-blur-md p-5 rounded-3xl shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-extrabold text-primary flex items-center gap-2">
-            <ShieldCheck className="w-6 h-6 text-primary" /> Emergency Police & Hospital Infrastructure
+          <h1 className="text-xl font-extrabold text-white flex items-center gap-2 m-0">
+            <ShieldCheck className="w-6 h-6 text-blue-400" /> Emergency Police & Hospital Infrastructure
           </h1>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs font-semibold text-slate-300 m-0 mt-0.5">
             Directory of 24/7 verified responder units, police stations, hospitals & tourist helpdesks
           </p>
         </div>

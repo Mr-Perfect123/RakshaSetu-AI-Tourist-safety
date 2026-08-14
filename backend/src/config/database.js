@@ -58,6 +58,75 @@ const inMemoryStore = {
   notifications: [],
   audit_logs: [
     { id: 1, action: 'SYSTEM_BOOT', details: 'RakshaSetu Emergency Dispatch Engine Initialized', created_at: new Date().toISOString() }
+  ],
+  tourist_activities: [
+    { id: 1, user_id: 4, tourist_name: 'John Doe Tourist', activity_type: 'SEARCH_DESTINATION', description: 'Searched Coimbatore, Tamil Nadu', latitude: 11.0168, longitude: 76.9558, address: 'Coimbatore, Tamil Nadu', created_at: new Date().toISOString() },
+    { id: 2, user_id: 4, tourist_name: 'John Doe Tourist', activity_type: 'VIEW_SAFETY_MAP', description: 'Viewed Live Tourist Safety Sentinel Map', latitude: 11.0168, longitude: 76.9558, address: 'Coimbatore, Tamil Nadu', created_at: new Date().toISOString() }
+  ],
+  vehicle_bookings: [
+    {
+      id: 1,
+      booking_code: 'BK-RS-991001',
+      user_id: 4,
+      vehicle_category: 'sedan',
+      pickup_location: 'Coimbatore Railway Station',
+      pickup_lat: 11.0017,
+      pickup_lng: 76.9629,
+      destination: 'Marudamalai Temple, Coimbatore',
+      dest_lat: 11.0478,
+      dest_lng: 76.8524,
+      booking_date: new Date().toISOString().split('T')[0],
+      booking_time: '10:00',
+      passengers: 2,
+      estimated_fare: 450,
+      final_fare: 450,
+      ride_otp: '483921',
+      status: 'OTP_PENDING',
+      payment_status: 'PENDING',
+      driver_name: 'Karthik Raja',
+      driver_phone: '+919443322110',
+      driver_photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+      driver_rating: 4.95,
+      vehicle_registration: 'TN-37-RS-1001',
+      distance_km: 16.8,
+      created_at: new Date().toISOString()
+    }
+  ],
+  travel_bookings: [
+    {
+      id: 1,
+      booking_code: 'TR-RS-882001',
+      user_id: 4,
+      booking_type: 'train',
+      source: 'Coimbatore Junction',
+      destination: 'Chennai Central',
+      travel_date: '2026-08-20',
+      travel_time: '06:00 AM',
+      passengers_json: JSON.stringify([{ name: 'John Doe Tourist', age: 30 }]),
+      seat_class: 'Vande Bharat EC',
+      ticket_number: 'VB-20644',
+      total_price: 1365.00,
+      status: 'confirmed',
+      payment_status: 'paid',
+      created_at: new Date().toISOString()
+    }
+  ],
+  food_orders: [
+    {
+      id: 1,
+      order_code: 'FD-RS-773001',
+      user_id: 4,
+      restaurant_id: 1,
+      restaurant_name: 'Sri Annapoorna Gourmet',
+      items_json: JSON.stringify([{ name: 'Ghee Roast Dosa', qty: 2, price: 120 }]),
+      subtotal: 240,
+      delivery_fee: 30,
+      total_amount: 270,
+      delivery_address: 'Hotel Reception Desk, Coimbatore',
+      status: 'placed',
+      payment_status: 'paid',
+      created_at: new Date().toISOString()
+    }
   ]
 };
 
@@ -89,6 +158,112 @@ const executeQuery = async (sql, params = []) => {
 
   // Resilient Fallback Simulator for development & offline testing
   const cleanSql = sql.trim().toLowerCase();
+
+  if (cleanSql.includes('select * from tourist_activities')) {
+    return [...inMemoryStore.tourist_activities];
+  }
+
+  if (cleanSql.includes('insert into tourist_activities')) {
+    const newAct = {
+      id: inMemoryStore.tourist_activities.length + 1,
+      user_id: params[0] || 4,
+      tourist_name: params[1] || 'Tourist',
+      activity_type: params[2] || 'GENERAL_ACTIVITY',
+      description: params[3] || 'Tourist Action',
+      latitude: params[4] || 11.0168,
+      longitude: params[5] || 76.9558,
+      address: params[6] || 'Coimbatore',
+      metadata_json: params[7] || '{}',
+      created_at: new Date().toISOString()
+    };
+    inMemoryStore.tourist_activities.unshift(newAct);
+    return { insertId: newAct.id, affectedRows: 1 };
+  }
+
+  if (cleanSql.includes('select * from vehicle_bookings')) {
+    let list = [...inMemoryStore.vehicle_bookings];
+    if (cleanSql.includes('where id =')) {
+      const id = params[0];
+      return list.filter(b => b.id === parseInt(id, 10));
+    }
+    if (cleanSql.includes('where user_id =')) {
+      const userId = params[0];
+      return list.filter(b => b.user_id === parseInt(userId, 10));
+    }
+    return list;
+  }
+
+  if (cleanSql.includes('insert into vehicle_bookings')) {
+    const newBooking = {
+      id: inMemoryStore.vehicle_bookings.length + 1,
+      booking_code: params[0] || `BK-RS-${Date.now()}`,
+      user_id: params[1] || 4,
+      vehicle_id: params[2] || 1,
+      vehicle_category: params[3] || 'sedan',
+      pickup_location: params[4] || 'Current Location',
+      pickup_lat: params[5] || 11.0168,
+      pickup_lng: params[6] || 76.9558,
+      destination: params[7] || 'Destination',
+      dest_lat: params[8] || 11.0478,
+      dest_lng: params[9] || 76.8524,
+      booking_date: params[10] || new Date().toISOString().split('T')[0],
+      booking_time: params[11] || '10:00',
+      passengers: params[12] || 1,
+      estimated_fare: params[13] || 350,
+      ride_otp: params[14] || '483921',
+      status: 'OTP_PENDING',
+      payment_status: 'PENDING',
+      driver_name: params[15] || 'Karthik Raja',
+      driver_phone: params[16] || '+919443322110',
+      driver_photo: params[17] || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+      driver_rating: params[18] || 4.95,
+      vehicle_registration: params[19] || 'TN-37-RS-1001',
+      distance_km: params[21] || 12.0,
+      created_at: new Date().toISOString()
+    };
+    inMemoryStore.vehicle_bookings.unshift(newBooking);
+    return { insertId: newBooking.id, affectedRows: 1 };
+  }
+
+  if (cleanSql.includes('update vehicle_bookings')) {
+    const id = params[params.length - 1];
+    const b = inMemoryStore.vehicle_bookings.find(bk => bk.id === parseInt(id, 10));
+    if (b) {
+      if (cleanSql.includes('status = ?')) b.status = params[0];
+      if (cleanSql.includes('payment_status = ?')) b.payment_status = params[0];
+    }
+    return { affectedRows: 1 };
+  }
+
+  if (cleanSql.includes('select * from travel_bookings')) {
+    return inMemoryStore.travel_bookings;
+  }
+
+  if (cleanSql.includes('insert into travel_bookings')) {
+    const newTravel = {
+      id: inMemoryStore.travel_bookings.length + 1,
+      booking_code: params[0] || `TR-RS-${Date.now()}`,
+      user_id: params[1] || 4,
+      booking_type: params[2] || 'bus',
+      source: params[3],
+      destination: params[4],
+      travel_date: params[5],
+      travel_time: params[6],
+      passengers_json: params[7],
+      seat_class: params[8],
+      ticket_number: params[9],
+      total_price: params[10],
+      status: 'confirmed',
+      payment_status: 'paid',
+      created_at: new Date().toISOString()
+    };
+    inMemoryStore.travel_bookings.unshift(newTravel);
+    return { insertId: newTravel.id, affectedRows: 1 };
+  }
+
+  if (cleanSql.includes('select * from food_orders')) {
+    return inMemoryStore.food_orders;
+  }
 
   if (cleanSql.includes('select * from users') || (cleanSql.includes('select') && cleanSql.includes('from users'))) {
     let result = [...inMemoryStore.users];

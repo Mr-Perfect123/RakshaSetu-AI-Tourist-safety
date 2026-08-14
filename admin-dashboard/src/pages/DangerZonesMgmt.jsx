@@ -54,12 +54,13 @@ const DangerZonesMgmt = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex items-center justify-between">
+      {/* Header Bar — Frosted Glass Container for High Text Visibility */}
+      <div className="bg-slate-900/90 border border-slate-700 text-white backdrop-blur-md p-5 rounded-3xl shadow-md flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-            <AlertTriangle className="w-6 h-6 text-red-600" /> Danger & Hazard Zone Command Management
+          <h1 className="text-xl font-extrabold text-white flex items-center gap-2 m-0">
+            <AlertTriangle className="w-6 h-6 text-red-500 animate-pulse" /> Danger & Hazard Zone Command Management
           </h1>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs font-semibold text-slate-300 m-0 mt-0.5">
             Define spatial danger zones with automated tourist warning advisories
           </p>
         </div>

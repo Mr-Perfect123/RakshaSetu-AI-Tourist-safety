@@ -9,7 +9,7 @@ const FoodModule = ({ darkMode }) => {
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
   const [cart, setCart] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [deliveryAddress, setDeliveryAddress] = useState('Room 402, Taj Palace Hotel, New Delhi');
+  const [deliveryAddress, setDeliveryAddress] = useState('Hotel Sector, Coimbatore, Tamil Nadu');
 
   const [activeTab, setActiveTab] = useState('restaurants'); // 'restaurants', 'cart', 'orders'
   const [myOrders, setMyOrders] = useState([]);
@@ -107,28 +107,36 @@ const FoodModule = ({ darkMode }) => {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* Header Bar — Frosted Glass Container for High Text Visibility */}
+      <div className={`p-4 sm:p-5 rounded-3xl border shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+        darkMode ? 'bg-slate-900/90 border-slate-700 text-white' : 'bg-white/95 border-slate-200 text-slate-900'
+      } backdrop-blur-md`}>
         <div className="flex items-center gap-3">
           <Link to="/" className={`p-2 rounded-xl border ${
-            darkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-600'
+            darkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
           }`}>
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
-            <h1 className="text-xl font-extrabold m-0 text-[#0D47A1] flex items-center gap-2">
+            <h1 className={`text-xl font-extrabold m-0 flex items-center gap-2 ${
+              darkMode ? 'text-amber-400' : 'text-amber-700 font-extrabold'
+            }`}>
               <Utensils className="w-6 h-6 text-amber-500" /> RakshaSetu Verified Tourist Dining & Food
             </h1>
-            <p className="text-xs text-slate-500 m-0">Verified hygiene rating, hotel delivery & authentic local cuisine</p>
+            <p className={`text-xs font-semibold m-0 ${
+              darkMode ? 'text-slate-300' : 'text-slate-700'
+            }`}>
+              Verified hygiene rating, hotel delivery & authentic local cuisine
+            </p>
           </div>
         </div>
 
         {/* Tab Selection Bar */}
-        <div className="flex bg-slate-100 p-1 rounded-xl">
+        <div className="flex bg-slate-200/80 dark:bg-slate-800 p-1 rounded-xl">
           <button
             onClick={() => { setActiveTab('restaurants'); setSelectedRestaurant(null); }}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'restaurants' ? 'bg-[#0D47A1] text-white shadow-xs' : 'text-slate-600 hover:bg-slate-200'
+              activeTab === 'restaurants' ? 'bg-[#0D47A1] text-white shadow-xs' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700'
             }`}
           >
             Restaurants
@@ -136,7 +144,7 @@ const FoodModule = ({ darkMode }) => {
           <button
             onClick={() => setActiveTab('cart')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeTab === 'cart' ? 'bg-[#0D47A1] text-white shadow-xs' : 'text-slate-600 hover:bg-slate-200'
+              activeTab === 'cart' ? 'bg-[#0D47A1] text-white shadow-xs' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700'
             }`}
           >
             <ShoppingBag className="w-3.5 h-3.5" /> Cart ({cart.reduce((a, i) => a + i.qty, 0)})
@@ -144,7 +152,7 @@ const FoodModule = ({ darkMode }) => {
           <button
             onClick={() => setActiveTab('orders')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'orders' ? 'bg-[#0D47A1] text-white shadow-xs' : 'text-slate-600 hover:bg-slate-200'
+              activeTab === 'orders' ? 'bg-[#0D47A1] text-white shadow-xs' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700'
             }`}
           >
             My Orders ({myOrders.length})

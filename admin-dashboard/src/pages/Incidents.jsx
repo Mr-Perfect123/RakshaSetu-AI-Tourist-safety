@@ -79,12 +79,15 @@ const Incidents = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Header Bar — Frosted Glass Container for High Text Visibility */}
+      <div className="bg-slate-900/90 border border-slate-700 text-white backdrop-blur-md p-5 rounded-3xl shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-extrabold text-primary flex items-center gap-2">
-            <FileText className="w-6 h-6 text-primary" /> Tourist Incident Reports & Verification Desk
+          <h1 className="text-xl font-extrabold text-white flex items-center gap-2 m-0">
+            <FileText className="w-6 h-6 text-red-400" /> Tourist Incident Reports & Verification Desk
           </h1>
-          <p className="text-xs text-slate-500">Live crowd-sourced crime, scam, harassment, and road hazard reports</p>
+          <p className="text-xs font-semibold text-slate-300 m-0 mt-0.5">
+            Live crowd-sourced crime, scam, harassment, and road hazard reports
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -122,7 +125,7 @@ const Incidents = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {filteredIncidents.map((item) => (
-            <div key={item.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3 hover:shadow-md transition-shadow">
+            <div key={item.id} className="bg-white/85 backdrop-blur-md p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase ${
                   item.severity === 'high' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'

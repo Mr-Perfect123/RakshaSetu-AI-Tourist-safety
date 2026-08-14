@@ -23,5 +23,6 @@ router.post('/broadcast', AdminController.broadcastNotification);
 router.get('/vehicle-bookings', AdminController.getVehicleBookings);
 router.get('/food-orders', AdminController.getFoodOrders);
 router.get('/travel-bookings', AdminController.getTravelBookings);
+router.get('/all-bookings', AdminController.getAllBookings);
 
 module.exports = router;

@@ -102,28 +102,36 @@ const TravelBooking = ({ darkMode }) => {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
-      {/* Header Navigation */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Header Navigation — Frosted Glass Container for High Text Visibility */}
+      <div className={`p-4 sm:p-5 rounded-3xl border shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+        darkMode ? 'bg-slate-900/90 border-slate-700 text-white' : 'bg-white/95 border-slate-200 text-slate-900'
+      } backdrop-blur-md`}>
         <div className="flex items-center gap-3">
           <Link to="/" className={`p-2.5 rounded-xl border decoration-none ${
-            darkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-600'
+            darkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
           }`}>
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-xl font-extrabold m-0 text-[#0D47A1] flex items-center gap-2">
-              <Ticket className="w-6 h-6 text-blue-600" /> Unified Travel Booking Hub
+            <h1 className={`text-xl font-extrabold m-0 flex items-center gap-2 ${
+              darkMode ? 'text-blue-400' : 'text-blue-900'
+            }`}>
+              <Ticket className="w-6 h-6 text-purple-600" /> Unified Travel Booking Hub
             </h1>
-            <p className="text-xs text-slate-500 m-0">Book Flights, Trains, Buses, Cabs & Rental Vehicles safely</p>
+            <p className={`text-xs font-semibold m-0 ${
+              darkMode ? 'text-slate-300' : 'text-slate-700'
+            }`}>
+              Book Flights, Trains, Buses, Cabs & Rental Vehicles safely
+            </p>
           </div>
         </div>
 
         {/* Tab Toggle */}
-        <div className="flex bg-slate-100 p-1 rounded-xl">
+        <div className="flex bg-slate-200/80 dark:bg-slate-800 p-1 rounded-xl">
           <button
             onClick={() => setActiveTab('search')}
             className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'search' ? 'bg-[#0D47A1] text-white shadow-xs' : 'text-slate-600 hover:bg-slate-200'
+              activeTab === 'search' ? 'bg-[#0D47A1] text-white shadow-xs' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700'
             }`}
           >
             Search & Book
@@ -131,7 +139,7 @@ const TravelBooking = ({ darkMode }) => {
           <button
             onClick={() => setActiveTab('my-bookings')}
             className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'my-bookings' ? 'bg-[#0D47A1] text-white shadow-xs' : 'text-slate-600 hover:bg-slate-200'
+              activeTab === 'my-bookings' ? 'bg-[#0D47A1] text-white shadow-xs' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700'
             }`}
           >
             My Bookings ({myBookings.length})

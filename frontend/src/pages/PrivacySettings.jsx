@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Shield, MapPin, Eye, Lock, AlertTriangle, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
-import api from '../services/api';
+import { useLanguage } from '../context/LanguageContext';
+import { Globe } from 'lucide-react';
 
 const PrivacySettings = ({ darkMode }) => {
   const [locationActive, setLocationActive] = useState(false);
@@ -8,6 +7,7 @@ const PrivacySettings = ({ darkMode }) => {
   const [adminRequests, setAdminRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
+  const { language, setLanguage, t } = useLanguage();
 
   const fetchStatus = async () => {
     try {
@@ -80,8 +80,8 @@ const PrivacySettings = ({ darkMode }) => {
             <Lock className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-extrabold">Privacy & Location Controls</h1>
-            <p className="text-xs text-slate-500">Control your live safety tracking, consent status, and administrative location access.</p>
+            <h1 className="text-xl font-extrabold">Privacy & Application Settings</h1>
+            <p className="text-xs text-slate-500">Manage multi-language preferences, location sharing consent, and security settings.</p>
           </div>
         </div>
 
@@ -91,6 +91,44 @@ const PrivacySettings = ({ darkMode }) => {
             <button onClick={() => setMsg('')} className="text-xs font-bold text-slate-400">✕</button>
           </div>
         )}
+
+        {/* REQUIREMENT 15: Language Selection Settings Card */}
+        <div className={`p-6 rounded-3xl border shadow-sm space-y-4 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+          <div className="flex items-center gap-2">
+            <Globe className="w-5 h-5 text-blue-500" />
+            <span className="font-extrabold text-sm uppercase">{t('settings.languageTitle', 'Application Language Preferences')}</span>
+          </div>
+          <p className="text-xs text-slate-500">
+            {t('settings.languageSubtitle', 'Select your preferred language. This changes the entire application interface (Amazon-style) and persists across logins.')}
+          </p>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+            {[
+              { name: 'English', flag: '🇬🇧', label: 'English' },
+              { name: 'Hindi', flag: '🇮🇳', label: 'हिंदी (Hindi)' },
+              { name: 'Tamil', flag: '🇮🇳', label: 'தமிழ் (Tamil)' },
+              { name: 'Marathi', flag: '🇮🇳', label: 'मराठी (Marathi)' }
+            ].map((langItem) => (
+              <button
+                key={langItem.name}
+                onClick={() => {
+                  setLanguage(langItem.name);
+                  setMsg(`Application language changed to ${langItem.name}. Preference saved to profile.`);
+                }}
+                className={`p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                  language === langItem.name
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-md ring-2 ring-blue-300'
+                    : darkMode
+                    ? 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600'
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <span className="text-lg">{langItem.flag}</span>
+                <span>{langItem.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Location Status Card */}
         <div className={`p-6 rounded-3xl border shadow-sm space-y-4 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>

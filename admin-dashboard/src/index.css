@@ -3,33 +3,40 @@
 @import "tailwindcss/utilities";
 
 body {
-  background-color: #F5F7FA;
-  color: #1e293b;
+  margin: 0;
+  background-color: #0f172a !important;
+  background-image: 
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.70), rgba(15, 23, 42, 0.85)),
+    url('/images/project_bg.jpg') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+  color: #020617;
   font-family: system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-admin-bg {
+  background-image: 
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.70), rgba(15, 23, 42, 0.85)),
+    url('/images/project_bg.jpg') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+  min-height: 100vh;
 }
 
 .glass-panel {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 10px 25px -5px rgba(13, 71, 161, 0.05);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.15);
 }
 
 .sos-pulse-animation {
   animation: sosPulse 1.5s infinite;
-}
-
-/* ======== ADMIN COMMAND CENTER TACTICAL RADAR BACKGROUND ======== */
-.app-admin-bg {
-  background-color: #f4f6fa;
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(13, 71, 161, 0.07) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(220, 38, 38, 0.05) 0px, transparent 50%),
-    radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%),
-    linear-gradient(to right, rgba(13, 71, 161, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(13, 71, 161, 0.03) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 100% 100%, 32px 32px, 32px 32px;
-  background-attachment: fixed;
 }
 
 @keyframes sosPulse {

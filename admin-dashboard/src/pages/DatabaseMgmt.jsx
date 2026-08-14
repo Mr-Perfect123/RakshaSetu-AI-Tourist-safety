@@ -64,13 +64,16 @@ const DatabaseMgmt = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      <div>
-        <h1 className="text-xl font-extrabold text-primary flex items-center gap-2">
-          <Database className="w-6 h-6 text-primary" /> MySQL Database Management & Health Monitor
-        </h1>
-        <p className="text-xs text-slate-500">
-          Enterprise database backups, schema migration runner, table sizes & emergency restore
-        </p>
+      {/* Header Bar — Frosted Glass Container for High Text Visibility */}
+      <div className="bg-slate-900/90 border border-slate-700 text-white backdrop-blur-md p-5 rounded-3xl shadow-md flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-extrabold text-white flex items-center gap-2 m-0">
+            <Database className="w-6 h-6 text-blue-400" /> MySQL Database Management & Health Monitor
+          </h1>
+          <p className="text-xs font-semibold text-slate-300 m-0 mt-0.5">
+            Enterprise database backups, schema migration runner, table sizes & emergency restore
+          </p>
+        </div>
       </div>
 
       {actionSuccess && (

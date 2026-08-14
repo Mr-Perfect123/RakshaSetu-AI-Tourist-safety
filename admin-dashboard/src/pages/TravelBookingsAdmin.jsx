@@ -59,12 +59,13 @@ const TravelBookingsAdmin = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Header Bar — Frosted Glass Container for High Text Visibility */}
+      <div className="bg-slate-900/90 border border-slate-700 text-white backdrop-blur-md p-5 rounded-3xl shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800 flex items-center gap-2 m-0">
-            <Ticket className="w-7 h-7 text-[#0D47A1]" /> Travel Bookings Audit & Monitoring
+          <h1 className="text-xl font-extrabold text-white flex items-center gap-2 m-0">
+            <Ticket className="w-7 h-7 text-purple-400" /> Travel Bookings Audit & Monitoring
           </h1>
-          <p className="text-xs text-slate-500 font-medium m-0 mt-0.5">
+          <p className="text-xs font-semibold text-slate-300 m-0 mt-0.5">
             Real-time audit log of tourist flight, train, bus, intercity cab & rental bookings
           </p>
         </div>
@@ -85,19 +86,19 @@ const TravelBookingsAdmin = () => {
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs relative">
+      <div className="bg-white/85 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 shadow-xs relative">
         <Search className="w-4 h-4 text-slate-400 absolute left-7 top-7" />
         <input
           type="text"
           placeholder="Search by Tourist Name, Booking Code, Origin or Destination..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#0D47A1]"
+          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200/80 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#0D47A1] bg-white/90"
         />
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+      <div className="bg-white/85 backdrop-blur-md rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
         {loading ? (
           <div className="p-12 text-center text-xs font-bold text-slate-500">Loading travel bookings...</div>
         ) : filtered.length === 0 ? (

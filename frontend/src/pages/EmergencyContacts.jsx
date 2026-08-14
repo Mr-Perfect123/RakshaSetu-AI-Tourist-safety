@@ -43,15 +43,26 @@ const EmergencyContacts = ({ tourist }) => {
 
   return (
     <div className="space-y-6 pb-12 max-w-4xl mx-auto">
-      <div className="flex items-center gap-3">
-        <Link to="/" className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-100">
+      {/* Header Bar — Frosted Glass Container for High Text Visibility */}
+      <div className={`p-4 sm:p-5 rounded-3xl border shadow-md flex items-center gap-3 ${
+        darkMode ? 'bg-slate-900/90 border-slate-700 text-white' : 'bg-white/95 border-slate-200 text-slate-900'
+      } backdrop-blur-md`}>
+        <Link to="/" className={`p-2.5 rounded-xl border decoration-none ${
+          darkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
+        }`}>
           <ArrowLeft className="w-4 h-4" />
         </Link>
         <div>
-          <h1 className="text-xl font-extrabold text-primary flex items-center gap-2">
-            <Heart className="w-6 h-6 text-danger" /> Emergency Contacts & Medical Telemetry
+          <h1 className={`text-xl font-extrabold flex items-center gap-2 m-0 ${
+            darkMode ? 'text-red-400' : 'text-red-800 font-extrabold'
+          }`}>
+            <Heart className="w-6 h-6 text-red-600 animate-pulse" /> Emergency Contacts & Medical Telemetry
           </h1>
-          <p className="text-xs text-slate-500">People to alert when Panic SOS is triggered & critical first responder medical data</p>
+          <p className={`text-xs font-semibold m-0 mt-0.5 ${
+            darkMode ? 'text-slate-300' : 'text-slate-700'
+          }`}>
+            People to alert when Panic SOS is triggered & critical first responder medical data
+          </p>
         </div>
       </div>
 

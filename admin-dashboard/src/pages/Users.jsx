@@ -81,13 +81,13 @@ const UsersPage = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Header Bar — Frosted Glass Container for High Text Visibility */}
+      <div className="bg-slate-900/90 border border-slate-700 text-white backdrop-blur-md p-5 rounded-3xl shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-extrabold text-primary flex items-center gap-2">
-            <Users className="w-6 h-6 text-primary" /> Tourist User Security Roster
+          <h1 className="text-xl font-extrabold text-white flex items-center gap-2 m-0">
+            <Users className="w-6 h-6 text-blue-400" /> Tourist User Security Roster
           </h1>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs font-semibold text-slate-300 m-0 mt-0.5">
             Real-time database roster of registered tourists, identity verification & location consent monitoring
           </p>
         </div>
@@ -113,26 +113,26 @@ const UsersPage = () => {
 
       {/* KPI Stats Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="bg-white/85 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 shadow-xs">
           <p className="text-[11px] font-bold text-slate-400 uppercase">Monitored Tourists</p>
           <h3 className="text-2xl font-black text-slate-800 mt-1">{users.length}</h3>
           <span className="text-[10px] text-emerald-600 font-semibold">Active Database Records</span>
         </div>
-        <div className="bg-white p-4 rounded-2xl border border-red-100 shadow-xs">
+        <div className="bg-white/85 backdrop-blur-md p-4 rounded-2xl border border-red-100 shadow-xs">
           <p className="text-[11px] font-bold text-slate-400 uppercase">In Emergency State</p>
           <h3 className="text-2xl font-black text-danger mt-1">
             {users.filter((u) => u.status === 'in_emergency').length}
           </h3>
           <span className="text-[10px] text-danger font-semibold">Immediate Priority</span>
         </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="bg-white/85 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 shadow-xs">
           <p className="text-[11px] font-bold text-slate-400 uppercase">ID Verification Pending</p>
           <h3 className="text-2xl font-black text-amber-600 mt-1">
             {users.filter((u) => u.id_verification_status === 'pending' || !u.id_verification_status).length}
           </h3>
           <span className="text-[10px] text-amber-600 font-semibold">Review Required</span>
         </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="bg-white/85 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 shadow-xs">
           <p className="text-[11px] font-bold text-slate-400 uppercase">Location Sharing Enabled</p>
           <h3 className="text-2xl font-black text-emerald-600 mt-1">
             {users.filter((u) => u.location_sharing_active).length}
@@ -142,7 +142,7 @@ const UsersPage = () => {
       </div>
 
       {/* Filters & Search */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="bg-white/85 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="relative w-full md:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
@@ -173,7 +173,7 @@ const UsersPage = () => {
       </div>
 
       {/* Tourists Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">

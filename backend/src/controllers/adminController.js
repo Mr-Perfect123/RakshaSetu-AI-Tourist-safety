@@ -276,6 +276,73 @@ class AdminController {
     );
     return res.status(200).json(new ApiResponse(200, bookings, 'Admin travel bookings audit fetched.'));
   });
+
+  /**
+   * REQUIREMENT 8: Unified All Bookings Endpoint for Admin Booking Monitor
+   */
+  static getAllBookings = asyncHandler(async (req, res) => {
+    const { type } = req.query; // 'cab', 'vehicle', 'restaurant', 'train', 'bus', 'flight', 'hotel'
+
+    const [cabRows, foodRows, travelRows] = await Promise.all([
+      executeQuery(`SELECT vb.*, u.full_name as tourist_name, u.phone as tourist_phone FROM vehicle_bookings vb LEFT JOIN users u ON vb.user_id = u.id ORDER BY vb.id DESC`),
+      executeQuery(`SELECT fo.*, u.full_name as tourist_name, r.name as restaurant_name FROM food_orders fo LEFT JOIN users u ON fo.user_id = u.id LEFT JOIN restaurants r ON fo.restaurant_id = r.id ORDER BY fo.id DESC`),
+      executeQuery(`SELECT tb.*, u.full_name as tourist_name, u.phone as tourist_phone FROM travel_bookings tb LEFT JOIN users u ON tb.user_id = u.id ORDER BY tb.id DESC`)
+    ]);
+
+    const formattedCabs = (cabRows || []).map(c => ({
+      id: c.id,
+      booking_code: c.booking_code,
+      tourist_name: c.tourist_name || 'Tourist User',
+      booking_type: 'cab',
+      source: c.pickup_location,
+      destination: c.destination,
+      travel_date: c.booking_date,
+      amount: c.final_fare || c.estimated_fare,
+      status: c.status || 'OTP_PENDING',
+      payment_status: c.payment_status || 'PENDING',
+      ride_otp: c.ride_otp,
+      created_at: c.created_at
+    }));
+
+    const formattedFood = (foodRows || []).map(f => ({
+      id: f.id,
+      booking_code: f.order_code,
+      tourist_name: f.tourist_name || 'Tourist User',
+      booking_type: 'restaurant',
+      source: f.restaurant_name || 'Restaurant',
+      destination: f.delivery_address || 'Hotel Room',
+      travel_date: new Date(f.created_at || Date.now()).toISOString().split('T')[0],
+      amount: f.total_amount,
+      status: f.status || 'placed',
+      payment_status: f.payment_status || 'paid',
+      created_at: f.created_at
+    }));
+
+    const formattedTravel = (travelRows || []).map(t => ({
+      id: t.id,
+      booking_code: t.booking_code,
+      tourist_name: t.tourist_name || 'Tourist User',
+      booking_type: t.booking_type || 'train',
+      source: t.source,
+      destination: t.destination,
+      travel_date: t.travel_date,
+      amount: t.total_price,
+      status: t.status || 'confirmed',
+      payment_status: t.payment_status || 'paid',
+      created_at: t.created_at
+    }));
+
+    let allBookings = [...formattedCabs, ...formattedFood, ...formattedTravel];
+
+    if (type) {
+      const lowerType = type.toLowerCase();
+      allBookings = allBookings.filter(b => b.booking_type.toLowerCase() === lowerType);
+    }
+
+    allBookings.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    return res.status(200).json(new ApiResponse(200, allBookings, 'Unified bookings list retrieved for admin monitor.'));
+  });
 }
 
 module.exports = AdminController;

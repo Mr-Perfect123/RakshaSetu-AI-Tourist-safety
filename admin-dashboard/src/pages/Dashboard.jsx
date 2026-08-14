@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldAlert, AlertTriangle, ShieldCheck, Users, Activity, CheckCircle, Clock, Bell, Car, Utensils, Ticket, MapPin } from 'lucide-react';
+import { Shield, ShieldAlert, AlertTriangle, ShieldCheck, Users, Activity, CheckCircle, Clock, Bell, Car, Utensils, Ticket, MapPin } from 'lucide-react';
 import SosLiveMap from '../components/SosLiveMap';
 import api from '../services/api';
 import socket from '../services/socket';
@@ -53,7 +53,15 @@ const Dashboard = () => {
     const loadStats = async () => {
       try {
         const res = await api.get('/admin/stats');
-        if (res.data) setStats(prev => ({ ...prev, ...res.data }));
+        const payload = res.data?.data || res.data || {};
+        if (payload && typeof payload === 'object') {
+          setStats(prev => ({
+            ...prev,
+            ...payload,
+            recentSos: Array.isArray(payload.recentSos) ? payload.recentSos : (prev.recentSos || []),
+            safeLocations: Array.isArray(payload.safeLocations) ? payload.safeLocations : (prev.safeLocations || [])
+          }));
+        }
       } catch (err) {
         console.warn('Using default initial stats');
       }
@@ -61,11 +69,12 @@ const Dashboard = () => {
       // Also try to fetch active SOS
       try {
         const sosRes = await api.get('/sos/active');
-        if (sosRes.data && Array.isArray(sosRes.data)) {
+        const sosList = sosRes.data?.data || sosRes.data || [];
+        if (Array.isArray(sosList)) {
           setStats(prev => ({
             ...prev,
-            activeSosCount: sosRes.data.length,
-            recentSos: sosRes.data
+            activeSosCount: sosList.length,
+            recentSos: sosList
           }));
         }
       } catch (err) {
@@ -75,15 +84,33 @@ const Dashboard = () => {
       // Fetch safe locations
       try {
         const locRes = await api.get('/admin/safe-locations');
-        if (locRes.data && Array.isArray(locRes.data) && locRes.data.length > 0) {
-          setStats(prev => ({ ...prev, safeLocations: locRes.data, safeLocationsCount: locRes.data.length }));
+        const locList = locRes.data?.data || locRes.data || [];
+        if (Array.isArray(locList) && locList.length > 0) {
+          setStats(prev => ({ ...prev, safeLocations: locList, safeLocationsCount: locList.length }));
         }
       } catch (err) {
         console.warn('Using default safe locations');
       }
+
+      // Fetch recent tourist activities
+      try {
+        const actRes = await api.get('/activities?limit=30');
+        const actList = actRes.data?.data || actRes.data || [];
+        if (Array.isArray(actList) && actList.length > 0) {
+          setTouristActivities(actList);
+        }
+      } catch (err) {}
     };
 
     loadStats();
+
+    // Socket: Tourist Activity Listeners
+    socket.on('tourist_activity', (act) => {
+      setTouristActivities(prev => [act, ...prev.slice(0, 29)]);
+    });
+    socket.on('tourist:activity', (act) => {
+      setTouristActivities(prev => [act, ...prev.slice(0, 29)]);
+    });
 
     // Socket: new SOS alert
     socket.on('new_sos_alert', (newSos) => {
@@ -270,6 +297,18 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6 pb-12">
+      {/* Header Bar — Frosted Glass Container for High Text Visibility */}
+      <div className="bg-slate-900/90 border border-slate-700 text-white backdrop-blur-md p-5 rounded-3xl shadow-md flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-extrabold text-white flex items-center gap-2 m-0">
+            <Shield className="w-6 h-6 text-blue-400" /> RakshaSetu Command & Safety Control Center
+          </h1>
+          <p className="text-xs font-semibold text-slate-300 m-0 mt-0.5">
+            Real-time Emergency Dispatch, Live Tourist Telemetry & Incident Audit Sentinel
+          </p>
+        </div>
+      </div>
+
       {/* SOS & Activity Notification Banner */}
       {notification && (
         <div className="p-4 rounded-2xl bg-indigo-900 text-white shadow-xl animate-pulse flex items-center justify-between gap-4 border border-indigo-700">
@@ -288,7 +327,7 @@ const Dashboard = () => {
 
       {/* Top Banner KPI Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-        <div className="bg-white p-5 rounded-2xl border border-red-100 shadow-xs flex items-center justify-between">
+        <div className="bg-white/95 backdrop-blur-md p-5 rounded-2xl border border-red-100 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Emergency SOS</p>
             <h3 className="text-3xl font-extrabold text-danger mt-1">{stats.activeSosCount}</h3>
@@ -302,7 +341,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <div className="bg-white/95 backdrop-blur-md p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending Incidents</p>
             <h3 className="text-3xl font-extrabold text-warning mt-1">{stats.pendingIncidentsCount}</h3>
@@ -313,7 +352,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <div className="bg-white/95 backdrop-blur-md p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tourists Online</p>
             <h3 className="text-3xl font-extrabold text-primary mt-1">{liveTourists.length || 1}</h3>
@@ -327,7 +366,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <div className="bg-white/95 backdrop-blur-md p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Live Activities Logged</p>
             <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{touristActivities.length}</h3>
@@ -341,7 +380,7 @@ const Dashboard = () => {
 
       {/* Main Grid: Interactive Map & Live SOS Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col h-[520px]">
+        <div className="lg:col-span-2 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col h-[520px]">
           <div className="flex items-center justify-between mb-3 px-1">
             <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
@@ -349,24 +388,24 @@ const Dashboard = () => {
             </h2>
             <div className="flex items-center gap-3 text-xs">
               <span className="text-slate-500 font-medium">
-                {liveTourists.length} tourists tracked
+                {(liveTourists || []).length} tourists tracked
               </span>
               <span className="text-slate-500 font-medium">
-                {stats.recentSos.filter(s => s.status === 'active').length} SOS active
+                {(stats.recentSos || []).filter(s => s.status === 'active').length} SOS active
               </span>
             </div>
           </div>
           <div className="flex-1 w-full rounded-xl overflow-hidden">
             <SosLiveMap
-              activeSosList={stats.recentSos.filter(s => s.status === 'active')}
-              safeLocations={stats.safeLocations}
-              liveTourists={liveTourists}
+              activeSosList={(stats.recentSos || []).filter(s => s.status === 'active')}
+              safeLocations={stats.safeLocations || []}
+              liveTourists={liveTourists || []}
             />
           </div>
         </div>
 
         {/* Live SOS Dispatch Stream Panel */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col h-[520px]">
+        <div className="bg-white/95 backdrop-blur-md p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col h-[520px]">
           <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
             <h2 className="text-sm font-bold text-danger flex items-center gap-2">
               <ShieldAlert className="w-4 h-4" /> Live Panic Feed
@@ -378,14 +417,14 @@ const Dashboard = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-            {stats.recentSos.length === 0 ? (
+            {(stats.recentSos || []).length === 0 ? (
               <div className="text-center py-12">
                 <CheckCircle className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
                 <p className="text-slate-400 text-xs font-medium">No active SOS alerts in jurisdiction.</p>
                 <p className="text-[10px] text-slate-400 mt-1">Monitoring WebSocket for distress signals...</p>
               </div>
             ) : (
-              stats.recentSos.map((sos) => (
+              (stats.recentSos || []).map((sos) => (
                 <div key={sos.id || sos.sos_code} className={`p-3.5 rounded-xl border transition-colors ${
                   sos.status === 'active'
                     ? 'border-red-200 bg-red-50/40 hover:bg-red-50'
@@ -430,7 +469,7 @@ const Dashboard = () => {
       </div>
 
       {/* Real-time Tourist Activity Audit Stream Card (Rides, Restaurants, Travel Hub, Incidents) */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+      <div className="bg-white/95 backdrop-blur-md p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
             <Activity className="w-5 h-5 text-indigo-600" />
@@ -445,7 +484,7 @@ const Dashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {touristActivities.map((act) => (
+          {(touristActivities || []).map((act) => (
             <div key={act.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white hover:shadow-md transition-all space-y-2">
               <div className="flex items-center justify-between">
                 <span className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs font-bold flex items-center gap-1.5">

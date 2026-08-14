@@ -38,7 +38,7 @@ const Sidebar = () => {
   ];
 
   return (
-    <aside className="w-64 bg-white border-r border-slate-200 h-[calc(100vh-65px)] flex flex-col justify-between py-4 px-3 sticky top-[65px] overflow-y-auto">
+    <aside className="w-64 bg-white/90 backdrop-blur-md border-r border-slate-200/80 h-[calc(100vh-65px)] flex flex-col justify-between py-4 px-3 sticky top-[65px] overflow-y-auto shadow-md">
       <div className="space-y-1">
         <p className="px-3 text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-3">Emergency Navigation</p>
         {menuItems.map((item) => {

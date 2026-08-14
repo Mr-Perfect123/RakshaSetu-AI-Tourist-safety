@@ -44,12 +44,13 @@ const FoodOrdersAdmin = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex items-center justify-between">
+      {/* Header Bar — Frosted Glass Container for High Text Visibility */}
+      <div className="bg-slate-900/90 border border-slate-700 text-white backdrop-blur-md p-5 rounded-3xl shadow-md flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-            <Utensils className="w-6 h-6 text-amber-500" /> Food Orders & Hotel Delivery Audit
+          <h1 className="text-xl font-extrabold text-white flex items-center gap-2 m-0">
+            <Utensils className="w-6 h-6 text-amber-400" /> Food Orders & Hotel Delivery Audit
           </h1>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs font-semibold text-slate-300 m-0 mt-0.5">
             Real-time audit log of tourist food deliveries and verified restaurant fulfillment
           </p>
         </div>
@@ -59,7 +60,7 @@ const FoodOrdersAdmin = () => {
         </span>
       </div>
 
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+      <div className="bg-white/85 backdrop-blur-md rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
         <table className="w-full text-left text-xs">
           <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase">
             <tr>

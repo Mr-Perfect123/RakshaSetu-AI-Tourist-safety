@@ -66,27 +66,22 @@ class GeminiService {
 
     const systemPrompt = `You are RakshaSetu AI, an expert emergency response assistant and tourist protection guide.
 Your role is to evaluate safety queries, provide calm, actionable emergency instructions, offer advice on local safety customs, and guide tourists in distress.
-Context provided: Location: (${context.lat || '28.6139'}, ${context.lng || '77.2090'}).
+Context provided: Tourist GPS Location: (${context.lat || '11.0168'}, ${context.lng || '76.9558'}).
 
-CRITICAL LANGUAGE INSTRUCTION: You MUST respond ENTIRELY in ${lang}. 
-- If the language is "English", respond in English.
-- If the language is "Tamil", respond in Tamil (தமிழ்).
-- If the language is "Hindi", respond in Hindi (हिंदी).
-- If the language is "Kannada", respond in Kannada (ಕನ್ನಡ).
-- If the language is "Telugu", respond in Telugu (తెలుగు).
-- If the language is "Malayalam", respond in Malayalam (മലയാളം).
-- If the language is "Marathi", respond in Marathi (मराठी).
-- If the language is "French", respond in French (Français).
-- If the language is "German", respond in German (Deutsch).
-- If the language is "Japanese", respond in Japanese (日本語).
-- If the language is "Spanish", respond in Spanish (Español).
-- If the language is "Korean", respond in Korean (한국어).
-- If the language is "Chinese", respond in Chinese (中文).
-- If the language is "Arabic", respond in Arabic (العربية).
-- If the language is "Portuguese", respond in Portuguese (Português).
-- If the language is "Russian", respond in Russian (Русский).
+CRITICAL MULTILINGUAL INSTRUCTION: You MUST respond 100% ENTIRELY in ${lang}.
+- If the language is "Tamil", respond ONLY in Tamil (தமிழ்).
+- If the language is "Hindi", respond ONLY in Hindi (हिंदी).
+- If the language is "Marathi", respond ONLY in Marathi (मराठी).
+- If the language is "Telugu", respond ONLY in Telugu (తెలుగు).
+- If the language is "Kannada", respond ONLY in Kannada (ಕನ್ನಡ).
+- If the language is "Malayalam", respond ONLY in Malayalam (മലയാളം).
+- If the language is "French", respond ONLY in French (Français).
+- If the language is "Spanish", respond ONLY in Spanish (Español).
+- If the language is "German", respond ONLY in German (Deutsch).
+- If the language is "Japanese", respond ONLY in Japanese (日本語).
+- If the language is "English", respond ONLY in English.
 
-Your ENTIRE response must be written in ${lang}. Do NOT mix languages. Do NOT respond in English if the requested language is different.
+Your ENTIRE response MUST be written in ${lang}. Do NOT switch to English unless explicitly requested.
 ${isSosActive ? 'EMERGENCY MODE IS ACTIVE: Provide high-priority first-aid, police guidance, and panic-calming protocols urgently.' : ''}
 Keep responses empathetic, highly structured, concise, and prioritized by user safety.`;
 
@@ -167,7 +162,6 @@ Return JSON only with keys: riskScore (0-100), riskLevel ("Low"|"Moderate"|"High
     const lng = parseFloat(longitude);
 
     let baseRisk = 15;
-    if (lat > 28.64 && lng > 77.22) baseRisk += 45;
     if (timeOfDay === 'night' || timeOfDay === 'late_night') baseRisk += 25;
 
     const riskScore = Math.min(Math.max(baseRisk, 10), 95);
@@ -199,10 +193,10 @@ Return JSON only with keys: riskScore (0-100), riskLevel ("Low"|"Moderate"|"High
         estimatedTimeMin: 12,
         routeType: 'Verified Well-Lit Safe Corridor',
         checkpoints: [
-          { name: 'Janpath Police Helpdesk', lat: origin.lat + 0.005, lng: origin.lng + 0.005 },
-          { name: 'Connaught Place Outer Patrol Station', lat: destination.lat - 0.002, lng: destination.lng - 0.002 }
+          { name: 'Central Police Helpdesk', lat: origin.lat + 0.005, lng: origin.lng + 0.005 },
+          { name: 'Outer Patrol Station', lat: destination.lat - 0.002, lng: destination.lng - 0.002 }
         ],
-        avoidedDangerZones: ['Old City Alley Corridor (Crime Index 4.10)']
+        avoidedDangerZones: ['Unlit Back-Alley Corridor']
       }
     };
   }
@@ -302,95 +296,58 @@ IMPORTANT: Respond ONLY with a valid JSON object (no markdown, no code fences) w
    */
   static fallbackChatResponse(message, lang = 'English') {
     const intent = this.classifyIntent(message);
-    const msg = message.toLowerCase();
 
-    let textResponse = '';
+    // Multilingual Response Dictionaries
+    if (lang === 'Tamil') {
+      let responseText = '🇮🇳 **ரக்ஷாசேது AI சுற்றுலா பாதுகாப்பு வழிகாட்டி (தமிழ்)**\n\n';
+      if (intent === 'EMERGENCY_HELP') {
+        responseText += '🚨 **அவசர உதவி எடுக்கப்பட்டது**\n1. சிவப்பு **SOS பொத்தானை** உடனடியாக அழுத்தவும்.\n2. அவசர எண்கள்: காவல் **100**, ஆம்புலன்ஸ் **108**, சுற்றுலா உதவி **1363**.\n3. ரக்ஷாசேது உங்கள் இருப்பிடத்தை தீவிரமாகக் கண்காணிக்கிறது.';
+      } else if (intent === 'NEARBY_SAFE_SERVICES') {
+        responseText += '📍 **அருகிலுள்ள அவசர சேவைகள்**\n• மத்திய காவல் நிலையம்: 0.8 கி.மீ\n• அரசு மருத்துவமனை: 1.4 கி.மீ (தொலைபேசி: 108)\n• சுற்றுலா உதவி மையம்: 0.3 கி.மீ';
+      } else if (intent === 'FOOD_AND_DINING') {
+        responseText += '🍽️ **உணவு மற்றும் உணவகங்கள்**\n• அருகில் உள்ள சுகாதாரமான உணவகங்களைக் கண்டறிய எங்கள் பயன்பாட்டின் உணவகப் பிரிவைப் பயன்படுத்தவும்.';
+      } else {
+        responseText += `உங்கள் கேள்வி: "${message}"\n\n• உங்கள் தற்போதைய பகுதியில் பாதுகாப்பு நிலை நல்லது.\n• அவசர உதவிக்கு SOS பொத்தானைப் பயன்படுத்தவும்.`;
+      }
+      return { response: responseText, source: 'RakshaSetu Multilingual Engine', intent, language: lang };
+    }
 
-    // 1. EMERGENCY
+    if (lang === 'Hindi') {
+      let responseText = '🇮🇳 **रक्षासेतु एआई पर्यटक सुरक्षा सहायक (हिंदी)**\n\n';
+      if (intent === 'EMERGENCY_HELP') {
+        responseText += '🚨 **आपातकालीन सहायता सक्रिय**\n1. तुरंत लाल **SOS बटन** दबाएं।\n2. आपातकालीन नंबर: पुलिस **100**, एम्बुलेंस **108**, पर्यटक हेल्पलाइन **1363**।\n3. रक्षासेतु आपकी लाइव लोकेशन ट्रैक कर रहा है।';
+      } else if (intent === 'NEARBY_SAFE_SERVICES') {
+        responseText += '📍 **निकटतम सुरक्षा सेवाएं**\n• पुलिस स्टेशन: 0.8 किमी (24/7 पेट्रोल)\n• सरकारी अस्पताल: 1.4 किमी (इमरजेंसी 108)\n• टूरिस्ट हेल्प डेस्क: 0.3 किमी';
+      } else if (intent === 'FOOD_AND_DINING') {
+        responseText += '🍽️ **भोजन और रेस्टोरेंट**\n• अपने पास के प्रमाणित रेस्टोरेंट देखने के लिए फूड सेक्शन का उपयोग करें।';
+      } else {
+        responseText += `आपका प्रश्न: "${message}"\n\n• आपके क्षेत्र में सुरक्षा की स्थिति अच्छी है।\n• किसी भी सहायता के लिए रक्षासेतु बटन का उपयोग करें।`;
+      }
+      return { response: responseText, source: 'RakshaSetu Multilingual Engine', intent, language: lang };
+    }
+
+    if (lang === 'Marathi') {
+      let responseText = '🇮🇳 **रक्षासेतू AI पर्यटन सुरक्षा मार्गदर्शक (मराठी)**\n\n';
+      if (intent === 'EMERGENCY_HELP') {
+        responseText += '🚨 **तातडीची मदत सक्रिय**\n1. तात्काळ लाल **SOS बटण** दाबा.\n2. आपत्कालीन क्रमांक: पोलीस **100**, रुग्णवाहिका **108**, पर्यटक हेल्पलाइन **1363**.\n3. रक्षासेतू तुमचे लाइव्ह लोकेशन ट्रॅक करत आहे.';
+      } else {
+        responseText += `तुमचा प्रश्न: "${message}"\n\n• तुमच्या परिसरातील सुरक्षा स्थिती चांगली आहे.\n• कोणत्याही आपत्कालीन मदतीसाठी SOS बटण वापरा.`;
+      }
+      return { response: responseText, source: 'RakshaSetu Multilingual Engine', intent, language: lang };
+    }
+
+    // Default English
+    let textResponse = `🤖 **RakshaSetu Intelligence Guidance (${lang})**\n\n` +
+      `Regarding your question: "*${message}*"\n\n` +
+      `• **Safety Status**: Sector is clear with active police surveillance.\n` +
+      `• **Key Advice**: Use verified transport options, keep emergency contacts handy, and check RakshaSetu's live Safety Map.\n` +
+      `• **Quick Actions**: You can book taxis, order food, view safe routes, or trigger SOS emergency help anytime directly from the top navigation menu.`;
+
     if (intent === 'EMERGENCY_HELP') {
       textResponse = `🚨 **EMERGENCY ASSISTANCE INITIATED**\n\n` +
-        `1. **Trigger SOS**: Tap the red **SOS button** immediately to broadcast your live GPS coordinates to Police Headquarters.\n` +
-        `2. **Stay Safe**: Move to a well-lit, crowded area or enter a verified safe establishment (hotel, station, bank).\n` +
-        `3. **Emergency Numbers**:\n` +
-        `   - National Emergency: **112**\n` +
-        `   - Police Patrol: **100**\n` +
-        `   - Medical Ambulance: **102** / **108**\n` +
-        `   - Tourist Helpline: **1363**\n\n` +
-        `*RakshaSetu is actively monitoring your location stream.*`;
-    }
-    // 2. NEARBY SAFE SERVICES
-    else if (intent === 'NEARBY_SAFE_SERVICES') {
-      textResponse = `📍 **Verified Safe Facilities in Jurisdiction**\n\n` +
-        `• **Central Police Control Post**: 0.8 km — 24/7 Patrol & Tourist Assistance Desk\n` +
-        `• **Government Multi-Specialty Hospital**: 1.4 km — Emergency Care & Ambulance Services (Dial 102)\n` +
-        `• **Tourist Command Help Desk**: 0.3 km — Multi-lingual Guidance & Registration Assistance\n\n` +
-        `*Tip: Use the 'Nearby Help' menu in RakshaSetu to view live turn-by-turn directions to these locations.*`;
-    }
-    // 3. SAFE NAVIGATION & ROUTES
-    else if (intent === 'SAFE_NAVIGATION') {
-      textResponse = `🛣️ **Safe Navigation Advisory**\n\n` +
-        `• **Recommended Corridor**: Main Arterial Road (High Lighting & Active CCTV Coverage).\n` +
-        `• **Safety Index**: **94% Safe** (Verified by Police Telemetry Data).\n` +
-        `• **Caution**: Avoid unlit back alleys or isolated shortcuts after 9:00 PM.\n` +
-        `• **Navigation Link**: Check our **Safety Map** tab to view heatmaps of safe and monitored zones in real time.`;
-    }
-    // 4. FOOD & DINING
-    else if (intent === 'FOOD_AND_DINING') {
-      textResponse = `🍽️ **Hygiene-Certified Dining Guidance**\n\n` +
-        `• **Top Rated Local Places**: Annapoorna Gourmet (Pure Veg), Karim's Heritage, Royal Spices.\n` +
-        `• **Safety Tip**: Look for FSSAI Hygiene certification stickers at entry doors.\n` +
-        `• **Hotel Room Delivery**: You can browse and order directly through our **Food Module** in RakshaSetu for hotel door delivery.`;
-    }
-    // 5. TRANSPORTATION (Cabs, Buses, Trains, Flights)
-    else if (intent === 'TRANSPORTATION') {
-      textResponse = `🚕 **Verified Transport & Cab Dispatch**\n\n` +
-        `• **Taxi/Cab Booking**: Book verified cabs through our **Vehicle Booking** tab. Every driver profile includes verified ID, photo, phone number, vehicle registration, and police registration.\n` +
-        `• **Intercity Travel**: Book Flights, Vande Bharat Trains, and Sleeper Buses under **Travel Booking**.\n` +
-        `• **Fare Shield**: Fare estimate is dynamically calculated based on real-world map distance to prevent overcharging.`;
-    }
-    // 6. WEATHER ADVISORY
-    else if (intent === 'WEATHER_ADVISORY') {
-      textResponse = `🌤️ **Weather & Safety Update**\n\n` +
-        `• **Current Condition**: Pleasant / Moderate Climate (26°C - 30°C).\n` +
-        `• **Precaution**: Carry an umbrella for occasional light rain and wear comfortable cotton clothing for daytime sightseeing.\n` +
-        `• **Emergency Weather Alert**: No severe weather alerts active in your current sector.`;
-    }
-    // 7. SAFETY ADVISORY & SCAMS
-    else if (intent === 'SAFETY_ADVISORY') {
-      textResponse = `🛡️ **Safety & Crime Prevention Advisory**\n\n` +
-        `• **Area Risk Rating**: **Low to Moderate**.\n` +
-        `• **Scam Prevention**:\n` +
-        `  1. Always insist on metered fares or book via RakshaSetu app.\n` +
-        `  2. Keep your passport and valuable documents in secure pockets or digital lockboxes.\n` +
-        `  3. Never accept unsolicited rides from unlicensed private individuals.\n` +
-        `• **Night Safety**: Main streets are monitored by 24/7 Police Patrols.`;
-    }
-    // 8. SPECIFIC QUESTIONS (Places, Delhi, Coimbatore, Goa, Taj Mahal, etc.)
-    else if (msg.includes('delhi') || msg.includes('taj') || msg.includes('coimbatore') || msg.includes('goa') || msg.includes('place') || msg.includes('visit') || msg.includes('tourist')) {
-      textResponse = `🏛️ **Tourist Destination Safety & Sightseeing Guide**\n\n` +
-        `• **Top Monitored Attractions**: Historical Monuments, Cultural Heritage Sites, Central Gardens & Shopping Corridors.\n` +
-        `• **Visiting Hours**: Most heritage sites are open from 8:00 AM to 6:00 PM.\n` +
-        `• **Tourist Safety Guarantee**: Police Helpdesks are active at major gates.\n` +
-        `• **Details**: Explore our **Place Details** section in the app for full photos, opening times, entry fees, and safety ratings!`;
-    }
-    // 9. GENERAL ENQUIRY (Dynamic breakdown)
-    else {
-      textResponse = `🤖 **RakshaSetu Intelligence Guidance**\n\n` +
-        `Regarding your question: "*${message}*"\n\n` +
-        `• **Safety Status**: Sector is clear with active police surveillance.\n` +
-        `• **Key Advice**: Use verified transport options, keep emergency contacts handy, and check RakshaSetu's live Safety Map.\n` +
-        `• **Quick Actions**: You can book taxis, order food, view safe routes, or trigger SOS emergency help anytime directly from the top navigation menu.`;
-    }
-
-    // Translate greeting / header if non-English language requested
-    if (lang === 'Hindi') {
-      textResponse = `🇮🇳 **रक्षासेतु एआई सुरक्षा उत्तर (हिंदी)**\n\n` + textResponse;
-    } else if (lang === 'Tamil') {
-      textResponse = `🇮🇳 **ரக்ஷாசேது AI பாதுகாப்பு பதில் (தமிழ்)**\n\n` + textResponse;
-    } else if (lang === 'French') {
-      textResponse = `🇫🇷 **Réponse de Sécurité RakshaSetu AI (Français)**\n\n` + textResponse;
-    } else if (lang === 'Spanish') {
-      textResponse = `🇪🇸 **Respuesta de Seguridad RakshaSetu AI (Español)**\n\n` + textResponse;
+        `1. **Trigger SOS**: Tap the red **SOS button** immediately to broadcast your live GPS coordinates to Police HQ.\n` +
+        `2. **Emergency Numbers**: Police **100**, Ambulance **108**, Tourist Helpline **1363**.\n` +
+        `3. *RakshaSetu is actively monitoring your location stream.*`;
     }
 
     return {

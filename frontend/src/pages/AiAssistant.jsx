@@ -236,15 +236,17 @@ const AiAssistant = ({ darkMode }) => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-4 pb-12">
-      {/* Header Bar */}
-      <div className={`${cardClass} p-4 rounded-3xl border shadow-md flex items-center justify-between`}>
+      {/* Header Bar — Frosted Glass Container for High Text Visibility */}
+      <div className={`p-4 sm:p-5 rounded-3xl border shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+        darkMode ? 'bg-slate-900/90 border-slate-700 text-white' : 'bg-white/95 border-slate-200 text-slate-900'
+      } backdrop-blur-md`}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
             <Sparkles className="w-6 h-6" />
           </div>
           <div>
-            <h1 className={`text-lg font-black m-0 ${textClass}`}>RakshaSetu AI Safety Assistant</h1>
-            <p className="text-xs text-slate-500 m-0 font-medium">Multilingual Intelligence • Gemini-Flash Engine</p>
+            <h1 className={`text-lg font-black m-0 ${darkMode ? 'text-purple-300' : 'text-purple-900'}`}>RakshaSetu AI Safety Assistant</h1>
+            <p className={`text-xs font-semibold m-0 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>Multilingual Intelligence • Gemini-Flash Engine</p>
           </div>
         </div>
 

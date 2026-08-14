@@ -14,14 +14,22 @@ const SafetyMap = ({ darkMode }) => {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
 
+  const [nearbyPlaces, setNearbyPlaces] = useState([]);
+
   const fetchMapData = async () => {
     setLoading(true);
     try {
       const zoneRes = await api.get('/zones');
-      if (zoneRes.data) setDangerZones(zoneRes.data);
+      const zoneList = zoneRes.data?.data || zoneRes.data || [];
+      if (Array.isArray(zoneList)) setDangerZones(zoneList);
 
       const safeRes = await api.get('/admin/safe-locations');
-      if (safeRes.data) setSafeLocations(safeRes.data);
+      const safeList = safeRes.data?.data || safeRes.data || [];
+      if (Array.isArray(safeList)) setSafeLocations(safeList);
+
+      const nearbyRes = await api.get(`/places/nearby?lat=${location.lat}&lng=${location.lng}&category=all`);
+      const nearbyList = nearbyRes.data?.data || nearbyRes.data || [];
+      if (Array.isArray(nearbyList)) setNearbyPlaces(nearbyList);
     } catch (err) {
       console.warn('Map data load error');
     } finally {
@@ -31,7 +39,24 @@ const SafetyMap = ({ darkMode }) => {
 
   useEffect(() => {
     fetchMapData();
-  }, []);
+  }, [location.lat, location.lng]);
+
+  const handleMyLocationClick = (leafletMapInstance) => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setLocation({ lat, lng });
+          setDestinationQuery('');
+          if (leafletMapInstance) {
+            leafletMapInstance.flyTo([lat, lng], 15, { duration: 1.2 });
+          }
+        },
+        () => console.warn('Geolocation unavailable')
+      );
+    }
+  };
 
   // Search Destination query logic
   useEffect(() => {
@@ -43,7 +68,8 @@ const SafetyMap = ({ darkMode }) => {
     const timer = setTimeout(async () => {
       try {
         const res = await api.get(`/places/search?query=${encodeURIComponent(destinationQuery)}`);
-        if (res.data) setSearchResults(res.data);
+        const list = res.data?.data || res.data || [];
+        if (Array.isArray(list)) setSearchResults(list);
       } catch (e) {
       } finally {
         setIsSearching(false);
@@ -64,27 +90,35 @@ const SafetyMap = ({ darkMode }) => {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Header Bar — Frosted Glass Container for High Text Visibility */}
+      <div className={`p-4 sm:p-5 rounded-3xl border shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+        darkMode ? 'bg-slate-900/90 border-slate-700 text-white' : 'bg-white/95 border-slate-200 text-slate-900'
+      } backdrop-blur-md`}>
         <div className="flex items-center gap-3">
           <Link to="/" className={`p-2.5 rounded-xl border decoration-none ${
-            darkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-600'
+            darkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
           }`}>
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-xl sm:text-2xl font-black m-0 text-[#0D47A1] flex items-center gap-2">
+            <h1 className={`text-xl sm:text-2xl font-black m-0 flex items-center gap-2 ${
+              darkMode ? 'text-blue-400' : 'text-blue-900'
+            }`}>
               <Shield className="w-7 h-7 text-blue-600" /> Tourist Safety Map Sentinel
             </h1>
-            <p className="text-xs text-slate-500 m-0">Interactive spatial safety overlays: 🟢 Safe, 🟡 Moderate, 🟠 High Risk, 🔴 Danger Zones</p>
+            <p className={`text-xs font-semibold m-0 ${
+              darkMode ? 'text-slate-300' : 'text-slate-700'
+            }`}>
+              Interactive spatial safety overlays: 🟢 Safe, 🟡 Moderate, 🟠 High Risk, 🔴 Danger Zones
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs font-extrabold">
-          <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800">🟢 Safe Area</span>
-          <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-800">🟡 Moderate</span>
-          <span className="px-3 py-1 rounded-full bg-orange-100 text-orange-800">🟠 High Risk</span>
-          <span className="px-3 py-1 rounded-full bg-red-100 text-red-800">🔴 Danger Zone</span>
+        <div className="flex items-center gap-2 text-xs font-extrabold flex-wrap">
+          <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">🟢 Safe Area</span>
+          <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300">🟡 Moderate</span>
+          <span className="px-3 py-1 rounded-full bg-orange-100 text-orange-900 border border-orange-300">🟠 High Risk</span>
+          <span className="px-3 py-1 rounded-full bg-red-100 text-red-900 border border-red-300">🔴 Danger Zone</span>
         </div>
       </div>
 
@@ -143,7 +177,13 @@ const SafetyMap = ({ darkMode }) => {
           </div>
 
           <div className="h-[520px] w-full rounded-2xl overflow-hidden border border-slate-200">
-            <TouristMap location={location} safeLocations={safeLocations} />
+            <TouristMap
+              location={location}
+              safeLocations={safeLocations}
+              dangerZones={dangerZones}
+              nearbyPlaces={nearbyPlaces}
+              onMyLocationClick={handleMyLocationClick}
+            />
           </div>
         </div>
 

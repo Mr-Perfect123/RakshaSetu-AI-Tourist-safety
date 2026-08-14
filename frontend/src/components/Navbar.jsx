@@ -2,8 +2,12 @@ import React from 'react';
 import { Shield, PhoneCall, Sparkles, LogOut, Sun, Moon, Car, Utensils, Compass, Ticket, Map, LogIn } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { useLanguage } from '../context/LanguageContext';
+import { Globe } from 'lucide-react';
+
 const Navbar = ({ tourist, onLogout, darkMode, toggleDarkMode }) => {
   const navigate = useNavigate();
+  const { language, setLanguage, t } = useLanguage();
 
   return (
     <header className={`sticky top-0 z-40 backdrop-blur-md border-b px-4 md:px-8 py-3 flex items-center justify-between shadow-xs transition-colors duration-300 ${
@@ -28,6 +32,21 @@ const Navbar = ({ tourist, onLogout, darkMode, toggleDarkMode }) => {
       </Link>
 
       <div className="flex items-center gap-2 sm:gap-3">
+        {/* Amazon-Style Global Language Picker */}
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl border bg-slate-800/10 border-slate-500/20 text-xs font-bold">
+          <Globe className="w-3.5 h-3.5 text-blue-500" />
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="bg-transparent text-xs font-bold outline-none cursor-pointer"
+          >
+            <option value="English" className="text-slate-900">🇬🇧 English</option>
+            <option value="Hindi" className="text-slate-900">🇮🇳 हिंदी (Hindi)</option>
+            <option value="Tamil" className="text-slate-900">🇮🇳 தமிழ் (Tamil)</option>
+            <option value="Marathi" className="text-slate-900">🇮🇳 मराठी (Marathi)</option>
+          </select>
+        </div>
+
         {tourist ? (
           <>
             {/* Navigation Quick Links when Logged In */}
@@ -37,7 +56,7 @@ const Navbar = ({ tourist, onLogout, darkMode, toggleDarkMode }) => {
                 darkMode ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
               }`}
             >
-              <Map className="w-3.5 h-3.5 text-emerald-500" /> Safety Map
+              <Map className="w-3.5 h-3.5 text-emerald-500" /> {t('nav.safetyMap', 'Safety Map')}
             </Link>
 
             <Link
@@ -46,7 +65,7 @@ const Navbar = ({ tourist, onLogout, darkMode, toggleDarkMode }) => {
                 darkMode ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
               }`}
             >
-              <Ticket className="w-3.5 h-3.5 text-purple-600" /> Travel Hub
+              <Ticket className="w-3.5 h-3.5 text-purple-600" /> {t('nav.travel', 'Travel Hub')}
             </Link>
 
             <Link
@@ -55,7 +74,7 @@ const Navbar = ({ tourist, onLogout, darkMode, toggleDarkMode }) => {
                 darkMode ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
               }`}
             >
-              <Car className="w-3.5 h-3.5 text-blue-600" /> Rides
+              <Car className="w-3.5 h-3.5 text-blue-600" /> {t('nav.vehicles', 'Rides')}
             </Link>
 
             <Link
@@ -64,7 +83,7 @@ const Navbar = ({ tourist, onLogout, darkMode, toggleDarkMode }) => {
                 darkMode ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
               }`}
             >
-              <Utensils className="w-3.5 h-3.5 text-amber-500" /> Food
+              <Utensils className="w-3.5 h-3.5 text-amber-500" /> {t('nav.food', 'Food')}
             </Link>
 
             <Link
@@ -73,12 +92,11 @@ const Navbar = ({ tourist, onLogout, darkMode, toggleDarkMode }) => {
                 darkMode ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" /> AI Sentinel
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" /> {t('nav.aiAssistant', 'AI Sentinel')}
             </Link>
           </>
         ) : (
           <>
-            {/* Landing Page Quick Nav when Logged Out */}
             <Link
               to="/landing"
               className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold hidden md:block ${
