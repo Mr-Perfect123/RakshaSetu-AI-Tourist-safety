@@ -27,6 +27,28 @@ import { LanguageProvider } from './context/LanguageContext';
 
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 Minutes Inactivity Timeout Limit
 
+const AdminRedirect = () => {
+  useEffect(() => {
+    window.location.href = 'http://localhost:5173';
+  }, []);
+
+  return (
+    <div className="p-12 text-center space-y-4">
+      <div className="w-12 h-12 bg-red-600 text-white rounded-2xl flex items-center justify-center mx-auto animate-bounce">
+        <Clock className="w-6 h-6" />
+      </div>
+      <h2 className="text-lg font-black text-slate-800">Redirecting to RakshaSetu Admin Command Center...</h2>
+      <p className="text-xs text-slate-500 font-semibold">Opening Command Portal on Port 5173</p>
+      <a
+        href="http://localhost:5173"
+        className="inline-block px-5 py-2.5 rounded-xl bg-[#0D47A1] text-white font-extrabold text-xs shadow-md"
+      >
+        Click Here to Open Admin Command Center
+      </a>
+    </div>
+  );
+};
+
 function App() {
   const [sessionExpiredNotice, setSessionExpiredNotice] = useState(false);
 
@@ -181,6 +203,9 @@ function App() {
                   )
                 } 
               />
+
+              {/* Admin Portal Redirect Route */}
+              <Route path="/admin" element={<AdminRedirect />} />
 
               {/* Protected Routes */}
               <Route path="/safety-map" element={tourist ? <SafetyMap darkMode={darkMode} /> : <Navigate to="/login" replace />} />

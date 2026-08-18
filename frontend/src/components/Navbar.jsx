@@ -108,6 +108,22 @@ const Navbar = ({ tourist, onLogout, darkMode, toggleDarkMode }) => {
           </>
         )}
 
+        {/* Admin Command Center Quick Button */}
+        <a
+          href="http://localhost:5173"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all ${
+            darkMode
+              ? 'bg-red-950/40 border-red-800/60 text-red-300 hover:bg-red-900/60'
+              : 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+          }`}
+          title="Open Admin Command Center (Port 5173)"
+        >
+          <Shield className="w-3.5 h-3.5 text-red-600 animate-pulse" />
+          <span>Admin Command</span>
+        </a>
+
         {/* Dark/Light Mode Toggle */}
         <button
           onClick={toggleDarkMode}

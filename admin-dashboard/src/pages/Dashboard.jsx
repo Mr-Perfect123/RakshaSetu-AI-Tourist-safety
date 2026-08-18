@@ -6,14 +6,19 @@ import socket from '../services/socket';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
-    activeSosCount: 0,
-    totalUsersCount: 0,
-    pendingIncidentsCount: 0,
-    safeLocationsCount: 0,
-    recentSos: [],
+    activeSosCount: 3,
+    totalUsersCount: 1248,
+    pendingIncidentsCount: 3,
+    safeLocationsCount: 24,
+    recentSos: [
+      { id: 101, sos_code: 'SOS-RS-8891', tourist_name: 'John Smith (UK)', phone: '+44 7911 123456', latitude: 28.6315, longitude: 77.2167, address: 'Connaught Place, New Delhi', status: 'active', created_at: new Date(Date.now() - 5 * 60000).toISOString() },
+      { id: 102, sos_code: 'SOS-RS-4420', tourist_name: 'Elena Rostova', phone: '+7 912 345 6789', latitude: 11.0168, longitude: 76.9558, address: 'Marudamalai Temple, Coimbatore', status: 'dispatched', created_at: new Date(Date.now() - 25 * 60000).toISOString() },
+      { id: 103, sos_code: 'SOS-RS-9912', tourist_name: 'Karthik Raja', phone: '+91 94433 22110', latitude: 13.0827, longitude: 80.2707, address: 'Marina Beach, Chennai', status: 'active', created_at: new Date(Date.now() - 2 * 60000).toISOString() }
+    ],
     safeLocations: [
       { id: 1, name: 'Central Police Station Connaught Place', type: 'police_station', latitude: 28.6315, longitude: 77.2167, phone: '+911123363364', address: 'Connaught Place, New Delhi' },
-      { id: 2, name: 'Ram Manohar Lohia Hospital', type: 'hospital', latitude: 28.6250, longitude: 77.2000, phone: '+911123365555', address: 'Baba Kharak Singh Marg' }
+      { id: 2, name: 'Ram Manohar Lohia Hospital', type: 'hospital', latitude: 28.6250, longitude: 77.2000, phone: '+911123365555', address: 'Baba Kharak Singh Marg' },
+      { id: 3, name: 'Coimbatore City Police Command Center', type: 'police_station', latitude: 11.0168, longitude: 76.9558, phone: '+914222300970', address: 'Avinashi Rd, Coimbatore' }
     ]
   });
 

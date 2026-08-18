@@ -175,11 +175,11 @@ const Navbar = () => {
 
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-blue-100 text-primary flex items-center justify-center font-bold text-sm">
-              {user ? user.full_name.charAt(0) : 'A'}
+              {user?.full_name ? user.full_name.charAt(0).toUpperCase() : 'A'}
             </div>
             <div className="hidden md:block text-left">
-              <p className="text-xs font-semibold text-slate-800">{user ? user.full_name : 'Chief Dispatcher'}</p>
-              <p className="text-[10px] text-slate-500 uppercase font-bold text-primary">{user ? user.role : 'Admin'}</p>
+              <p className="text-xs font-semibold text-slate-800">{user?.full_name || user?.name || 'Chief Dispatcher'}</p>
+              <p className="text-[10px] text-slate-500 uppercase font-bold text-primary">{user?.role || 'Admin'}</p>
             </div>
             <button
               onClick={() => dispatch(logout())}
