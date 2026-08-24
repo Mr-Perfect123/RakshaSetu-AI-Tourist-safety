@@ -21,8 +21,20 @@ const safeIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
-const SosLiveMap = ({ activeSosList = [], safeLocations = [] }) => {
-  const center = [28.6139, 77.2090]; // New Delhi default center
+const touristIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+const SosLiveMap = ({ activeSosList = [], safeLocations = [], liveTourists = [] }) => {
+  // Center on active tourist if online, fallback to Delhi
+  const center = liveTourists && liveTourists.length > 0 && liveTourists[0].latitude
+    ? [parseFloat(liveTourists[0].latitude), parseFloat(liveTourists[0].longitude)]
+    : [28.6139, 77.2090];
 
   return (
     <div className="w-full h-full rounded-2xl overflow-hidden shadow-md border border-slate-200 relative z-0">
@@ -73,6 +85,27 @@ const SosLiveMap = ({ activeSosList = [], safeLocations = [] }) => {
                   <div className="text-sm font-bold text-slate-800 mt-1">{loc.name}</div>
                   <div className="text-xs text-slate-500 mt-1">{loc.address}</div>
                   <div className="text-xs font-semibold text-primary mt-1">📞 {loc.phone}</div>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+
+        {/* Live Active Tourists (Blue Markers) */}
+        {(liveTourists || []).map((t) => {
+          const lat = parseFloat(t.latitude);
+          const lng = parseFloat(t.longitude);
+          if (isNaN(lat) || isNaN(lng)) return null;
+
+          return (
+            <Marker key={`tourist-${t.userId}`} position={[lat, lng]} icon={touristIcon}>
+              <Popup>
+                <div className="p-1.5 space-y-1">
+                  <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10px] font-bold uppercase">Online Tourist</span>
+                  <div className="text-xs font-bold text-slate-800">{t.touristName || `Tourist #${t.userId}`}</div>
+                  <div className="text-[10px] text-slate-500">User ID: {t.userId}</div>
+                  <div className="text-[10px] text-slate-500 font-mono">Coords: {lat.toFixed(4)}, {lng.toFixed(4)}</div>
+                  <div className="text-[9px] text-slate-400">Speed: {t.speed || 0} km/h | Updated: {new Date(t.timestamp).toLocaleTimeString()}</div>
                 </div>
               </Popup>
             </Marker>

@@ -83,10 +83,15 @@ const runMigrations = async () => {
         console.log(`[Auto-Installer] Executing migration: ${file}...`);
         const filePath = path.join(migrationsDir, file);
         const rawSql = fs.readFileSync(filePath, 'utf8');
-        const statements = rawSql
+        // Split into lines and filter out lines starting with -- or # comments
+        const cleanLines = rawSql
+          .split(/\r?\n/)
+          .filter(line => !line.trim().startsWith('--') && !line.trim().startsWith('#'));
+        const cleanSql = cleanLines.join('\n');
+        const statements = cleanSql
           .split(';')
           .map(s => s.trim())
-          .filter(s => s.length > 0 && !s.startsWith('--'));
+          .filter(s => s.length > 0);
 
         for (const stmt of statements) {
           try {

@@ -4,9 +4,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import TouristMap from '../components/TouristMap';
 import api from '../services/api';
 import socket from '../services/socket';
+import { useLanguage } from '../context/LanguageContext';
 
 const Dashboard = ({ tourist, darkMode }) => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   // Location Permission & Privacy States
   const [permissionAsked, setPermissionAsked] = useState(() => localStorage.getItem('rakshasetu_location_permission_prompted') === 'true');
@@ -108,6 +110,7 @@ const Dashboard = ({ tourist, darkMode }) => {
 
   // Dynamic Destination Search Trigger (Queries ANY city/place globally)
   useEffect(() => {
+    let active = true;
     if (!destinationQuery.trim()) {
       setSearchResults([]);
       return;
@@ -115,17 +118,21 @@ const Dashboard = ({ tourist, darkMode }) => {
     setIsSearching(true);
     const timer = setTimeout(async () => {
       try {
-        const res = await api.get(`/places/search?query=${encodeURIComponent(destinationQuery)}`);
+        const latParam = currentGpsLocation ? `&lat=${currentGpsLocation.lat}&lng=${currentGpsLocation.lng}` : '';
+        const res = await api.get(`/places/search?query=${encodeURIComponent(destinationQuery)}${latParam}`);
         const list = res.data?.data || res.data || [];
-        if (Array.isArray(list)) setSearchResults(list);
+        if (active && Array.isArray(list)) setSearchResults(list);
       } catch (e) {
         console.warn('Search query fallback');
       } finally {
-        setIsSearching(false);
+        if (active) setIsSearching(false);
       }
     }, 350);
-    return () => clearTimeout(timer);
-  }, [destinationQuery]);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [destinationQuery, currentGpsLocation]);
 
   // Target Button Recenter Logic (Returns camera to live GPS)
   const handleRecenterMyLocation = (leafletMapInstance) => {
@@ -299,18 +306,18 @@ const Dashboard = ({ tourist, darkMode }) => {
               <MapPin className="w-6 h-6" />
             </div>
             <div className="space-y-2">
-              <h3 className={`text-lg font-black text-center ${textClass}`}>Location Protection Permission</h3>
+              <h3 className={`text-lg font-black text-center ${textClass}`}>{t('dashboard.locationPermission', 'Location Protection Permission')}</h3>
               <p className={`text-xs font-semibold ${subtextClass}`}>
-                RakshaSetu needs your location to provide:
+                {t('dashboard.locationPermissionDesc', 'RakshaSetu needs your location to provide:')}
               </p>
               <ul className="text-xs font-medium space-y-1 text-slate-600 dark:text-slate-300 pl-4 list-disc">
-                <li>live safety monitoring</li>
-                <li>route navigation</li>
-                <li>nearby emergency services</li>
-                <li>danger-zone alerts</li>
-                <li>SOS assistance</li>
+                <li>{t('dashboard.liveSafetyMonitoring', 'live safety monitoring')}</li>
+                <li>{t('dashboard.routeNavigation', 'route navigation')}</li>
+                <li>{t('dashboard.nearbyEmergencyServices', 'nearby emergency services')}</li>
+                <li>{t('dashboard.dangerZoneAlerts', 'danger-zone alerts')}</li>
+                <li>{t('dashboard.sosAssistance', 'SOS assistance')}</li>
               </ul>
-              <p className="text-xs font-extrabold text-[#0D47A1] text-center pt-1 m-0">Allow location sharing?</p>
+              <p className="text-xs font-extrabold text-[#0D47A1] text-center pt-1 m-0">{t('dashboard.allowSharingPrompt', 'Allow location sharing?')}</p>
             </div>
 
             <div className="grid grid-cols-3 gap-2 pt-2">
@@ -318,19 +325,19 @@ const Dashboard = ({ tourist, darkMode }) => {
                 onClick={() => requestLocationPermission(false)}
                 className="py-2.5 rounded-xl border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-100 cursor-pointer text-center"
               >
-                Deny
+                {t('dashboard.denyBtn', 'Deny')}
               </button>
               <button
                 onClick={() => setShowPrivacyModal(true)}
                 className="py-2.5 rounded-xl border border-blue-200 text-blue-700 text-xs font-bold hover:bg-blue-50 cursor-pointer text-center"
               >
-                Privacy Settings
+                {t('nav.privacy', 'Privacy Settings')}
               </button>
               <button
                 onClick={() => requestLocationPermission(true)}
                 className="py-2.5 rounded-xl bg-[#0D47A1] text-white text-xs font-extrabold hover:bg-blue-800 cursor-pointer shadow-md text-center"
               >
-                Allow
+                {t('dashboard.allowBtn', 'Allow')}
               </button>
             </div>
           </div>
@@ -344,16 +351,16 @@ const Dashboard = ({ tourist, darkMode }) => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 className={`text-xl sm:text-2xl font-black m-0 ${darkMode ? 'text-blue-400' : 'text-blue-900'}`}>
-              Namaste, {tourist?.full_name || 'Traveler'} 👋
+              {t('dashboard.welcome', 'Namaste')}, {tourist?.full_name || 'Traveler'} 👋
             </h1>
             <p className={`text-xs font-semibold m-0 flex items-center gap-2 mt-0.5 ${
               darkMode ? 'text-slate-300' : 'text-slate-700'
             }`}>
-              <span>Explore India safely with RakshaSetu AI Tourist Protection</span>
+              <span>{t('dashboard.exploreIndia', 'Explore India safely with RakshaSetu AI Tourist Protection')}</span>
               <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
                 locationSharingEnabled ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' : 'bg-slate-200 text-slate-800 border border-slate-300'
               }`}>
-                📍 Location Sharing: {locationSharingEnabled ? 'ON' : 'OFF'}
+                📍 {t('dashboard.locationSharing', 'Location Sharing')}: {locationSharingEnabled ? 'ON' : 'OFF'}
               </span>
             </p>
           </div>
@@ -364,7 +371,7 @@ const Dashboard = ({ tourist, darkMode }) => {
                 onClick={handleStopSharing}
                 className="px-3 py-1.5 rounded-xl bg-red-100 text-red-700 text-xs font-bold hover:bg-red-200 cursor-pointer"
               >
-                Stop Location Sharing
+                {t('dashboard.stopSharing', 'Stop Location Sharing')}
               </button>
             )}
             <button
@@ -373,7 +380,7 @@ const Dashboard = ({ tourist, darkMode }) => {
                 darkMode ? 'bg-slate-700 border-slate-600 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700'
               }`}
             >
-              <Lock className="w-3.5 h-3.5 text-blue-600" /> Privacy Controls
+              <Lock className="w-3.5 h-3.5 text-blue-600" /> {t('dashboard.privacyControls', 'Privacy Controls')}
             </button>
           </div>
         </div>
@@ -383,7 +390,7 @@ const Dashboard = ({ tourist, darkMode }) => {
           <Search className="w-5 h-5 text-slate-400 absolute left-4 top-3.5" />
           <input
             type="text"
-            placeholder="Search ANY destination, city, landmark, hotel, beach (e.g. Coimbatore, Delhi, Taj Mahal, Goa, Ooty)..."
+            placeholder={t('dashboard.searchPlaceholder', 'Search ANY destination, city, landmark, hotel, beach (e.g. Coimbatore, Delhi, Taj Mahal, Goa, Ooty)...')}
             value={destinationQuery}
             onChange={(e) => setDestinationQuery(e.target.value)}
             className={`w-full pl-12 pr-4 py-3 rounded-2xl border text-xs font-semibold focus:ring-2 focus:outline-none ${
@@ -393,7 +400,7 @@ const Dashboard = ({ tourist, darkMode }) => {
 
           {isSearching && (
             <div className="absolute right-4 top-3.5 text-xs text-blue-600 font-bold flex items-center gap-1">
-              <Activity className="w-4 h-4 animate-spin" /> Geocoding...
+              <Activity className="w-4 h-4 animate-spin" /> {t('dashboard.geocoding', 'Geocoding...')}
             </div>
           )}
 
@@ -404,9 +411,9 @@ const Dashboard = ({ tourist, darkMode }) => {
               {searchResults.map((place) => (
                 <div
                   key={place.id}
-                  className="p-3.5 border-b border-slate-100 hover:bg-blue-50/60 cursor-pointer space-y-2 transition-colors"
+                  className="p-3.5 border-b border-slate-100 hover:bg-blue-50/60 transition-colors"
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-extrabold text-[#0D47A1]">{place.name}</span>
@@ -415,17 +422,27 @@ const Dashboard = ({ tourist, darkMode }) => {
                       <span className="text-xs text-slate-600 font-medium block mt-0.5">{place.address || `${place.city}, ${place.state}, ${place.country}`}</span>
                     </div>
 
-                    <button
-                      onClick={() => {
-                        setMapLocation({ lat: place.latitude, lng: place.longitude });
-                        setSearchedDestination(place);
-                        setSearchResults([]);
-                        setDestinationQuery(place.name);
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-[#0D47A1] text-white font-extrabold text-xs hover:bg-blue-800 shrink-0 cursor-pointer"
-                    >
-                      🗺 Select on Map
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => {
+                          setMapLocation({ lat: place.latitude, lng: place.longitude });
+                          setSearchedDestination(place);
+                          setSearchResults([]);
+                          setDestinationQuery(place.name);
+                        }}
+                        className="px-3 py-1.5 rounded-xl border border-[#0D47A1] text-[#0D47A1] font-extrabold text-xs hover:bg-blue-50 cursor-pointer"
+                      >
+                        {t('dashboard.selectMap', '🗺 Select on Map')}
+                      </button>
+                      <button
+                        onClick={() => {
+                          navigate(`/places/${place.id}`);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-[#0D47A1] text-white font-extrabold text-xs hover:bg-blue-800 cursor-pointer shadow-xs"
+                      >
+                        View Full Details ➔
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -440,13 +457,13 @@ const Dashboard = ({ tourist, darkMode }) => {
           <span className={`px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider ${
             darkMode ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-100 text-[#0D47A1]'
           }`}>
-            24/7 National Tourist Protection Desk
+            {t('dashboard.deskTitle', '24/7 National Tourist Protection Desk')}
           </span>
           <h2 className={`text-2xl md:text-3xl font-extrabold mt-2.5 mb-1 ${textClass}`}>
-            Emergency Distress Panic Response
+            {t('dashboard.panicTitle', 'Emergency Distress Panic Response')}
           </h2>
           <p className={`text-xs md:text-sm font-medium max-w-xl mx-auto mt-1 ${subtextClass}`}>
-            Tap the button below in case of imminent threat, harassment, medical distress, or crime. Instantly dispatches nearest police units and emergency contacts.
+            {t('dashboard.panicSubtitle', 'Tap the button below in case of imminent threat, harassment, medical distress, or crime. Instantly dispatches nearest police units and emergency contacts.')}
           </p>
         </div>
 
@@ -462,8 +479,8 @@ const Dashboard = ({ tourist, darkMode }) => {
             }`}
           >
             <AlertOctagon className="w-16 h-16 mb-2 text-white animate-bounce" />
-            <span className="text-3xl font-black tracking-widest uppercase text-white drop-shadow-md">SOS</span>
-            <span className="text-[11px] font-bold text-white/95 uppercase font-mono mt-1 tracking-wider">Press for Emergency</span>
+            <span className="text-3xl font-black tracking-widest uppercase text-white drop-shadow-md">{t('dashboard.emergencySos', 'SOS')}</span>
+            <span className="text-[11px] font-bold text-white/95 uppercase font-mono mt-1 tracking-wider">{t('dashboard.pressEmergency', 'Press for Emergency')}</span>
           </button>
         </div>
       </div>
@@ -473,7 +490,7 @@ const Dashboard = ({ tourist, darkMode }) => {
         <div className={`lg:col-span-2 ${cardClass} p-4 rounded-2xl border shadow-xs flex flex-col h-[520px]`}>
           <div className="flex items-center justify-between mb-3 px-1">
             <h3 className={`text-sm font-bold flex items-center gap-2 m-0 ${textClass}`}>
-              <MapPin className="w-4 h-4 text-[#0D47A1]" /> Live Spatial Sentinel Map
+              <MapPin className="w-4 h-4 text-[#0D47A1]" /> {t('dashboard.sentinelMap', 'Live Spatial Sentinel Map')}
             </h3>
             <div className="flex items-center gap-2">
               {searchedDestination && (
@@ -484,16 +501,16 @@ const Dashboard = ({ tourist, darkMode }) => {
                   }}
                   className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 font-extrabold text-[10px] cursor-pointer"
                 >
-                  Clear Search Destination ✕
+                  {t('dashboard.clearSearch', 'Clear Search Destination ✕')}
                 </button>
               )}
               <span className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> Live GPS Active
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> {t('dashboard.gpsActive', 'Live GPS Active')}
               </span>
             </div>
           </div>
 
-          <div className="flex-1 w-full rounded-xl overflow-hidden border border-slate-200">
+          <div className="flex-1 w-full rounded-xl overflow-hidden border border-slate-200 relative">
             <TouristMap
               location={mapLocation}
               destination={searchedDestination}
@@ -501,6 +518,89 @@ const Dashboard = ({ tourist, darkMode }) => {
               nearbyPlaces={nearbyPlaces}
               onMyLocationClick={handleRecenterMyLocation}
             />
+
+            {/* Google Maps style detail panel overlay */}
+            {searchedDestination && (
+              <div className="absolute top-4 left-4 z-[1000] w-72 sm:w-80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden text-left flex flex-col max-h-[90%] pointer-events-auto">
+                {/* Photo */}
+                <div className="h-32 bg-slate-100 dark:bg-slate-800 relative">
+                  <img
+                    src={searchedDestination.photos?.[0] || 'https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=600&q=80'}
+                    alt={searchedDestination.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = 'https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=600&q=80';
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSearchedDestination(null)}
+                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center cursor-pointer font-bold text-xs border-none"
+                  >
+                    ✕
+                  </button>
+                  <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-blue-600 text-white text-[9px] font-black uppercase">
+                    {searchedDestination.category || 'Attraction'}
+                  </span>
+                </div>
+
+                {/* Details */}
+                <div className="p-4 space-y-3 overflow-y-auto flex-1">
+                  <div>
+                    <h4 className="text-sm font-black text-slate-900 dark:text-white m-0">{searchedDestination.name}</h4>
+                    <span className="text-[10px] text-slate-500 font-semibold block mt-0.5">{searchedDestination.address}</span>
+                  </div>
+
+                  {searchedDestination.distanceKm !== undefined && searchedDestination.distanceKm !== null && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black text-[10px]">
+                      📍 {searchedDestination.distanceKm} km away (~{Math.round((searchedDestination.distanceKm / 35) * 60)} mins)
+                    </span>
+                  )}
+
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold m-0 leading-relaxed line-clamp-3">
+                    {searchedDestination.description}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2 text-[10px] border-t border-slate-100 dark:border-slate-800 pt-2 font-semibold">
+                    <div className="space-y-0.5">
+                      <span className="text-slate-400 block uppercase font-bold text-[9px]">Timing / Hours</span>
+                      <span className="text-slate-700 dark:text-slate-200 block truncate">{searchedDestination.openingHours || 'Open 24 Hours'}</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-slate-400 block uppercase font-bold text-[9px]">Entry Cost</span>
+                      <span className="text-slate-700 dark:text-slate-200 block truncate">{searchedDestination.entryFee || 'Free Entry'}</span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/places/${searchedDestination.id}`)}
+                      className="w-full py-2 bg-[#0D47A1] hover:bg-blue-800 text-white font-extrabold text-[10px] uppercase text-center rounded-xl flex items-center justify-center gap-1 cursor-pointer border-none shadow-xs"
+                    >
+                      <Info className="w-3.5 h-3.5"/> Full Safety Profile & Details ➔
+                    </button>
+                    <div className="flex gap-2">
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${searchedDestination.latitude},${searchedDestination.longitude}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex-1 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-[10px] uppercase text-center rounded-xl flex items-center justify-center gap-1 decoration-none"
+                      >
+                        <Navigation className="w-3 h-3 text-[#0D47A1]"/> Route
+                      </a>
+                      <Link
+                        to={`/travel?from=Coimbatore&to=${encodeURIComponent(searchedDestination.name)}`}
+                        className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase text-center rounded-xl flex items-center justify-center gap-1 decoration-none"
+                      >
+                        <Car className="w-3 h-3"/> Book Travel
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -508,13 +608,13 @@ const Dashboard = ({ tourist, darkMode }) => {
         <div className={`${cardClass} p-5 rounded-2xl border shadow-xs flex flex-col justify-between h-[520px]`}>
           <div className="space-y-3 overflow-y-auto pr-1">
             <div className="flex items-center justify-between border-b pb-2.5 border-slate-100">
-              <h3 className={`text-sm font-extrabold m-0 ${textClass}`}>Weather & Safety Index</h3>
+              <h3 className={`text-sm font-extrabold m-0 ${textClass}`}>{t('dashboard.weatherSafetyIndex', 'Weather & Safety Index')}</h3>
               <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">🟢 SAFE (92/100)</span>
             </div>
 
             {locationUpdating && (
               <div className="p-2.5 rounded-xl bg-blue-50 text-blue-700 text-xs font-bold animate-pulse flex items-center justify-center gap-2">
-                <Activity className="w-4 h-4 animate-spin" /> Updating location...
+                <Activity className="w-4 h-4 animate-spin" /> {t('dashboard.updatingLocation', 'Updating location...')}
               </div>
             )}
 
@@ -526,12 +626,12 @@ const Dashboard = ({ tourist, darkMode }) => {
 
             {/* Current Geocoded Location Box */}
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
-              <span className="text-[10px] font-extrabold uppercase text-slate-400">CURRENT LOCATION</span>
+              <span className="text-[10px] font-extrabold uppercase text-slate-400">{t('dashboard.currentLocationLabel', 'CURRENT LOCATION')}</span>
               <p className="font-bold text-slate-900 m-0 leading-snug">{weatherData?.fullAddress || locationName}</p>
               <div className="grid grid-cols-3 gap-1 pt-1 text-[10px] font-semibold text-slate-600 border-t border-slate-200/60 mt-1">
-                <span>City: <strong className="text-slate-800">{weatherData?.city || 'Coimbatore'}</strong></span>
-                <span>State: <strong className="text-slate-800">{weatherData?.state || 'Tamil Nadu'}</strong></span>
-                <span>Country: <strong className="text-slate-800">{weatherData?.country || 'India'}</strong></span>
+                <span>{t('dashboard.cityLabel', 'City')}: <strong className="text-slate-800">{weatherData?.city || 'Coimbatore'}</strong></span>
+                <span>{t('dashboard.stateLabel', 'State')}: <strong className="text-slate-800">{weatherData?.state || 'Tamil Nadu'}</strong></span>
+                <span>{t('dashboard.countryLabel', 'Country')}: <strong className="text-slate-800">{weatherData?.country || 'India'}</strong></span>
               </div>
               <p className="font-mono text-[10px] text-[#0D47A1] m-0 pt-0.5">
                 Lat: {currentGpsLocation.lat.toFixed(4)}, Lng: {currentGpsLocation.lng.toFixed(4)}
@@ -547,19 +647,19 @@ const Dashboard = ({ tourist, darkMode }) => {
               <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 text-xs space-y-1.5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] font-extrabold uppercase text-blue-900">WEATHER</span>
+                    <span className="text-[10px] font-extrabold uppercase text-blue-900">{t('dashboard.weatherLabel', 'WEATHER')}</span>
                     <p className="text-xs font-bold text-slate-800 m-0">{weatherData.condition}</p>
                   </div>
                   <span className="text-2xl font-black text-[#0D47A1]">{weatherData.temperatureC}°C</span>
                 </div>
                 <div className="grid grid-cols-2 gap-1 text-[10px] text-slate-600 font-medium pt-1 border-t border-blue-200/60">
-                  <span>Feels like: <strong>{weatherData.feelsLikeC}°C</strong></span>
-                  <span>Humidity: <strong>{weatherData.humidity}%</strong></span>
-                  <span>Wind: <strong>{weatherData.windKmH} km/h</strong></span>
-                  <span>Visibility: <strong>{weatherData.visibilityKm} km</strong></span>
+                  <span>{t('dashboard.feelsLike', 'Feels like')}: <strong>{weatherData.feelsLikeC}°C</strong></span>
+                  <span>{t('dashboard.humidity', 'Humidity')}: <strong>{weatherData.humidity}%</strong></span>
+                  <span>{t('dashboard.wind', 'Wind')}: <strong>{weatherData.windKmH} km/h</strong></span>
+                  <span>{t('dashboard.visibility', 'Visibility')}: <strong>{weatherData.visibilityKm} km</strong></span>
                 </div>
                 <div className="text-[10px] text-slate-400 text-right pt-0.5">
-                  Updated: {weatherData.updatedAt || 'Just now'}
+                  {t('dashboard.updatedLabel', 'Updated')}: {weatherData.updatedAt || t('dashboard.justNow', 'Just now')}
                 </div>
               </div>
             ) : null}
@@ -570,7 +670,7 @@ const Dashboard = ({ tourist, darkMode }) => {
               onClick={() => handleRecenterMyLocation(null)}
               className="w-full py-2.5 rounded-xl bg-[#0D47A1] hover:bg-blue-800 text-white font-extrabold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-sm"
             >
-              <Compass className="w-4 h-4 text-white" /> ⦿ MY LOCATION
+              <Compass className="w-4 h-4 text-white" /> ⦿ {t('dashboard.myLocationBtn', 'MY LOCATION')}
             </button>
           </div>
         </div>
@@ -581,24 +681,24 @@ const Dashboard = ({ tourist, darkMode }) => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3 border-slate-100">
           <div>
             <h2 className={`text-lg font-black m-0 text-[#0D47A1] flex items-center gap-2`}>
-              <Navigation className="w-5 h-5 text-blue-600" /> Nearby Safety & Tourist Services
+              <Navigation className="w-5 h-5 text-blue-600" /> {t('dashboard.nearbyTitleSec', 'Nearby Safety & Tourist Services')}
             </h2>
             <p className={`text-xs font-medium m-0 ${mutedClass}`}>
-              Calculated live from your current GPS position ({currentGpsLocation.lat.toFixed(4)}, {currentGpsLocation.lng.toFixed(4)})
+              {t('dashboard.liveGpsDesc', 'Calculated live from your current GPS position')} ({currentGpsLocation.lat.toFixed(4)}, {currentGpsLocation.lng.toFixed(4)})
             </p>
           </div>
 
           <div className="flex items-center gap-1.5 overflow-x-auto text-xs font-bold pb-1">
             {[
-              { id: 'all', label: 'All Services' },
-              { id: 'police', label: '👮 Police' },
-              { id: 'hospital', label: '🏥 Hospitals' },
-              { id: 'pharmacy', label: '💊 Pharmacies' },
-              { id: 'hotel', label: '🏨 Hotels' },
-              { id: 'restaurant', label: '🍽 Restaurants' },
-              { id: 'fuel', label: '⛽ Fuel' },
-              { id: 'atm', label: '🏧 ATMs' },
-              { id: 'transport', label: '🚆 Transport' }
+              { id: 'all', label: t('dashboard.allServices', 'All Services') },
+              { id: 'police', label: t('dashboard.policeCat', '👮 Police') },
+              { id: 'hospital', label: t('dashboard.hospitalCat', '🏥 Hospitals') },
+              { id: 'pharmacy', label: t('dashboard.pharmacyCat', '💊 Pharmacies') },
+              { id: 'hotel', label: t('dashboard.hotelCat', '🏨 Hotels') },
+              { id: 'restaurant', label: t('dashboard.restaurantCat', '🍽 Restaurants') },
+              { id: 'fuel', label: t('dashboard.fuelCat', '⛽ Fuel') },
+              { id: 'atm', label: t('dashboard.atmCat', '🏧 ATMs') },
+              { id: 'transport', label: t('dashboard.transportCat', '🚆 Transport') }
             ].map(cat => (
               <button
                 key={cat.id}
@@ -617,11 +717,11 @@ const Dashboard = ({ tourist, darkMode }) => {
 
         {nearbyLoading ? (
           <div className="p-8 text-center text-xs font-bold text-slate-500 flex items-center justify-center gap-2">
-            <Activity className="w-4 h-4 animate-spin text-blue-600" /> Calculating distances to nearby services...
+            <Activity className="w-4 h-4 animate-spin text-blue-600" /> {t('dashboard.calculatingDistances', 'Calculating distances to nearby services...')}
           </div>
         ) : nearbyPlaces.length === 0 ? (
           <div className="p-8 text-center text-xs font-semibold text-slate-500">
-            No nearby services found for category "{nearbyCategory}". Try selecting another category or pressing My Location.
+            {t('dashboard.noNearbyServices', 'No nearby services found for category')} "{nearbyCategory}". {t('dashboard.trySelectingAnother', 'Try selecting another category or pressing My Location.')}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -641,7 +741,7 @@ const Dashboard = ({ tourist, darkMode }) => {
                   <p className="text-xs text-slate-600 font-medium m-0 leading-relaxed line-clamp-2">{place.address}</p>
 
                   <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 pt-1 border-t border-slate-200/60">
-                    <span className="text-emerald-700 font-bold">🟢 {place.openStatusText || 'Open Now'}</span>
+                    <span className="text-emerald-700 font-bold">🟢 {place.openStatusText || t('dashboard.openNow', 'Open Now')}</span>
                     <span>📞 {place.phone}</span>
                   </div>
                 </div>
@@ -651,7 +751,7 @@ const Dashboard = ({ tourist, darkMode }) => {
                     href={`tel:${place.phone}`}
                     className="flex-1 py-2 rounded-xl bg-emerald-600 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 hover:bg-emerald-700 transition-colors cursor-pointer decoration-none shadow-xs text-center"
                   >
-                    <PhoneCall className="w-3.5 h-3.5" /> Call
+                    <PhoneCall className="w-3.5 h-3.5" /> {t('dashboard.callBtn', 'Call')}
                   </a>
                   <a
                     href={`https://www.google.com/maps/dir/?api=1&destination=${place.latitude},${place.longitude}`}
@@ -659,7 +759,7 @@ const Dashboard = ({ tourist, darkMode }) => {
                     rel="noreferrer"
                     className="flex-1 py-2 rounded-xl bg-[#0D47A1] text-white font-extrabold text-xs flex items-center justify-center gap-1.5 hover:bg-blue-800 transition-colors cursor-pointer decoration-none shadow-xs text-center"
                   >
-                    <Navigation className="w-3.5 h-3.5" /> Directions
+                    <Navigation className="w-3.5 h-3.5" /> {t('dashboard.directionsBtn', 'Directions')}
                   </a>
                   <button
                     onClick={() => {
@@ -667,7 +767,7 @@ const Dashboard = ({ tourist, darkMode }) => {
                       setSearchedDestination(place);
                     }}
                     className="px-3 py-2 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-100 cursor-pointer shrink-0"
-                    title="View on Map"
+                    title={t('dashboard.viewOnMap', 'View on Map')}
                   >
                     <MapPin className="w-3.5 h-3.5 text-blue-600" />
                   </button>
@@ -689,8 +789,8 @@ const Dashboard = ({ tourist, darkMode }) => {
           <div className="w-11 h-11 rounded-xl bg-blue-100 text-[#0D47A1] flex items-center justify-center group-hover:scale-110 transition-transform">
             <Car className="w-6 h-6" />
           </div>
-          <h4 className={`text-sm font-extrabold m-0 ${textClass}`}>Vehicle Booking</h4>
-          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>Verified cabs, bikes & SUVs</p>
+          <h4 className={`text-sm font-extrabold m-0 ${textClass}`}>{t('dashboard.vehicleBooking', 'Vehicle Booking')}</h4>
+          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>{t('dashboard.verifiedCabs', 'Verified cabs, bikes & SUVs')}</p>
         </Link>
 
         <Link
@@ -702,8 +802,8 @@ const Dashboard = ({ tourist, darkMode }) => {
           <div className="w-11 h-11 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center group-hover:scale-110 transition-transform">
             <Utensils className="w-6 h-6" />
           </div>
-          <h4 className={`text-sm font-extrabold m-0 ${textClass}`}>Food & Dining</h4>
-          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>Hygienic local dining & delivery</p>
+          <h4 className={`text-sm font-extrabold m-0 ${textClass}`}>{t('dashboard.foodDining', 'Food & Dining')}</h4>
+          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>{t('dashboard.hygienicDining', 'Hygienic local dining & delivery')}</p>
         </Link>
 
         <Link
@@ -715,8 +815,8 @@ const Dashboard = ({ tourist, darkMode }) => {
           <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center group-hover:scale-110 transition-transform">
             <Sparkles className="w-6 h-6" />
           </div>
-          <h4 className={`text-sm font-extrabold m-0 ${textClass}`}>AI Assistant</h4>
-          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>15 Languages & Emergency Mode</p>
+          <h4 className={`text-sm font-extrabold m-0 ${textClass}`}>{t('dashboard.aiAssistant', 'AI Assistant')}</h4>
+          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>{t('dashboard.languagesMode', '15 Languages & Emergency Mode')}</p>
         </Link>
 
         <Link
@@ -728,8 +828,8 @@ const Dashboard = ({ tourist, darkMode }) => {
           <div className="w-11 h-11 rounded-xl bg-red-100 text-[#D32F2F] flex items-center justify-center group-hover:scale-110 transition-transform">
             <FileText className="w-6 h-6" />
           </div>
-          <h4 className={`text-sm font-extrabold m-0 ${textClass}`}>Report Incident</h4>
-          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>Report scam, theft or hazard</p>
+          <h4 className={`text-sm font-extrabold m-0 ${textClass}`}>{t('dashboard.reportIncident', 'Report Incident')}</h4>
+          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>{t('dashboard.reportScam', 'Report scam, theft or hazard')}</p>
         </Link>
       </div>
     </div>

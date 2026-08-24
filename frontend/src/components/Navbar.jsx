@@ -23,10 +23,10 @@ const Navbar = ({ tourist, onLogout, darkMode, toggleDarkMode }) => {
           }`}>
             RAKSHASETU <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
               darkMode ? 'bg-blue-900/50 text-blue-300' : 'bg-blue-100 text-blue-800'
-            }`}>Tourist Safe</span>
+            }`}>{t('dashboard.touristSafeBadge', 'Tourist Safe')}</span>
           </h1>
           <p className={`text-[11px] font-medium m-0 mt-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-            AI Tourist Protection & Emergency Guard
+            {t('dashboard.navbarTitleDesc', 'AI Tourist Protection & Emergency Guard')}
           </p>
         </div>
       </Link>
@@ -103,7 +103,7 @@ const Navbar = ({ tourist, onLogout, darkMode, toggleDarkMode }) => {
                 darkMode ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              Overview
+              {t('dashboard.navbarOverview', 'Overview')}
             </Link>
           </>
         )}
@@ -121,7 +121,7 @@ const Navbar = ({ tourist, onLogout, darkMode, toggleDarkMode }) => {
           title="Open Admin Command Center (Port 5173)"
         >
           <Shield className="w-3.5 h-3.5 text-red-600 animate-pulse" />
-          <span>Admin Command</span>
+          <span>{t('dashboard.navbarAdminLink', 'Admin Command')}</span>
         </a>
 
         {/* Dark/Light Mode Toggle */}
@@ -141,7 +141,7 @@ const Navbar = ({ tourist, onLogout, darkMode, toggleDarkMode }) => {
           href="tel:112"
           className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#D32F2F]/10 text-[#D32F2F] border border-[#D32F2F]/20 font-bold text-xs hover:bg-[#D32F2F] hover:text-white transition-all"
         >
-          <PhoneCall className="w-3.5 h-3.5" /> Call 112
+          <PhoneCall className="w-3.5 h-3.5" /> {t('dashboard.navbarCallBtn', 'Call 112')}
         </a>
 
         {tourist ? (
@@ -179,7 +179,7 @@ const Navbar = ({ tourist, onLogout, darkMode, toggleDarkMode }) => {
             to="/login"
             className="px-5 py-2 rounded-xl bg-[#5b21b6] hover:bg-[#4c1d95] text-white font-medium text-xs shadow-sm transition-all decoration-none flex items-center gap-1.5"
           >
-            <LogIn className="w-3.5 h-3.5" /> Login
+            <LogIn className="w-3.5 h-3.5" /> {t('dashboard.navbarLoginBtn', 'Login')}
           </Link>
         )}
       </div>

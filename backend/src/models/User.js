@@ -3,13 +3,23 @@ const bcrypt = require('bcryptjs');
 
 class User {
   static async findByEmail(email) {
-    const sql = `SELECT * FROM users WHERE email = ? LIMIT 1`;
+    const sql = `
+      SELECT u.*, t.preferred_language 
+      FROM users u 
+      LEFT JOIN tourists t ON u.id = t.user_id 
+      WHERE u.email = ? LIMIT 1
+    `;
     const rows = await executeQuery(sql, [email]);
     return rows[0] || null;
   }
 
   static async findById(id) {
-    const sql = `SELECT id, full_name, email, phone, role, status, is_verified, gender, nationality, passport_number, latitude, longitude, profile_image, created_at FROM users WHERE id = ? LIMIT 1`;
+    const sql = `
+      SELECT u.id, u.full_name, u.email, u.phone, u.role, u.status, u.is_verified, u.gender, u.nationality, u.passport_number, u.latitude, u.longitude, u.profile_image, u.created_at, t.preferred_language 
+      FROM users u 
+      LEFT JOIN tourists t ON u.id = t.user_id 
+      WHERE u.id = ? LIMIT 1
+    `;
     const rows = await executeQuery(sql, [id]);
     return rows[0] || null;
   }

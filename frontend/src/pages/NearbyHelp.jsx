@@ -3,6 +3,7 @@ import { ShieldCheck, Phone, MapPin, Star, ArrowLeft, Building2, Hospital, Searc
 import { Link, useSearchParams } from 'react-router-dom';
 import TouristMap from '../components/TouristMap';
 import api from '../services/api';
+import axios from 'axios';
 
 const CATEGORIES = [
   { key: 'all', label: 'All Places', icon: MapPin },
@@ -29,6 +30,52 @@ const NearbyHelp = ({ darkMode }) => {
   const [loading, setLoading] = useState(false);
   const [selectedPlace, setSelectedPlace] = useState(null);
 
+  // Geolocate the user and reverse-geocode to get location name
+  const handleGeolocate = () => {
+    if (navigator.geolocation) {
+      setLoading(true);
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          setLocation({ lat, lng });
+          
+          try {
+            const res = await axios.get(
+              `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+              {
+                headers: { 'User-Agent': 'RakshaSetu-AI-Tourist-Protection-Engine/1.0' },
+                timeout: 3500
+              }
+            );
+            if (res.data && res.data.display_name) {
+              const addr = res.data.address || {};
+              const city = addr.city || addr.town || addr.village || addr.suburb || 'Your Location';
+              const state = addr.state || '';
+              setLocationName(`${city}${state ? ', ' + state : ''}`);
+            } else {
+              setLocationName(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+            }
+          } catch (e) {
+            setLocationName(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+          } finally {
+            setLoading(false);
+          }
+        },
+        (error) => {
+          console.warn('Geolocation permission error or timeout:', error);
+          setLoading(false);
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    }
+  };
+
+  // Run geolocation on initial component mount
+  useEffect(() => {
+    handleGeolocate();
+  }, []);
+
   // Fetch Nearby Places based on Location & Category
   const fetchNearby = async () => {
     setLoading(true);
@@ -36,9 +83,10 @@ const NearbyHelp = ({ darkMode }) => {
       const res = await api.get(
         `/places/nearby?lat=${location.lat}&lng=${location.lng}&category=${selectedCategory}&query=${encodeURIComponent(searchQuery)}`
       );
-      if (res.data && Array.isArray(res.data)) {
-        setPlaces(res.data);
-        if (res.data.length > 0 && !selectedPlace) setSelectedPlace(res.data[0]);
+      const list = res.data?.data || res.data || [];
+      if (Array.isArray(list)) {
+        setPlaces(list);
+        if (list.length > 0) setSelectedPlace(list[0]);
       }
     } catch (err) {
       console.warn('Nearby fetch warning');
@@ -86,10 +134,22 @@ const NearbyHelp = ({ darkMode }) => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           <span className="px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-900 text-xs font-black flex items-center gap-1.5 border border-emerald-300">
             <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping"></span> GPS Centered: {locationName}
           </span>
+          <button
+            onClick={handleGeolocate}
+            className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer ${
+              darkMode
+                ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+            }`}
+            title="Recenter Map to My Coordinates"
+          >
+            <Navigation className="w-3.5 h-3.5 text-blue-600" />
+            <span>My Location</span>
+          </button>
         </div>
       </div>
 

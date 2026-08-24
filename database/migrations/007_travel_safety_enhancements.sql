@@ -37,33 +37,33 @@ CREATE TABLE IF NOT EXISTS travel_bookings (
 
 -- 2. EXTEND VEHICLE_BOOKINGS TABLE SCHEMA (Combined ALTER TABLE for MySQL safety)
 ALTER TABLE vehicle_bookings 
-  ADD COLUMN IF NOT EXISTS driver_id INT DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS driver_name VARCHAR(100) DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS driver_phone VARCHAR(20) DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS driver_photo VARCHAR(255) DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS driver_rating DECIMAL(3, 2) DEFAULT 4.90,
-  ADD COLUMN IF NOT EXISTS vehicle_registration VARCHAR(40) DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS base_fare DECIMAL(8, 2) DEFAULT 50.00,
-  ADD COLUMN IF NOT EXISTS distance_km DECIMAL(6, 2) DEFAULT 5.00,
-  ADD COLUMN IF NOT EXISTS distance_charge DECIMAL(10, 2) DEFAULT 70.00,
-  ADD COLUMN IF NOT EXISTS taxes_fees DECIMAL(8, 2) DEFAULT 20.00;
+  ADD COLUMN driver_id INT DEFAULT NULL,
+  ADD COLUMN driver_name VARCHAR(100) DEFAULT NULL,
+  ADD COLUMN driver_phone VARCHAR(20) DEFAULT NULL,
+  ADD COLUMN driver_photo VARCHAR(255) DEFAULT NULL,
+  ADD COLUMN driver_rating DECIMAL(3, 2) DEFAULT 4.90,
+  ADD COLUMN vehicle_registration VARCHAR(40) DEFAULT NULL,
+  ADD COLUMN base_fare DECIMAL(8, 2) DEFAULT 50.00,
+  ADD COLUMN distance_km DECIMAL(6, 2) DEFAULT 5.00,
+  ADD COLUMN distance_charge DECIMAL(10, 2) DEFAULT 70.00,
+  ADD COLUMN taxes_fees DECIMAL(8, 2) DEFAULT 20.00;
 
 -- 3. EXTEND DANGER_ZONES TABLE SCHEMA
 ALTER TABLE danger_zones 
-  ADD COLUMN IF NOT EXISTS crime_categories JSON DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS recent_incidents JSON DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS time_risk_description VARCHAR(255) DEFAULT 'High risk between 09:00 PM and 04:00 AM',
-  ADD COLUMN IF NOT EXISTS precautions TEXT DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS risk_score INT DEFAULT 85,
-  ADD COLUMN IF NOT EXISTS safe_alternatives TEXT DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS polygon_coordinates JSON DEFAULT NULL;
+  ADD COLUMN crime_categories JSON DEFAULT NULL,
+  ADD COLUMN recent_incidents JSON DEFAULT NULL,
+  ADD COLUMN time_risk_description VARCHAR(255) DEFAULT 'High risk between 09:00 PM and 04:00 AM',
+  ADD COLUMN precautions TEXT DEFAULT NULL,
+  ADD COLUMN risk_score INT DEFAULT 85,
+  ADD COLUMN safe_alternatives TEXT DEFAULT NULL,
+  ADD COLUMN polygon_coordinates JSON DEFAULT NULL;
 
 -- 4. SEED DESTINATION-SPECIFIC SAFETY ZONES (Coimbatore, Delhi, Goa, Agra, Madurai, Mumbai, Bangalore)
 INSERT IGNORE INTO danger_zones (id, zone_code, name, description, latitude, longitude, radius_meters, severity, risk_score, crime_type, advisory_message, precautions, safe_alternatives) VALUES
-(10, 'DZ-CBE-001', 'Town Hall Commercial Sector', 'High evening crowd density with reported luggage theft and tout solicitation.', 10.9980, 76.9650, 450, 'high', 78, 'Pickpocketing & Overselling Scams', 'Secure personal belongings in inner pouches. Avoid isolated alleys after 10 PM.', 'Use well-lit DB Road or Oppanakara Street main arterial road.'),
-(11, 'DZ-CBE-002', 'Ukkadam Bus Stand Outer Circle', 'Congested transport node with unauthorized auto solicitations.', 10.9900, 76.9600, 500, 'critical', 88, 'Unauthorized Auto Solicitations & Theft', 'Book pre-paid taxis or RakshaSetu verified cabs. Keep phone stored securely.', 'Pre-paid taxi counter at Railway Station entrance.'),
-(12, 'DZ-GOA-001', 'Calangute Night Corridor', 'Late night unlit beach stretches with water current hazards.', 15.5440, 73.7550, 600, 'high', 82, 'Night Current Hazards & Unauthorized Party Touts', 'Do not enter sea after 6:30 PM. Stay near Lifeguard Desk.', 'Baga Main Road Police Desk sector.'),
-(13, 'DZ-AGR-001', 'Taj West Gate Parking Alley', 'Aggressive unauthorized guide touts and souvenir scams.', 27.1730, 78.0380, 350, 'moderate', 62, 'Unauthorized Guide Solicitations', 'Buy entrance tickets exclusively via official ASI desk or online.', 'Taj East Gate Official Information Booth.');
+(10, 'DZ-CBE-001', 'Town Hall Commercial Sector', 'High evening crowd density with reported luggage theft and tout solicitation.', 10.9980, 76.9650, 450, 'high', 78, 'Pickpocketing & Overselling Scams', 'Secure personal belongings in inner pouches. Avoid isolated alleys after 10 PM.', 'Use well-lit DB Road or Oppanakara Street main arterial road.', 'Use DB Road or Oppanakara Street safe corridor.'),
+(11, 'DZ-CBE-002', 'Ukkadam Bus Stand Outer Circle', 'Congested transport node with unauthorized auto solicitations.', 10.9900, 76.9600, 500, 'critical', 88, 'Unauthorized Auto Solicitations & Theft', 'Book pre-paid taxis or RakshaSetu verified cabs. Keep phone stored securely.', 'Pre-paid taxi counter at Railway Station entrance.', 'Use verified pre-paid counter inside railway station.'),
+(12, 'DZ-GOA-001', 'Calangute Night Corridor', 'Late night unlit beach stretches with water current hazards.', 15.5440, 73.7550, 600, 'high', 82, 'Night Current Hazards & Unauthorized Party Touts', 'Do not enter sea after 6:30 PM. Stay near Lifeguard Desk.', 'Baga Main Road Police Desk sector.', 'Utilize Baga Main Road well-lit paths.'),
+(13, 'DZ-AGR-001', 'Taj West Gate Parking Alley', 'Aggressive unauthorized guide touts and souvenir scams.', 27.1730, 78.0380, 350, 'moderate', 62, 'Unauthorized Guide Solicitations', 'Buy entrance tickets exclusively via official ASI desk or online.', 'Taj East Gate Official Information Booth.', 'Proceed to official Information Booth at Taj East Gate.');
 
 -- 5. SEED DYNAMIC VERIFIED DRIVERS / VEHICLES
 INSERT IGNORE INTO vehicles (id, vehicle_type_id, vehicle_name, registration_number, driver_name, driver_phone, rating, image_url, status, current_latitude, current_longitude) VALUES

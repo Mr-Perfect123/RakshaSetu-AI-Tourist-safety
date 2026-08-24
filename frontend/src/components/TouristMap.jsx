@@ -125,23 +125,46 @@ const TouristMap = ({
           </Circle>
         ))}
 
-        {/* 4. Danger Zones Overlay (Red Circles) */}
-        {(dangerZones || []).map((zone) => (
-          <Circle
-            key={`zone-${zone.id}`}
-            center={[parseFloat(zone.latitude), parseFloat(zone.longitude)]}
-            radius={zone.radius_meters || 500}
-            pathOptions={{ color: '#E65100', fillColor: '#F57C00', fillOpacity: 0.2, weight: 1.5 }}
-          >
-            <Popup>
-              <div className="p-1">
-                <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold text-[10px] uppercase">⚠️ DANGER ZONE</span>
-                <p className="font-bold text-xs text-slate-800 mt-1 m-0">{zone.name}</p>
-                <p className="text-[11px] text-slate-600 m-0">{zone.description || zone.advisory_message}</p>
-              </div>
-            </Popup>
-          </Circle>
-        ))}
+        {/* 4. Danger Zones Overlay (Dynamic Severity Risk Colors) */}
+        {(dangerZones || []).map((zone) => {
+          let color = '#FBC02D'; // default yellow
+          let fillColor = '#FFF59D';
+          const sev = (zone.severity || 'moderate').toLowerCase();
+
+          if (sev === 'critical') {
+            color = '#D32F2F'; // RED
+            fillColor = '#EF9A9A';
+          } else if (sev === 'high') {
+            color = '#E65100'; // ORANGE
+            fillColor = '#FFCC80';
+          } else if (sev === 'moderate') {
+            color = '#FBC02D'; // YELLOW
+            fillColor = '#FFF59D';
+          } else if (sev === 'low' || sev === 'safe') {
+            color = '#388E3C'; // GREEN
+            fillColor = '#A5D6A7';
+          }
+
+          return (
+            <Circle
+              key={`zone-${zone.id}`}
+              center={[parseFloat(zone.latitude), parseFloat(zone.longitude)]}
+              radius={zone.radius_meters || 500}
+              pathOptions={{ color, fillColor, fillOpacity: 0.25, weight: 1.5 }}
+            >
+              <Popup>
+                <div className="p-1">
+                  <span className={`px-2 py-0.5 rounded text-white font-bold text-[10px] uppercase`} style={{ backgroundColor: color }}>
+                    ⚠️ {sev.toUpperCase()} RISK ZONE
+                  </span>
+                  <p className="font-bold text-xs text-slate-800 mt-2 m-0">{zone.name}</p>
+                  <p className="text-[11px] text-slate-600 m-0 mt-1">{zone.description || zone.advisory_message}</p>
+                  {zone.crime_type && <p className="text-[10px] text-slate-500 font-bold m-0 mt-1">Incident: {zone.crime_type}</p>}
+                </div>
+              </Popup>
+            </Circle>
+          );
+        })}
 
         {/* 5. Safe Locations & Police/Hospitals */}
         {(safeLocations || []).map((loc) => {

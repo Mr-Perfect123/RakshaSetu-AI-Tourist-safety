@@ -23,6 +23,7 @@ class SosController {
     // Fetch Emergency Contacts to send SMS & Push
     const contacts = await EmergencyContact.findByUserId(userId);
     NotificationService.notifyEmergencyContacts(contacts, req.user.full_name, latitude, longitude, sos.sos_code);
+    NotificationService.notifyAdminsOfSos(req.user.full_name, latitude, longitude, sos.sos_code, address);
 
     // Broadcast live alert to Admin, Police & Hospital WebSocket Dashboards
     broadcastSosAlert({

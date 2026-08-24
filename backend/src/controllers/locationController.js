@@ -19,8 +19,11 @@ const calculateDistanceMeters = (lat1, lon1, lat2, lon2) => {
 class LocationController {
   static getNearbySafeLocations = asyncHandler(async (req, res) => {
     const { latitude, longitude, radiusKm = 10, type } = req.query;
-    const lat = parseFloat(latitude) || 28.6139;
-    const lng = parseFloat(longitude) || 77.2090;
+    if (!latitude || !longitude) {
+      throw new ApiError(400, 'Latitude and longitude coordinates are required for finding nearby safe locations.');
+    }
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
 
     const locations = await SafeLocation.findNearby(lat, lng, parseFloat(radiusKm), type);
     return res.status(200).json(new ApiResponse(200, locations, 'Nearby safe locations retrieved.'));

@@ -38,12 +38,21 @@ class TouristController {
    */
   static updateProfile = asyncHandler(async (req, res) => {
     const userId = req.user.id;
-    const { full_name, phone, gender, nationality, passport_number, dob, blood_group, medical_conditions, allergies, emergency_notes } = req.body;
+    const { full_name, phone, gender, nationality, passport_number, dob, blood_group, medical_conditions, allergies, emergency_notes, preferred_language } = req.body;
 
     await User.updateProfile(userId, { full_name, phone, gender, nationality, passport_number });
 
     if (dob) {
       await executeQuery(`UPDATE users SET dob = ? WHERE id = ?`, [dob, userId]);
+    }
+
+    if (preferred_language) {
+      await executeQuery(
+        `INSERT INTO tourists (user_id, preferred_language)
+         VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE preferred_language = VALUES(preferred_language)`,
+        [userId, preferred_language]
+      );
     }
 
     if (blood_group || medical_conditions || allergies || emergency_notes) {

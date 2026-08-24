@@ -178,6 +178,32 @@ class TravelController {
     const bookingCode = `TRV-RS-${Date.now().toString().slice(-6)}`;
     const dateToUse = travelDate || new Date().toISOString().split('T')[0];
 
+    // Convert any 12-hour time strings (e.g. "09:30 PM", "Instant Pickup") to MySQL-safe 24-hour TIME format (HH:MM:SS)
+    const convertTo24Hour = (timeStr) => {
+      if (!timeStr || typeof timeStr !== 'string') return '08:00:00';
+      const clean = timeStr.trim();
+      // Already 24h format like "21:30" or "21:30:00"
+      if (/^\d{2}:\d{2}(:\d{2})?$/.test(clean)) {
+        return clean.length === 5 ? clean + ':00' : clean;
+      }
+      // Match 12h format like "09:30 PM", "6:00 AM"
+      const match = clean.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+      if (match) {
+        let hours = parseInt(match[1], 10);
+        const minutes = match[2];
+        const period = match[3].toUpperCase();
+        if (period === 'PM' && hours !== 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+        return `${String(hours).padStart(2, '0')}:${minutes}:00`;
+      }
+      // Fallback for values like "Instant Pickup", "On-Demand", "Flexi Return"
+      return '08:00:00';
+    };
+
+    const safeTravelTime = convertTo24Hour(travelTime);
+    const safeDepartureTime = convertTo24Hour(departureTime || travelTime);
+    const safeArrivalTime = convertTo24Hour(arrivalTime || travelTime);
+
     const sql = `INSERT INTO travel_bookings 
       (booking_code, user_id, travel_type, from_location, to_location, travel_date, travel_time, passengers, operator_name, vehicle_number, departure_time, arrival_time, duration, fare, status, payment_status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', 'paid')`;
@@ -189,12 +215,12 @@ class TravelController {
       fromLocation || 'Coimbatore',
       toLocation || 'Chennai',
       dateToUse,
-      travelTime,
+      safeTravelTime,
       passengers,
       operatorName || 'RakshaSetu Verified Partner',
       vehicleNumber || 'RS-TRAV-101',
-      departureTime || '08:00 AM',
-      arrivalTime || '01:00 PM',
+      safeDepartureTime,
+      safeArrivalTime,
       duration || '5 Hours',
       fare
     ]);

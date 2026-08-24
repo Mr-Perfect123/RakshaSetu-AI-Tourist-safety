@@ -102,12 +102,15 @@ const PrivacySettings = ({ darkMode }) => {
             {t('settings.languageSubtitle', 'Select your preferred language. This changes the entire application interface (Amazon-style) and persists across logins.')}
           </p>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-2">
             {[
               { name: 'English', flag: '🇬🇧', label: 'English' },
               { name: 'Hindi', flag: '🇮🇳', label: 'हिंदी (Hindi)' },
               { name: 'Tamil', flag: '🇮🇳', label: 'தமிழ் (Tamil)' },
-              { name: 'Marathi', flag: '🇮🇳', label: 'मराठी (Marathi)' }
+              { name: 'Marathi', flag: '🇮🇳', label: 'मराठी (Marathi)' },
+              { name: 'Telugu', flag: '🇮🇳', label: 'తెలుగు (Telugu)' },
+              { name: 'Kannada', flag: '🇮🇳', label: 'ಕನ್ನಡ (Kannada)' },
+              { name: 'Malayalam', flag: '🇮🇳', label: 'മലയാളം (Malayalam)' }
             ].map((langItem) => (
               <button
                 key={langItem.name}

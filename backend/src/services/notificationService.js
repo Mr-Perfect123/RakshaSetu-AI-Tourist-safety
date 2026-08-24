@@ -137,6 +137,18 @@ class NotificationService {
     }
     return results;
   }
+
+  /**
+   * Dispatch SOS Notification directly to Admin Command Center
+   */
+  static async notifyAdminsOfSos(touristName, latitude, longitude, sosCode, address) {
+    const adminEmail = process.env.ADMIN_ALERT_EMAIL || 'admin@rakshasetu.gov.in';
+    const mapsLink = `https://maps.google.com/?q=${latitude},${longitude}`;
+    const subject = `🚨 CRITICAL SOS ALERT: Tourist ${touristName} (Code: ${sosCode})`;
+    const textContent = `CRITICAL SOS ALERT: Tourist ${touristName} triggered Emergency SOS!\nCode: ${sosCode}\nLocation: ${address || 'GPS Broadcast'}\nMap: ${mapsLink}`;
+    logger.emergency(`[Admin Alert] Dispatching SOS notification email to ${adminEmail}`);
+    return await this.sendEmail(adminEmail, subject, textContent);
+  }
 }
 
 module.exports = NotificationService;

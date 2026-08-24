@@ -147,13 +147,14 @@ const testConnection = async () => {
 testConnection();
 
 const executeQuery = async (sql, params = []) => {
-  try {
-    if (dbConnected) {
+  if (dbConnected) {
+    try {
       const [rows] = await pool.execute(sql, params);
       return rows;
+    } catch (err) {
+      console.error(`[Database Error] SQL Execution failed: ${err.message}. Falling back to in-memory store.`);
+      // Fall through to in-memory store so the app keeps working
     }
-  } catch (err) {
-    console.error(`[Database Error] SQL Execution failed: ${err.message}. Falling back to state engine.`);
   }
 
   // Resilient Fallback Simulator for development & offline testing
@@ -182,11 +183,11 @@ const executeQuery = async (sql, params = []) => {
 
   if (cleanSql.includes('select * from vehicle_bookings')) {
     let list = [...inMemoryStore.vehicle_bookings];
-    if (cleanSql.includes('where id =')) {
+    if (cleanSql.includes('id =')) {
       const id = params[0];
       return list.filter(b => b.id === parseInt(id, 10));
     }
-    if (cleanSql.includes('where user_id =')) {
+    if (cleanSql.includes('user_id =')) {
       const userId = params[0];
       return list.filter(b => b.user_id === parseInt(userId, 10));
     }
@@ -244,15 +245,18 @@ const executeQuery = async (sql, params = []) => {
       id: inMemoryStore.travel_bookings.length + 1,
       booking_code: params[0] || `TR-RS-${Date.now()}`,
       user_id: params[1] || 4,
-      booking_type: params[2] || 'bus',
-      source: params[3],
-      destination: params[4],
-      travel_date: params[5],
-      travel_time: params[6],
-      passengers_json: params[7],
-      seat_class: params[8],
-      ticket_number: params[9],
-      total_price: params[10],
+      travel_type: params[2] || 'flight',
+      from_location: params[3] || 'Coimbatore',
+      to_location: params[4] || 'Chennai',
+      travel_date: params[5] || new Date().toISOString().split('T')[0],
+      travel_time: params[6] || '08:00:00',
+      passengers: params[7] || 1,
+      operator_name: params[8] || 'RakshaSetu Verified Partner',
+      vehicle_number: params[9] || 'RS-TRAV-101',
+      departure_time: params[10] || '08:00:00',
+      arrival_time: params[11] || '13:00:00',
+      duration: params[12] || '5 Hours',
+      fare: params[13] || 1500.00,
       status: 'confirmed',
       payment_status: 'paid',
       created_at: new Date().toISOString()
@@ -261,18 +265,41 @@ const executeQuery = async (sql, params = []) => {
     return { insertId: newTravel.id, affectedRows: 1 };
   }
 
-  if (cleanSql.includes('select * from food_orders')) {
+  if (cleanSql.includes('select * from food_orders') || (cleanSql.includes('select') && cleanSql.includes('from food_orders'))) {
+    const userId = params.length > 0 ? parseInt(params[0], 10) : null;
+    if (userId && cleanSql.includes('user_id')) {
+      return inMemoryStore.food_orders.filter(o => o.user_id === userId);
+    }
     return inMemoryStore.food_orders;
+  }
+
+  if (cleanSql.includes('insert into food_orders')) {
+    const newOrder = {
+      id: inMemoryStore.food_orders.length + 1,
+      order_code: params[0] || `FD-RS-${Date.now()}`,
+      user_id: params[1] || 4,
+      restaurant_id: params[2] || 1,
+      items_json: params[3] || '[]',
+      subtotal: params[4] || 0,
+      delivery_fee: params[5] || 30,
+      total_amount: params[6] || 0,
+      delivery_address: params[7] || 'Hotel Reception Desk',
+      status: 'placed',
+      payment_status: 'paid',
+      created_at: new Date().toISOString()
+    };
+    inMemoryStore.food_orders.unshift(newOrder);
+    return { insertId: newOrder.id, affectedRows: 1 };
   }
 
   if (cleanSql.includes('select * from users') || (cleanSql.includes('select') && cleanSql.includes('from users'))) {
     let result = [...inMemoryStore.users];
 
-    if (cleanSql.includes('where email =') || cleanSql.includes('where phone =')) {
+    if (cleanSql.includes('email =') || cleanSql.includes('phone =')) {
       const target = params[0];
       return inMemoryStore.users.filter(u => u.email === target || u.phone === target);
     }
-    if (cleanSql.includes('where id =')) {
+    if (cleanSql.includes('id =')) {
       const id = parseInt(params[0], 10);
       return inMemoryStore.users.filter(u => u.id === id);
     }

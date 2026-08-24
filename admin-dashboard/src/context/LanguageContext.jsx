@@ -1,33 +1,16 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { translations } from '../utils/translations';
-import api from '../services/api';
 
 const LanguageContext = createContext();
 
-export const LanguageProvider = ({ children, tourist }) => {
+export const LanguageProvider = ({ children }) => {
   const [language, setLanguageState] = useState(() => {
-    return localStorage.getItem('rakshasetu_app_language') || tourist?.preferred_language || 'English';
+    return localStorage.getItem('rakshasetu_admin_language') || 'English';
   });
 
-  useEffect(() => {
-    if (tourist?.preferred_language && tourist.preferred_language !== language) {
-      setLanguageState(tourist.preferred_language);
-      localStorage.setItem('rakshasetu_app_language', tourist.preferred_language);
-    }
-  }, [tourist]);
-
-  const changeLanguage = async (newLang) => {
+  const changeLanguage = (newLang) => {
     setLanguageState(newLang);
-    localStorage.setItem('rakshasetu_app_language', newLang);
-
-    // Save language preference to backend database if tourist is logged in
-    if (tourist?.id) {
-      try {
-        await api.put(`/tourist/profile`, { preferred_language: newLang });
-      } catch (err) {
-        console.warn('Could not persist language preference to backend profile');
-      }
-    }
+    localStorage.setItem('rakshasetu_admin_language', newLang);
   };
 
   const t = (path, defaultText = '') => {

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Bell, UserCheck, AlertTriangle, Volume2, ShieldAlert, Activity, CheckCircle, X } from 'lucide-react';
+import { Shield, Bell, UserCheck, AlertTriangle, Volume2, ShieldAlert, Activity, CheckCircle, X, Globe } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../redux/authSlice';
 import socket from '../services/socket';
 import { addNewSosAlert } from '../redux/sosSlice';
+import { useLanguage } from '../context/LanguageContext';
 
 const Navbar = () => {
+  const { language, setLanguage, t } = useLanguage();
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
   const { activeSosList } = useSelector((state) => state.sos);
@@ -144,9 +146,9 @@ const Navbar = () => {
           </div>
           <div>
             <h1 className="text-xl font-bold text-primary tracking-tight flex items-center gap-2">
-              RAKSHASETU <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-semibold uppercase">Command Center</span>
+              {t('navbar.title', 'RAKSHASETU')} <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-semibold uppercase">{t('navbar.subBadge', 'Command Center')}</span>
             </h1>
-            <p className="text-xs text-slate-500 font-medium">AI Powered Tourist Protection & Emergency Response System</p>
+            <p className="text-xs text-slate-500 font-medium">{t('navbar.subtitle', 'AI Powered Tourist Protection & Emergency Response System')}</p>
           </div>
         </div>
 
@@ -155,7 +157,7 @@ const Navbar = () => {
           {activeSosList.length > 0 && (
             <div className="sos-pulse-animation px-3 py-1.5 rounded-full bg-danger/10 text-danger border border-danger/30 flex items-center gap-2 text-xs font-bold animate-bounce">
               <AlertTriangle className="w-4 h-4 text-danger" />
-              <span>{activeSosList.length} ACTIVE SOS DISPATCHES</span>
+              <span>{activeSosList.length} {t('navbar.activeSos', 'ACTIVE SOS DISPATCHES')}</span>
               <button onClick={playEmergencyChime} title="Test Emergency Alarm Chime">
                 <Volume2 className="w-3.5 h-3.5 text-danger ml-1" />
               </button>
@@ -169,6 +171,24 @@ const Navbar = () => {
                 <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-danger ring-2 ring-white"></span>
               )}
             </button>
+          </div>
+
+          {/* Quick Language Switcher Dropdown */}
+          <div className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-xl px-2.5 py-1 text-xs shadow-xs">
+            <Globe className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              className="bg-transparent text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
+            >
+              <option value="English" className="text-slate-900">EN (English)</option>
+              <option value="Hindi" className="text-slate-900">HI (हिंदी)</option>
+              <option value="Marathi" className="text-slate-900">MR (मराठी)</option>
+              <option value="Tamil" className="text-slate-900">TA (தமிழ்)</option>
+              <option value="Telugu" className="text-slate-900">TE (తెలుగు)</option>
+              <option value="Kannada" className="text-slate-900">KN (ಕನ್ನಡ)</option>
+              <option value="Malayalam" className="text-slate-900">ML (മലയാളം)</option>
+            </select>
           </div>
 
           <div className="h-6 w-px bg-slate-200"></div>
@@ -185,7 +205,7 @@ const Navbar = () => {
               onClick={() => dispatch(logout())}
               className="text-xs text-slate-500 hover:text-danger font-medium ml-2 transition-colors cursor-pointer"
             >
-              Logout
+              {t('navbar.logout', 'Logout')}
             </button>
           </div>
         </div>

@@ -5,7 +5,7 @@ const { executeQuery } = require('../config/database');
 
 class FoodController {
   static getRestaurants = asyncHandler(async (req, res) => {
-    const { search, cuisine } = req.query;
+    const { search, cuisine, lat, lng } = req.query;
     let sql = `SELECT * FROM restaurants WHERE is_active = TRUE`;
     const params = [];
 
@@ -19,9 +19,53 @@ class FoodController {
       params.push(`%${cuisine}%`);
     }
 
-    sql += ` ORDER BY rating DESC`;
     const restaurants = await executeQuery(sql, params);
-    return res.status(200).json(new ApiResponse(200, restaurants, 'Verified hygienic restaurants retrieved.'));
+
+    // Dynamic Google Maps-style Sorting & Calculations
+    const userLat = lat ? parseFloat(lat) : null;
+    const userLng = lng ? parseFloat(lng) : null;
+
+    let processed = restaurants.map(r => {
+      let distanceKm = null;
+      if (userLat && userLng && r.latitude && r.longitude) {
+        // Haversine formula calculation
+        const R = 6371; // Earth radius in km
+        const dLat = ((parseFloat(r.latitude) - userLat) * Math.PI) / 180;
+        const dLon = ((parseFloat(r.longitude) - userLng) * Math.PI) / 180;
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos((userLat * Math.PI) / 180) * Math.cos((parseFloat(r.latitude) * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        distanceKm = parseFloat((R * c).toFixed(1));
+      }
+      return {
+        ...r,
+        distanceKm,
+        formattedDistance: distanceKm !== null ? `${distanceKm} km away` : null
+      };
+    });
+
+    // Google Maps-style relevance sorting:
+    processed.sort((a, b) => {
+      // 1. If keyword search is used, check for direct name prefix matches first
+      if (search) {
+        const cleanSearch = search.trim().toLowerCase();
+        const aPrefix = a.name.toLowerCase().startsWith(cleanSearch);
+        const bPrefix = b.name.toLowerCase().startsWith(cleanSearch);
+        if (aPrefix && !bPrefix) return -1;
+        if (!aPrefix && bPrefix) return 1;
+      }
+
+      // 2. Proximity sorting (nearest first)
+      if (a.distanceKm !== null && b.distanceKm !== null) {
+        return a.distanceKm - b.distanceKm;
+      }
+
+      // 3. Fallback to rating sorting (highest first)
+      return b.rating - a.rating;
+    });
+
+    return res.status(200).json(new ApiResponse(200, processed, 'Verified hygienic restaurants retrieved.'));
   });
 
   static getRestaurantDetails = asyncHandler(async (req, res) => {

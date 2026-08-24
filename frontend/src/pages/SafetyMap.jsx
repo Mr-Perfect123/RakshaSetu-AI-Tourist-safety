@@ -13,6 +13,7 @@ const SafetyMap = ({ darkMode }) => {
   const [loading, setLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
+  const [selectedDestination, setSelectedDestination] = useState(null);
 
   const [nearbyPlaces, setNearbyPlaces] = useState([]);
 
@@ -60,6 +61,7 @@ const SafetyMap = ({ darkMode }) => {
 
   // Search Destination query logic
   useEffect(() => {
+    let active = true;
     if (!destinationQuery.trim()) {
       setSearchResults([]);
       return;
@@ -67,21 +69,26 @@ const SafetyMap = ({ darkMode }) => {
     setIsSearching(true);
     const timer = setTimeout(async () => {
       try {
-        const res = await api.get(`/places/search?query=${encodeURIComponent(destinationQuery)}`);
+        const latParam = location ? `&lat=${location.lat}&lng=${location.lng}` : '';
+        const res = await api.get(`/places/search?query=${encodeURIComponent(destinationQuery)}${latParam}`);
         const list = res.data?.data || res.data || [];
-        if (Array.isArray(list)) setSearchResults(list);
+        if (active && Array.isArray(list)) setSearchResults(list);
       } catch (e) {
       } finally {
-        setIsSearching(false);
+        if (active) setIsSearching(false);
       }
     }, 350);
-    return () => clearTimeout(timer);
-  }, [destinationQuery]);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [destinationQuery, location]);
 
   const handleSelectDestination = (place) => {
     setLocation({ lat: place.latitude, lng: place.longitude });
     setDestinationQuery(place.name);
     setSearchResults([]);
+    setSelectedDestination(place);
   };
 
   const cardClass = darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200';
@@ -176,7 +183,7 @@ const SafetyMap = ({ darkMode }) => {
             <span className="text-xs text-slate-500 font-semibold">Click any zone circle to view crime index & precautions</span>
           </div>
 
-          <div className="h-[520px] w-full rounded-2xl overflow-hidden border border-slate-200">
+          <div className="h-[520px] w-full rounded-2xl overflow-hidden border border-slate-200 relative">
             <TouristMap
               location={location}
               safeLocations={safeLocations}
@@ -184,6 +191,80 @@ const SafetyMap = ({ darkMode }) => {
               nearbyPlaces={nearbyPlaces}
               onMyLocationClick={handleMyLocationClick}
             />
+
+            {/* Google Maps style detail panel overlay */}
+            {selectedDestination && (
+              <div className="absolute top-4 left-4 z-[1000] w-72 sm:w-80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden text-left flex flex-col max-h-[90%] pointer-events-auto">
+                {/* Photo */}
+                <div className="h-32 bg-slate-100 dark:bg-slate-800 relative">
+                  <img
+                    src={selectedDestination.photos?.[0] || 'https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=600&q=80'}
+                    alt={selectedDestination.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = 'https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=600&q=80';
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDestination(null)}
+                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center cursor-pointer font-bold text-xs border-none"
+                  >
+                    ✕
+                  </button>
+                  <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-blue-600 text-white text-[9px] font-black uppercase">
+                    {selectedDestination.category || 'Attraction'}
+                  </span>
+                </div>
+
+                {/* Details */}
+                <div className="p-4 space-y-3 overflow-y-auto flex-1 font-sans">
+                  <div>
+                    <h4 className="text-sm font-black text-slate-900 dark:text-white m-0">{selectedDestination.name}</h4>
+                    <span className="text-[10px] text-slate-500 font-semibold block mt-0.5">{selectedDestination.address}</span>
+                  </div>
+
+                  {selectedDestination.distanceKm !== undefined && selectedDestination.distanceKm !== null && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black text-[10px]">
+                      📍 {selectedDestination.distanceKm} km away (~{Math.round((selectedDestination.distanceKm / 35) * 60)} mins)
+                    </span>
+                  )}
+
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold m-0 leading-relaxed line-clamp-3">
+                    {selectedDestination.description}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2 text-[10px] border-t border-slate-100 dark:border-slate-800 pt-2 font-semibold">
+                    <div className="space-y-0.5">
+                      <span className="text-slate-400 block uppercase font-bold text-[9px]">Timing / Hours</span>
+                      <span className="text-slate-700 dark:text-slate-200 block truncate">{selectedDestination.openingHours || 'Open 24 Hours'}</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-slate-400 block uppercase font-bold text-[9px]">Entry Cost</span>
+                      <span className="text-slate-700 dark:text-slate-200 block truncate">{selectedDestination.entryFee || 'Free Entry'}</span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${selectedDestination.latitude},${selectedDestination.longitude}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex-1 py-2 bg-[#0D47A1] hover:bg-blue-800 text-white font-extrabold text-[10px] uppercase text-center rounded-xl flex items-center justify-center gap-1 decoration-none"
+                    >
+                      <Navigation className="w-3.5 h-3.5"/> Route
+                    </a>
+                    <Link
+                      to={`/travel?from=Coimbatore&to=${encodeURIComponent(selectedDestination.name)}`}
+                      className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] uppercase text-center rounded-xl flex items-center justify-center gap-1 decoration-none"
+                    >
+                      <Car className="w-3.5 h-3.5"/> Book Travel
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

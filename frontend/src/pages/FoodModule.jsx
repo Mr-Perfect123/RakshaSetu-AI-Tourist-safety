@@ -17,17 +17,32 @@ const FoodModule = ({ darkMode }) => {
   const [loading, setLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
+  const [gpsCoords, setGpsCoords] = useState(null);
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        },
+        () => console.warn('Geolocation unavailable in FoodModule')
+      );
+    }
+  }, []);
+
   useEffect(() => {
     const fetchRestaurants = async () => {
       try {
-        const res = await api.get(`/food/restaurants?search=${searchQuery}`);
-        if (res.data) setRestaurants(res.data);
+        const latParam = gpsCoords ? `&lat=${gpsCoords.lat}&lng=${gpsCoords.lng}` : '';
+        const res = await api.get(`/food/restaurants?search=${searchQuery}${latParam}`);
+        const list = res.data?.data || res.data || [];
+        if (Array.isArray(list)) setRestaurants(list);
       } catch (e) {
         console.warn('Using default restaurants');
       }
     };
     fetchRestaurants();
-  }, [searchQuery]);
+  }, [searchQuery, gpsCoords]);
 
   const openRestaurantMenu = async (restaurantId) => {
     try {
@@ -198,9 +213,14 @@ const FoodModule = ({ darkMode }) => {
                   <span className="flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5 text-blue-600" /> {r.delivery_time_min} mins
                   </span>
+                  {r.formattedDistance && (
+                    <span className="text-emerald-600 font-bold flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5" /> {r.formattedDistance}
+                    </span>
+                  )}
                   <span>Price: {r.price_range}</span>
                   <span className="text-emerald-600 font-bold flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5" /> Verified Hygiene
+                    <ShieldCheck className="w-3.5 h-3.5" /> Verified
                   </span>
                 </div>
               </div>

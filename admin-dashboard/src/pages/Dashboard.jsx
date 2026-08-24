@@ -3,8 +3,10 @@ import { Shield, ShieldAlert, AlertTriangle, ShieldCheck, Users, Activity, Check
 import SosLiveMap from '../components/SosLiveMap';
 import api from '../services/api';
 import socket from '../services/socket';
+import { useLanguage } from '../context/LanguageContext';
 
 const Dashboard = () => {
+  const { t } = useLanguage();
   const [stats, setStats] = useState({
     activeSosCount: 3,
     totalUsersCount: 1248,
@@ -306,10 +308,10 @@ const Dashboard = () => {
       <div className="bg-slate-900/90 border border-slate-700 text-white backdrop-blur-md p-5 rounded-3xl shadow-md flex items-center justify-between">
         <div>
           <h1 className="text-xl font-extrabold text-white flex items-center gap-2 m-0">
-            <Shield className="w-6 h-6 text-blue-400" /> RakshaSetu Command & Safety Control Center
+            <Shield className="w-6 h-6 text-blue-400" /> {t('sidebar.dashboard', 'RakshaSetu Command & Safety Control Center')}
           </h1>
           <p className="text-xs font-semibold text-slate-300 m-0 mt-0.5">
-            Real-time Emergency Dispatch, Live Tourist Telemetry & Incident Audit Sentinel
+            {t('navbar.subtitle', 'Real-time Emergency Dispatch, Live Tourist Telemetry & Incident Audit Sentinel')}
           </p>
         </div>
       </div>
@@ -325,7 +327,7 @@ const Dashboard = () => {
             </div>
           </div>
           <button onClick={() => setNotification(null)} className="px-3 py-1 rounded-lg bg-white/20 text-white text-xs font-bold hover:bg-white/30 cursor-pointer">
-            Dismiss
+            {t('navbar.dismiss', 'Dismiss')}
           </button>
         </div>
       )}
@@ -334,7 +336,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
         <div className="bg-white/95 backdrop-blur-md p-5 rounded-2xl border border-red-100 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Emergency SOS</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('dashboard.activeSosKpi', 'Active Emergency SOS')}</p>
             <h3 className="text-3xl font-extrabold text-danger mt-1">{stats.activeSosCount}</h3>
             <p className="text-xs text-danger font-semibold mt-1 flex items-center gap-1">
               <Activity className={`w-3.5 h-3.5 ${stats.activeSosCount > 0 ? 'animate-spin' : ''}`} />
@@ -348,7 +350,7 @@ const Dashboard = () => {
 
         <div className="bg-white/95 backdrop-blur-md p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending Incidents</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('dashboard.pendingIncidentsKpi', 'Pending Incidents')}</p>
             <h3 className="text-3xl font-extrabold text-warning mt-1">{stats.pendingIncidentsCount}</h3>
             <p className="text-xs text-slate-500 mt-1">Under Investigation</p>
           </div>
@@ -359,10 +361,10 @@ const Dashboard = () => {
 
         <div className="bg-white/95 backdrop-blur-md p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tourists Online</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('dashboard.totalUsersKpi', 'Total Registered Tourists')}</p>
             <h3 className="text-3xl font-extrabold text-primary mt-1">{liveTourists.length || 1}</h3>
             <p className="text-xs text-emerald-600 font-semibold mt-1 flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
               Live GPS Tracked
             </p>
           </div>
@@ -373,8 +375,8 @@ const Dashboard = () => {
 
         <div className="bg-white/95 backdrop-blur-md p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Live Activities Logged</p>
-            <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{touristActivities.length}</h3>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('dashboard.safeLocationsKpi', 'Safe Locations')}</p>
+            <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{stats.safeLocationsCount || stats.safeLocations?.length}</h3>
             <p className="text-xs text-slate-500 mt-1">Rides, Food, Travel, SOS</p>
           </div>
           <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
@@ -389,14 +391,14 @@ const Dashboard = () => {
           <div className="flex items-center justify-between mb-3 px-1">
             <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
-              Live Spatial Emergency Command Map
+              {t('dashboard.liveMap', 'Live Spatial Emergency Command Map')}
             </h2>
             <div className="flex items-center gap-3 text-xs">
               <span className="text-slate-500 font-medium">
-                {(liveTourists || []).length} tourists tracked
+                {(liveTourists || []).length} {t('dashboard.touristsTracked', 'tourists tracked')}
               </span>
               <span className="text-slate-500 font-medium">
-                {(stats.recentSos || []).filter(s => s.status === 'active').length} SOS active
+                {(stats.recentSos || []).filter(s => s.status === 'active').length} {t('dashboard.sosActive', 'SOS active')}
               </span>
             </div>
           </div>
@@ -413,11 +415,11 @@ const Dashboard = () => {
         <div className="bg-white/95 backdrop-blur-md p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col h-[520px]">
           <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
             <h2 className="text-sm font-bold text-danger flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4" /> Live Panic Feed
+              <ShieldAlert className="w-4 h-4" /> {t('dashboard.panicFeed', 'Live Panic Feed')}
             </h2>
             <span className="px-2 py-0.5 rounded-full bg-danger/10 text-danger text-[10px] font-bold flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-danger animate-ping"></span>
-              REALTIME
+              {t('navbar.liveStatus', 'REALTIME')}
             </span>
           </div>
 
@@ -425,8 +427,8 @@ const Dashboard = () => {
             {(stats.recentSos || []).length === 0 ? (
               <div className="text-center py-12">
                 <CheckCircle className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-                <p className="text-slate-400 text-xs font-medium">No active SOS alerts in jurisdiction.</p>
-                <p className="text-[10px] text-slate-400 mt-1">Monitoring WebSocket for distress signals...</p>
+                <p className="text-slate-400 text-xs font-medium">{t('dashboard.noSos', 'No active SOS alerts in jurisdiction.')}</p>
+                <p className="text-[10px] text-slate-400 mt-1">{t('dashboard.monitoring', 'Monitoring WebSocket for distress signals...')}</p>
               </div>
             ) : (
               (stats.recentSos || []).map((sos) => (
@@ -479,12 +481,12 @@ const Dashboard = () => {
           <div className="flex items-center gap-2">
             <Activity className="w-5 h-5 text-indigo-600" />
             <h2 className="text-base font-extrabold text-slate-900">
-              Live Tourist Activity Audit Stream (Rides, Food, Travel & Emergency)
+              {t('dashboard.activityStream', 'Live Tourist Activity Audit Stream (Rides, Food, Travel & Emergency)')}
             </h2>
           </div>
           <span className="px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 font-extrabold text-xs flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-indigo-600 animate-ping"></span>
-            Real-time Feed Active
+            {t('dashboard.realtimeFeed', 'Real-time Feed Active')}
           </span>
         </div>
 

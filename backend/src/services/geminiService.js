@@ -138,9 +138,9 @@ Keep responses empathetic, highly structured, concise, and prioritized by user s
 Return JSON only with keys: riskScore (0-100), riskLevel ("Low"|"Moderate"|"High"|"Critical"), keyHazards (array), advice (string), recommendedSpeedLimit (km/h).`;
 
     const restResponse = await this.callGeminiRestApi(prompt);
-    if (restResponse) {
+    if (restResponse && restResponse.text) {
       try {
-        const text = restResponse.replace(/```json|```/g, '').trim();
+        const text = restResponse.text.replace(/```json|```/g, '').trim();
         return JSON.parse(text);
       } catch (e) {
         // continue
@@ -216,9 +216,9 @@ IMPORTANT: Respond ONLY with a valid JSON object (no markdown, no code fences) w
 - phoneticPronunciation: a phonetic pronunciation guide for an English speaker`;
 
     const restResponse = await this.callGeminiRestApi(prompt);
-    if (restResponse) {
+    if (restResponse && restResponse.text) {
       try {
-        const text = restResponse.replace(/```json|```/g, '').trim();
+        const text = restResponse.text.replace(/```json|```/g, '').trim();
         return JSON.parse(text);
       } catch (e) {
         // continue

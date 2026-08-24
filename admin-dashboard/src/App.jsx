@@ -19,6 +19,8 @@ import FoodOrdersAdmin from './pages/FoodOrdersAdmin';
 import TravelBookingsAdmin from './pages/TravelBookingsAdmin';
 import Login from './pages/Login';
 
+import { LanguageProvider } from './context/LanguageContext';
+
 /* ── Error Boundary ────────────────────────────────────────────── */
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -58,9 +60,10 @@ const App = () => {
   const token = localStorage.getItem('rakshasetu_token') || localStorage.getItem('token') || 'demo_token';
 
   return (
-    <BrowserRouter>
-      <ErrorBoundary>
-        <Routes>
+    <LanguageProvider>
+      <BrowserRouter>
+        <ErrorBoundary>
+          <Routes>
           <Route path="/login" element={<Login />} />
           <Route
             path="/*"
@@ -102,6 +105,7 @@ const App = () => {
         </Routes>
       </ErrorBoundary>
     </BrowserRouter>
+  </LanguageProvider>
   );
 };
 
