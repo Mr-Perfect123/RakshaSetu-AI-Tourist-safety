@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const PlaceController = require('../controllers/placeController');
 
+router.get('/category-counts', PlaceController.getCategoryCounts);
+router.get('/states', PlaceController.getStates);
+router.get('/by-state', PlaceController.getByState);
 router.get('/search', PlaceController.searchPlaces);
 router.get('/nearby', PlaceController.getNearbyPlaces);
 router.get('/weather', PlaceController.getWeather);

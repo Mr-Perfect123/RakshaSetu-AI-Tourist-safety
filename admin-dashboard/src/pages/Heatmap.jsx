@@ -78,14 +78,16 @@ const HeatmapPage = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-extrabold text-primary flex items-center gap-2">
-          <Flame className="w-6 h-6 text-danger" /> Crime Risk Heatmap & AI Danger Zone Predictor
-        </h1>
-        <p className="text-xs text-slate-500">
-          Spatio-temporal crime pattern visualization and Gemini AI threat forecasting
-        </p>
+      {/* Header Bar — Royal Ocean Gradient Banner */}
+      <div className="bg-gradient-to-r from-[#0a2540] via-[#0D47A1] to-[#1e3a8a] text-white p-6 rounded-3xl shadow-xl border border-blue-900/20 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl md:text-2xl font-black text-white flex items-center gap-2.5 m-0">
+            <Flame className="w-6 h-6 text-orange-400" /> Crime Risk Heatmap & AI Danger Zone Predictor
+          </h1>
+          <p className="text-xs font-semibold text-blue-100 m-0 mt-1">
+            Spatio-temporal crime pattern visualization and Gemini AI threat forecasting
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -3,7 +3,7 @@ import { Heart, Plus, Trash2, Phone, User, ArrowLeft, CheckCircle2 } from 'lucid
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 
-const EmergencyContacts = ({ tourist }) => {
+const EmergencyContacts = ({ tourist, darkMode }) => {
   const [contacts, setContacts] = useState([
     { id: 1, contact_name: 'Jane Doe', contact_phone: '+14155550199', relationship: 'Spouse', is_primary: 1 },
     { id: 2, contact_name: 'Robert Doe', contact_phone: '+14155550299', relationship: 'Brother', is_primary: 0 }

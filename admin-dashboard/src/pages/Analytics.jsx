@@ -46,14 +46,14 @@ const AnalyticsPage = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Header Bar — Frosted Glass Container for High Text Visibility */}
-      <div className="bg-slate-900/90 border border-slate-700 text-white backdrop-blur-md p-5 rounded-3xl shadow-md flex items-center justify-between">
+      {/* Header Bar — Royal Ocean Gradient Banner */}
+      <div className="bg-gradient-to-r from-[#0a2540] via-[#0D47A1] to-[#1e3a8a] text-white p-6 rounded-3xl shadow-xl border border-blue-900/20 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-extrabold text-white flex items-center gap-2 m-0">
-            <BarChart3 className="w-6 h-6 text-blue-400" /> Tourist Protection & Response Analytics
+          <h1 className="text-xl md:text-2xl font-black text-white flex items-center gap-2.5 m-0">
+            <BarChart3 className="w-6 h-6 text-blue-300" /> Safety & Response Time Analytics
           </h1>
-          <p className="text-xs font-semibold text-slate-300 m-0 mt-0.5">
-            Aggregated emergency response speed metrics, incident trends & tourist safety insights
+          <p className="text-xs font-semibold text-blue-100 m-0 mt-1">
+            Dispatch performance KPIs, incident frequency heat distribution, and tourist demographic stats
           </p>
         </div>
       </div>

@@ -14,7 +14,14 @@ class SosRequest {
 
   static async findById(id) {
     const sql = `
-      SELECT s.*, u.full_name as tourist_name, u.phone as tourist_phone, u.nationality
+      SELECT s.*, 
+             COALESCE(u.full_name, 'Tourist User') as tourist_name, 
+             COALESCE(u.phone, '+91 98765 43210') as tourist_phone, 
+             u.email as tourist_email,
+             COALESCE(u.nationality, 'India') as nationality,
+             u.emergency_medical_info,
+             u.blood_group,
+             u.passport_number
       FROM sos_requests s
       LEFT JOIN users u ON s.user_id = u.id
       WHERE s.id = ? LIMIT 1
@@ -25,7 +32,14 @@ class SosRequest {
 
   static async findActive() {
     const sql = `
-      SELECT s.*, u.full_name as tourist_name, u.phone as tourist_phone, u.nationality
+      SELECT s.*, 
+             COALESCE(u.full_name, 'Tourist User') as tourist_name, 
+             COALESCE(u.phone, '+91 98765 43210') as tourist_phone, 
+             u.email as tourist_email,
+             COALESCE(u.nationality, 'India') as nationality,
+             u.emergency_medical_info,
+             u.blood_group,
+             u.passport_number
       FROM sos_requests s
       LEFT JOIN users u ON s.user_id = u.id
       WHERE s.status IN ('active', 'dispatched')

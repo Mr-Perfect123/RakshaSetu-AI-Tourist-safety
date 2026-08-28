@@ -92,11 +92,11 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-10 right-10 w-80 h-80 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none"></div>
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex items-center justify-center p-4 relative overflow-hidden app-admin-bg">
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute bottom-10 right-10 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-      <div className="w-full max-w-md bg-white text-slate-900 rounded-3xl border border-slate-200 shadow-2xl p-8 space-y-6 relative z-10">
+      <div className="w-full max-w-md bg-white text-slate-900 rounded-3xl border border-slate-200/90 shadow-xl p-8 space-y-6 relative z-10">
         <div className="text-center space-y-2">
           <div className="w-16 h-16 bg-[#0D47A1] text-white rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-blue-900/40">
             <Shield className="w-9 h-9" />

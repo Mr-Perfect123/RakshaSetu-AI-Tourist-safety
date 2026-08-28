@@ -49,15 +49,15 @@
 
 body {
   margin: 0;
-  background-color: #0f172a;
+  background-color: #f8fafc;
   background-image: 
-    linear-gradient(to bottom, rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.85)),
+    linear-gradient(to bottom, rgba(248, 250, 252, 0.94), rgba(241, 245, 249, 0.97)),
     url('/images/project_bg.jpg');
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
   background-repeat: no-repeat;
-  color: var(--text-primary);
+  color: #0f172a;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.3s ease, color 0.3s ease;
@@ -66,7 +66,7 @@ body {
 /* ======== HIGH-END SCENIC TOURIST / TRAVELLER APP BACKGROUND ======== */
 .app-tourist-bg {
   background-image: 
-    linear-gradient(to bottom, rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.85)),
+    linear-gradient(to bottom, rgba(248, 250, 252, 0.94), rgba(241, 245, 249, 0.97)),
     url('/images/project_bg.jpg');
   background-size: cover;
   background-position: center;
@@ -75,9 +75,17 @@ body {
   min-height: 100vh;
 }
 
-:not(.dark) .app-tourist-bg {
+.dark body {
+  background-color: #0f172a;
   background-image: 
-    linear-gradient(to bottom, rgba(245, 247, 250, 0.88), rgba(245, 247, 250, 0.93)),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.92)),
+    url('/images/project_bg.jpg');
+  color: #ffffff;
+}
+
+.dark .app-tourist-bg {
+  background-image: 
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.92)),
     url('/images/project_bg.jpg');
 }
 
@@ -200,31 +208,40 @@ body {
   background-color: var(--bg) !important;
 }
 
-/* Text colors */
+/* Text colors - Ultra-High Contrast */
 .dark .text-slate-900,
 .dark .text-slate-800 {
-  color: #f1f5f9 !important;
+  color: #ffffff !important;
 }
 .dark .text-slate-700 {
-  color: #cbd5e1 !important;
+  color: #f8fafc !important;
 }
 .dark .text-slate-600 {
-  color: #94a3b8 !important;
+  color: #e2e8f0 !important;
 }
 .dark .text-slate-500 {
-  color: #64748b !important;
+  color: #cbd5e1 !important;
 }
 .dark .text-slate-400 {
-  color: #64748b !important;
+  color: #94a3b8 !important;
+}
+.dark .text-slate-300 {
+  color: #cbd5e1 !important;
+}
+.dark .text-slate-200 {
+  color: #e2e8f0 !important;
+}
+.dark .text-slate-100 {
+  color: #f8fafc !important;
 }
 
 /* Border colors */
 .dark .border-slate-200,
 .dark .border-slate-100 {
-  border-color: #334155 !important;
+  border-color: rgba(51, 65, 85, 0.6) !important;
 }
 .dark .border-slate-300 {
-  border-color: #475569 !important;
+  border-color: rgba(71, 85, 105, 0.7) !important;
 }
 
 /* Background tints */
@@ -380,3 +397,134 @@ body {
 .dark .leaflet-tile-pane {
   filter: brightness(0.8) contrast(1.1) saturate(0.8);
 }
+
+/* ======== CONTRAST & VISIBILITY AUDIT FIXES ======== */
+
+/* Ensure all anchor tags have visible color */
+a { color: inherit; }
+a.no-underline { text-decoration: none; }
+
+/* Fix category pill/badge text contrast in light mode */
+:not(.dark) .text-orange-700 { color: #c2410c !important; }
+:not(.dark) .text-emerald-700 { color: #047857 !important; }
+:not(.dark) .text-cyan-700 { color: #0e7490 !important; }
+:not(.dark) .text-amber-700 { color: #b45309 !important; }
+:not(.dark) .text-blue-700 { color: #1d4ed8 !important; }
+:not(.dark) .text-purple-700 { color: #7e22ce !important; }
+:not(.dark) .text-lime-700 { color: #4d7c0f !important; }
+:not(.dark) .text-red-700 { color: #b91c1c !important; }
+:not(.dark) .text-indigo-700 { color: #4338ca !important; }
+:not(.dark) .text-pink-700 { color: #be185d !important; }
+:not(.dark) .text-teal-700 { color: #0f766e !important; }
+:not(.dark) .text-yellow-700 { color: #a16207 !important; }
+:not(.dark) .text-sky-700 { color: #0369a1 !important; }
+:not(.dark) .text-green-700 { color: #15803d !important; }
+
+/* Dark mode - make vibrant colours readable on dark bg */
+.dark .text-orange-400 { color: #fb923c !important; }
+.dark .text-emerald-400 { color: #34d399 !important; }
+.dark .text-cyan-400 { color: #22d3ee !important; }
+.dark .text-amber-400 { color: #fbbf24 !important; }
+.dark .text-purple-400 { color: #c084fc !important; }
+.dark .text-lime-400 { color: #a3e635 !important; }
+.dark .text-red-400 { color: #f87171 !important; }
+.dark .text-indigo-400 { color: #818cf8 !important; }
+.dark .text-pink-400 { color: #f472b6 !important; }
+.dark .text-teal-400 { color: #2dd4bf !important; }
+.dark .text-sky-400 { color: #38bdf8 !important; }
+.dark .text-green-400 { color: #4ade80 !important; }
+
+/* Fix dark-bg colored overlay text visibility */
+.dark .text-slate-300 { color: #cbd5e1 !important; }
+.dark .text-slate-200 { color: #e2e8f0 !important; }
+.dark .text-white { color: #ffffff !important; }
+
+/* Search result image thumbnail */
+.search-thumbnail {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}
+
+/* Image loading state */
+img[src=""] {
+  display: none;
+}
+
+/* Destination card image */
+.destination-img {
+  transition: transform 0.5s ease;
+}
+.destination-img:hover {
+  transform: scale(1.05);
+}
+
+/* ======== FADE-IN ANIMATION ======== */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ======== SCROLLBAR HIDE UTILITY ======== */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* ======== SPINNER BORDER FIX ======== */
+.border-3 { border-width: 3px; }
+
+/* ======== MODAL BACKDROP ======== */
+.modal-backdrop {
+  backdrop-filter: blur(4px);
+}
+
+/* ======== RESPONSIVE CARD GRID ======== */
+@media (max-width: 640px) {
+  .grid-cols-1.sm\:grid-cols-2 { grid-template-columns: 1fr; }
+  .text-4xl { font-size: 1.75rem; }
+  .h-80 { height: 16rem; }
+  .h-96 { height: 20rem; }
+}
+
+/* ======== STATE EXPLORER PILL ACTIVE STATE ======== */
+button.active-state-pill {
+  background-color: #0D47A1;
+  color: white;
+  box-shadow: 0 4px 12px rgba(13, 71, 161, 0.3);
+}
+
+/* ======== LEAFLET MAP Z-INDEX FIX ======== */
+.leaflet-container { z-index: 1; }
+.leaflet-pane { z-index: 400; }
+.leaflet-top, .leaflet-bottom { z-index: 500; }
+
+/* ======== GLOBAL LINK DECORATION OVERRIDE ======== */
+a.no-underline, a[class*="no-underline"] {
+  text-decoration: none !important;
+}
+
+/* ======== CARD TRANSITION ======== */
+.card-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ======== SAFETY BADGE READABILITY ======== */
+.safety-badge {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  font-weight: 800;
+}
+
+/* ======== PLACE DETAILS TABS ======== */
+.details-tab-active {
+  background-color: #0D47A1;
+  color: white;
+  box-shadow: 0 2px 8px rgba(13, 71, 161, 0.4);
+}
+

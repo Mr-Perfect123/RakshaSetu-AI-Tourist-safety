@@ -76,26 +76,26 @@ const AiChat = () => {
 
   return (
     <div className="space-y-6 pb-8 h-[calc(100vh-100px)] flex flex-col">
-      {/* Header Bar */}
-      <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-xs shrink-0">
+      {/* Header Bar — Royal Ocean Gradient Banner */}
+      <div className="bg-gradient-to-r from-[#0a2540] via-[#0D47A1] to-[#1e3a8a] text-white p-5 rounded-3xl shadow-xl border border-blue-900/20 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-900/20">
-            <Bot className="w-6 h-6" />
+          <div className="w-11 h-11 rounded-2xl bg-white/20 text-white flex items-center justify-center shadow-md backdrop-blur-md">
+            <Bot className="w-6 h-6 text-emerald-300" />
           </div>
           <div>
-            <h1 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+            <h1 className="text-base font-black text-white flex items-center gap-2 m-0">
               Gemini AI Emergency Safety Chatbot
-              <span className="px-2 py-0.5 rounded-full bg-blue-100 text-[#0D47A1] text-[10px] font-bold uppercase tracking-wide">
+              <span className="px-2 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-black uppercase tracking-wide border border-white/20">
                 Gemini Flash REST
               </span>
             </h1>
-            <p className="text-xs text-slate-600 font-medium">Real-time emergency translation, route risk evaluation, and panic advice</p>
+            <p className="text-xs text-blue-100 font-semibold m-0 mt-0.5">Real-time emergency translation, route risk evaluation, and panic advice</p>
           </div>
         </div>
 
         <button
           onClick={() => setMessages([messages[0]])}
-          className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+          className="px-3.5 py-1.5 rounded-xl bg-white text-blue-900 font-black text-xs hover:bg-blue-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           <span>Clear Chat</span>

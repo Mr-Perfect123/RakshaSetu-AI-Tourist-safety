@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Shield, Bell, UserCheck, AlertTriangle, Volume2, ShieldAlert, Activity, CheckCircle, X, Globe } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Shield, Bell, UserCheck, AlertTriangle, Volume2, ShieldAlert, Activity, CheckCircle, X, Globe, Phone, MapPin, Trash2, ArrowRight } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate, Link } from 'react-router-dom';
 import { logout } from '../redux/authSlice';
 import socket from '../services/socket';
 import { addNewSosAlert } from '../redux/sosSlice';
@@ -9,9 +10,47 @@ import { useLanguage } from '../context/LanguageContext';
 const Navbar = () => {
   const { language, setLanguage, t } = useLanguage();
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
   const { activeSosList } = useSelector((state) => state.sos);
   const [activeNotification, setActiveNotification] = useState(null);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notificationsHistory, setNotificationsHistory] = useState([
+    {
+      id: 1,
+      type: 'sos',
+      title: '🚨 Emergency SOS Triggered',
+      touristName: 'John Smith (UK Tourist)',
+      phone: '+44 7911 123456',
+      address: 'Inner Circle, Connaught Place, New Delhi',
+      code: 'SOS-RS-8891',
+      time: '5 mins ago',
+      read: false
+    },
+    {
+      id: 2,
+      type: 'sos',
+      title: '🚨 Distress Panic Trigger',
+      touristName: 'Elena Rostova',
+      phone: '+7 912 345 6789',
+      address: 'Marudamalai Temple, Coimbatore',
+      code: 'SOS-RS-4420',
+      time: '25 mins ago',
+      read: true
+    }
+  ]);
+
+  const notifRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const playEmergencyChime = () => {
     try {
@@ -55,16 +94,36 @@ const Navbar = () => {
       dispatch(addNewSosAlert(newSos));
       playEmergencyChime();
 
+      const touristName = newSos.touristName || newSos.tourist_name || 'Tourist User';
+      const touristPhone = newSos.touristPhone || newSos.phone || '+91 98765 43210';
+      const address = newSos.address || `Lat: ${newSos.latitude}, Lng: ${newSos.longitude}`;
+      const code = newSos.sos_code || newSos.sosCode || `SOS-${Date.now().toString().slice(-6)}`;
+
       setActiveNotification({
         type: 'sos',
         title: '🚨 EMERGENCY SOS ALERT',
-        message: `${newSos.touristName || newSos.tourist_name || 'Tourist'} triggered SOS! Code: ${newSos.sos_code || newSos.sosCode || 'SOS-ALERT'}`,
+        message: `${touristName} (${touristPhone}) triggered SOS! Code: ${code} at ${address}`,
         timestamp: new Date().toLocaleTimeString()
       });
 
+      setNotificationsHistory((prev) => [
+        {
+          id: Date.now(),
+          type: 'sos',
+          title: '🚨 Emergency SOS Triggered',
+          touristName,
+          phone: touristPhone,
+          address,
+          code,
+          time: 'Just now',
+          read: false
+        },
+        ...prev.slice(0, 40)
+      ]);
+
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification('🚨 RAKSHASETU EMERGENCY SOS ALERT', {
-          body: `Distress signal: ${newSos.sos_code || 'SOS'} from ${newSos.touristName || newSos.tourist_name || 'Tourist'}`,
+          body: `Distress signal from ${touristName} (${touristPhone}) at ${address}`,
           icon: '/favicon.svg'
         });
       }
@@ -73,23 +132,59 @@ const Navbar = () => {
     // Handle Incident Reports
     const handleIncident = (incident) => {
       playEmergencyChime();
+      const touristName = incident.touristName || 'Tourist';
+      const title = incident.title || 'Safety Issue';
+
       setActiveNotification({
         type: 'incident',
         title: '⚠️ NEW INCIDENT REPORTED',
-        message: `${incident.touristName || 'Tourist'} reported incident: ${incident.title || 'Safety Issue'}`,
+        message: `${touristName} reported: ${title}`,
         timestamp: new Date().toLocaleTimeString()
       });
+
+      setNotificationsHistory((prev) => [
+        {
+          id: Date.now(),
+          type: 'incident',
+          title: `⚠️ Incident: ${title}`,
+          touristName,
+          phone: incident.phone || '',
+          address: incident.location || incident.address || 'Reported Location',
+          code: `INC-${Date.now().toString().slice(-4)}`,
+          time: 'Just now',
+          read: false
+        },
+        ...prev.slice(0, 40)
+      ]);
     };
 
     // Handle General Tourist Activities
     const handleActivity = (act) => {
       playActivityChime();
+      const touristName = act.touristName || 'Tourist';
+      const desc = act.description || 'New activity logged';
+
       setActiveNotification({
         type: 'activity',
         title: `🔔 ${act.title || 'Tourist Activity'}`,
-        message: `${act.touristName || 'Tourist'}: ${act.description || 'New activity logged'}`,
+        message: `${touristName}: ${desc}`,
         timestamp: new Date().toLocaleTimeString()
       });
+
+      setNotificationsHistory((prev) => [
+        {
+          id: Date.now(),
+          type: 'activity',
+          title: `🔔 ${act.title || 'Activity'}`,
+          touristName,
+          phone: act.touristPhone || '',
+          address: desc,
+          code: act.type?.toUpperCase() || 'ACTIVITY',
+          time: 'Just now',
+          read: false
+        },
+        ...prev.slice(0, 40)
+      ]);
     };
 
     socket.on('new_sos_alert', handleSos);
@@ -108,6 +203,16 @@ const Navbar = () => {
       socket.off('tourist_activity', handleActivity);
     };
   }, [dispatch]);
+
+  const unreadCount = notificationsHistory.filter(n => !n.read).length;
+
+  const markAllRead = () => {
+    setNotificationsHistory(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const clearAllNotifications = () => {
+    setNotificationsHistory([]);
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-md">
@@ -164,13 +269,130 @@ const Navbar = () => {
             </div>
           )}
 
-          <div className="relative">
-            <button className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors relative">
+          {/* Interactive Notification Bell & Dropdown */}
+          <div className="relative" ref={notifRef}>
+            <button
+              onClick={() => setShowNotifications(prev => !prev)}
+              className={`p-2.5 rounded-xl border transition-all cursor-pointer relative ${
+                showNotifications || unreadCount > 0
+                  ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-xs'
+                  : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200/80'
+              }`}
+              title="Notifications Center"
+            >
               <Bell className="w-5 h-5" />
-              {activeSosList.length > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-danger ring-2 ring-white"></span>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-[10px] font-black flex items-center justify-center border-2 border-white animate-pulse">
+                  {unreadCount}
+                </span>
               )}
             </button>
+
+            {/* Dropdown Menu */}
+            {showNotifications && (
+              <div className="absolute right-0 mt-3 w-96 max-w-[90vw] bg-white rounded-2xl border border-slate-200 shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                {/* Dropdown Header */}
+                <div className="p-4 bg-gradient-to-r from-[#0a2540] to-[#0D47A1] text-white flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-blue-300" />
+                    <h3 className="font-extrabold text-sm m-0">Live Notifications</h3>
+                    <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-bold">
+                      {notificationsHistory.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllRead}
+                        className="text-[11px] text-blue-200 hover:text-white font-bold cursor-pointer underline"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                    <button
+                      onClick={clearAllNotifications}
+                      className="p-1 rounded hover:bg-white/20 text-white cursor-pointer"
+                      title="Clear All"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Notifications List */}
+                <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+                  {notificationsHistory.length === 0 ? (
+                    <div className="p-8 text-center text-slate-400">
+                      <CheckCircle className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                      <p className="text-xs font-bold text-slate-600 m-0">No new notifications</p>
+                      <p className="text-[10px] text-slate-400 mt-1 m-0">All SOS dispatches and safety alerts will appear here in real-time.</p>
+                    </div>
+                  ) : (
+                    notificationsHistory.map((item) => (
+                      <div
+                        key={item.id}
+                        onClick={() => {
+                          if (item.type === 'sos') navigate('/sos');
+                          setShowNotifications(false);
+                        }}
+                        className={`p-3.5 hover:bg-slate-50 transition-colors cursor-pointer space-y-1.5 ${
+                          !item.read ? 'bg-blue-50/40' : ''
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
+                            item.type === 'sos'
+                              ? 'bg-red-100 text-red-700'
+                              : item.type === 'incident'
+                                ? 'bg-amber-100 text-amber-800'
+                                : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {item.title}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium">{item.time}</span>
+                        </div>
+
+                        <div className="text-xs font-bold text-slate-900 flex items-center justify-between">
+                          <span>👤 {item.touristName}</span>
+                          {item.phone && (
+                            <span className="text-[11px] text-blue-600 font-mono flex items-center gap-1 font-bold">
+                              <Phone className="w-3 h-3" /> {item.phone}
+                            </span>
+                          )}
+                        </div>
+
+                        {item.address && (
+                          <div className="text-[11px] text-slate-600 flex items-start gap-1 font-medium line-clamp-2">
+                            <MapPin className="w-3 h-3 text-red-500 shrink-0 mt-0.5" />
+                            <span>{item.address}</span>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between pt-1 text-[10px] font-bold text-slate-400">
+                          <span className="font-mono text-primary">{item.code}</span>
+                          {item.type === 'sos' && (
+                            <span className="text-red-600 flex items-center gap-0.5 hover:underline">
+                              Dispatch Now <ArrowRight className="w-3 h-3" />
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Dropdown Footer */}
+                <div className="p-2.5 bg-slate-50 border-t border-slate-100 text-center">
+                  <Link
+                    to="/sos"
+                    onClick={() => setShowNotifications(false)}
+                    className="text-xs font-extrabold text-primary hover:underline inline-flex items-center gap-1.5"
+                  >
+                    Open SOS Command Monitor <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Quick Language Switcher Dropdown */}

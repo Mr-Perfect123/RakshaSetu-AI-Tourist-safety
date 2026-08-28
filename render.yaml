@@ -37,8 +37,8 @@ services:
 
   - type: static
     name: rakshasetu-tourist
-    buildCommand: cd backend/frontend && npm install && npm run build
-    staticPublishPath: backend/frontend/dist
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
     routes:
       - type: rewrite
         source: /*

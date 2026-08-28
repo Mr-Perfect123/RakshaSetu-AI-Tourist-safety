@@ -60,12 +60,13 @@ const RedAlertsAdmin = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex items-center justify-between">
+      {/* Header Bar — Royal Ocean Gradient Banner */}
+      <div className="bg-gradient-to-r from-[#0a2540] via-[#0D47A1] to-[#1e3a8a] text-white p-6 rounded-3xl shadow-xl border border-blue-900/20 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-            <AlertOctagon className="w-6 h-6 text-red-600 animate-pulse" /> Emergency Red Alert Command Center
+          <h1 className="text-xl md:text-2xl font-black text-white flex items-center gap-2.5 m-0">
+            <AlertOctagon className="w-6 h-6 text-red-400 animate-pulse" /> Emergency Red Alert Command Center
           </h1>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs font-semibold text-blue-100 m-0 mt-1">
             Broadcast emergency sector alerts instantly across tourist mobile apps & command desks
           </p>
         </div>

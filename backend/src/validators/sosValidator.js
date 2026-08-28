@@ -15,7 +15,7 @@ const validate = (validations) => {
 const triggerSosValidation = validate([
   body('latitude').isFloat({ min: -90, max: 90 }).withMessage('Valid latitude required.'),
   body('longitude').isFloat({ min: -180, max: 180 }).withMessage('Valid longitude required.'),
-  body('triggerType').optional().isIn(['one_tap', 'voice', 'shake', 'auto_crash', 'offline_sms']).withMessage('Invalid trigger type.')
+  body('triggerType').optional().isIn(['one_tap', 'one_tap_sos', 'voice', 'shake', 'auto_crash', 'offline_sms', 'manual', 'DISTRESS_PANIC_ALERT']).withMessage('Invalid trigger type.')
 ]);
 
 module.exports = { triggerSosValidation };

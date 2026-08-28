@@ -78,18 +78,18 @@ const FoodOrdersAdmin = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Header Bar — Frosted Glass Container for High Text Visibility */}
-      <div className="bg-slate-900/90 border border-slate-700 text-white backdrop-blur-md p-5 rounded-3xl shadow-md flex items-center justify-between">
+      {/* Header Bar — Royal Ocean Gradient Banner */}
+      <div className="bg-gradient-to-r from-[#0a2540] via-[#0D47A1] to-[#1e3a8a] text-white p-6 rounded-3xl shadow-xl border border-blue-900/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-extrabold text-white flex items-center gap-2 m-0">
-            <Utensils className="w-6 h-6 text-amber-400" /> Food Orders & Hotel Delivery Audit
+          <h1 className="text-xl md:text-2xl font-black text-white flex items-center gap-2.5 m-0">
+            <Utensils className="w-6 h-6 text-amber-300" /> Food Orders & Hotel Delivery Audit
           </h1>
-          <p className="text-xs font-semibold text-slate-300 m-0 mt-0.5">
+          <p className="text-xs font-semibold text-blue-100 m-0 mt-1">
             Real-time audit log of tourist food deliveries and verified restaurant fulfillment
           </p>
         </div>
-        <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-bold flex items-center gap-1.5 border border-amber-200">
-          <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+        <span className="px-3.5 py-1.5 rounded-full bg-white/15 text-white text-xs font-black flex items-center gap-1.5 border border-white/20 backdrop-blur-md">
+          <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
           Live Orders Stream
         </span>
       </div>

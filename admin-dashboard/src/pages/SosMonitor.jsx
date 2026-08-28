@@ -206,22 +206,26 @@ const SosMonitor = () => {
         </div>
       )}
 
-      {/* Header Bar — Frosted Glass Container for High Text Visibility */}
-      <div className="bg-slate-900/90 border border-slate-700 text-white backdrop-blur-md p-5 rounded-3xl shadow-md flex items-center justify-between">
+      {/* Header Bar — Royal Ocean Gradient Banner */}
+      <div className="bg-gradient-to-r from-[#0a2540] via-[#0D47A1] to-[#1e3a8a] text-white p-6 rounded-3xl shadow-xl border border-blue-900/20 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-extrabold text-white flex items-center gap-2 m-0">
-            <AlertOctagon className="w-6 h-6 text-red-500 animate-pulse" /> SOS Emergency Dispatch Queue
+          <h1 className="text-xl md:text-2xl font-black text-white flex items-center gap-2.5 m-0">
+            <AlertOctagon className="w-6 h-6 text-red-400 animate-pulse" /> SOS Emergency Dispatch Queue
           </h1>
-          <p className="text-xs font-semibold text-slate-300 m-0 mt-0.5">
+          <p className="text-xs font-semibold text-blue-100 m-0 mt-1">
             Live monitoring of distress signals and real-time police dispatch
             {sosList.filter(s => s.status === 'active').length > 0 && (
-              <span className="ml-2 px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-bold animate-pulse">
+              <span className="ml-2 px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black animate-pulse shadow-sm">
                 {sosList.filter(s => s.status === 'active').length} ACTIVE
               </span>
             )}
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <span className="px-3.5 py-1.5 rounded-full bg-white/15 text-white text-xs font-black flex items-center gap-1.5 border border-white/20 backdrop-blur-md">
+            <span className="w-2 h-2 rounded-full bg-red-400 animate-ping"></span>
+            Real-time Feed
+          </span>
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
             <input
@@ -229,12 +233,8 @@ const SosMonitor = () => {
               placeholder="Search by code or name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2 rounded-xl text-xs border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary w-64"
+              className="pl-9 pr-4 py-2 rounded-xl text-xs border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
             />
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-            WebSocket Live
           </div>
         </div>
       </div>

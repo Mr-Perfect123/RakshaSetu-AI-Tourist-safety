@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
+import BottomNav from './components/BottomNav';
+import FloatingSosButton from './components/FloatingSosButton';
 import Dashboard from './pages/Dashboard';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
@@ -18,10 +20,13 @@ import Incidents from './pages/Incidents';
 import NearbyHelp from './pages/NearbyHelp';
 import EmergencyContacts from './pages/EmergencyContacts';
 import LiveChat from './pages/LiveChat';
+import MyBookings from './pages/MyBookings';
+import SavedPlaces from './pages/SavedPlaces';
+import ProfilePage from './pages/ProfilePage';
 import FloatingChatbot from './components/FloatingChatbot';
 import PrivacySettings from './pages/PrivacySettings';
 import ErrorBoundary from './components/ErrorBoundary';
-import { Clock, AlertTriangle } from 'lucide-react';
+import { Clock } from 'lucide-react';
 
 import { LanguageProvider } from './context/LanguageContext';
 
@@ -218,13 +223,19 @@ function App() {
               <Route path="/contacts" element={tourist ? <EmergencyContacts tourist={tourist} darkMode={darkMode} /> : <Navigate to="/login" replace />} />
               <Route path="/privacy" element={tourist ? <PrivacySettings darkMode={darkMode} /> : <Navigate to="/login" replace />} />
               <Route path="/chat" element={tourist ? <LiveChat tourist={tourist} darkMode={darkMode} /> : <Navigate to="/login" replace />} />
+              <Route path="/bookings" element={tourist ? <MyBookings darkMode={darkMode} /> : <Navigate to="/login" replace />} />
+              <Route path="/saved" element={tourist ? <SavedPlaces darkMode={darkMode} /> : <Navigate to="/login" replace />} />
+              <Route path="/profile" element={tourist ? <ProfilePage tourist={tourist} onLogout={() => handleLogout(false)} darkMode={darkMode} /> : <Navigate to="/login" replace />} />
 
               {/* Catch-all fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </ErrorBoundary>
         </main>
+
+        {tourist && <FloatingSosButton tourist={tourist} darkMode={darkMode} />}
         {tourist && <FloatingChatbot tourist={tourist} darkMode={darkMode} />}
+        {tourist && <BottomNav darkMode={darkMode} />}
       </div>
     </BrowserRouter>
   </LanguageProvider>

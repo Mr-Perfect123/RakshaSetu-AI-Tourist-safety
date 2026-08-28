@@ -304,13 +304,13 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Header Bar — Frosted Glass Container for High Text Visibility */}
-      <div className="bg-slate-900/90 border border-slate-700 text-white backdrop-blur-md p-5 rounded-3xl shadow-md flex items-center justify-between">
+      {/* Header Bar — Royal Ocean Gradient Banner */}
+      <div className="bg-gradient-to-r from-[#0a2540] via-[#0D47A1] to-[#1e3a8a] text-white p-6 rounded-3xl shadow-xl flex items-center justify-between border border-blue-900/20">
         <div>
-          <h1 className="text-xl font-extrabold text-white flex items-center gap-2 m-0">
-            <Shield className="w-6 h-6 text-blue-400" /> {t('sidebar.dashboard', 'RakshaSetu Command & Safety Control Center')}
+          <h1 className="text-xl md:text-2xl font-black text-white flex items-center gap-2.5 m-0">
+            <Shield className="w-6 h-6 text-emerald-400" /> {t('sidebar.dashboard', 'RakshaSetu Command & Safety Control Center')}
           </h1>
-          <p className="text-xs font-semibold text-slate-300 m-0 mt-0.5">
+          <p className="text-xs font-semibold text-blue-100 m-0 mt-1">
             {t('navbar.subtitle', 'Real-time Emergency Dispatch, Live Tourist Telemetry & Incident Audit Sentinel')}
           </p>
         </div>

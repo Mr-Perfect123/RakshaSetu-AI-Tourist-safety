@@ -4,9 +4,9 @@
 
 body {
   margin: 0;
-  background-color: #0f172a !important;
+  background-color: #f8fafc !important;
   background-image: 
-    linear-gradient(to bottom, rgba(15, 23, 42, 0.70), rgba(15, 23, 42, 0.85)),
+    linear-gradient(to bottom, rgba(248, 250, 252, 0.94), rgba(241, 245, 249, 0.97)),
     url('/images/project_bg.jpg') !important;
   background-size: cover !important;
   background-position: center !important;
@@ -19,7 +19,7 @@ body {
 
 .app-admin-bg {
   background-image: 
-    linear-gradient(to bottom, rgba(15, 23, 42, 0.70), rgba(15, 23, 42, 0.85)),
+    linear-gradient(to bottom, rgba(248, 250, 252, 0.94), rgba(241, 245, 249, 0.97)),
     url('/images/project_bg.jpg') !important;
   background-size: cover !important;
   background-position: center !important;

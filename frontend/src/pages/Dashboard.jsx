@@ -1,836 +1,917 @@
-import React, { useState, useEffect } from 'react';
-import { AlertOctagon, PhoneCall, Sparkles, FileText, Shield, MapPin, Mic, Radio, Heart, Activity, CheckCircle, Navigation, MessageSquare, Search, Car, Utensils, Lock, Eye, EyeOff, Trash2, Sun, CloudRain, ExternalLink, Compass } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  Search, Shield, MapPin, Navigation, Compass, AlertTriangle, Phone, Stethoscope,
+  Building2, Utensils, Hotel, Car, Ticket, MessageSquare, Heart, Star, Sun, CloudRain,
+  TrendingUp, RefreshCw, ChevronRight, Zap, CheckCircle2, AlertCircle, ArrowUpRight,
+  X, Globe, Flag, ChevronDown
+} from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import TouristMap from '../components/TouristMap';
+import StateExplorer from '../components/StateExplorer';
 import api from '../services/api';
-import socket from '../services/socket';
+import axios from 'axios';
 import { useLanguage } from '../context/LanguageContext';
 
 const Dashboard = ({ tourist, darkMode }) => {
-  const navigate = useNavigate();
   const { t } = useLanguage();
+  const navigate = useNavigate();
 
-  // Location Permission & Privacy States
-  const [permissionAsked, setPermissionAsked] = useState(() => localStorage.getItem('rakshasetu_location_permission_prompted') === 'true');
-  const [locationGranted, setLocationGranted] = useState(() => localStorage.getItem('rakshasetu_location_granted') === 'true');
-  const [locationSharingEnabled, setLocationSharingEnabled] = useState(() => localStorage.getItem('rakshasetu_location_sharing_active') !== 'false');
-  const [liveTrackingEnabled, setLiveTrackingEnabled] = useState(true);
-  const [lastLocationTime, setLastLocationTime] = useState(new Date().toLocaleTimeString());
-  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
-
-  // Search & Destination States
-  const [destinationQuery, setDestinationQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchedDestination, setSearchedDestination] = useState(null);
-
-  // Location States (Separate live GPS position from searched map location)
-  const [currentGpsLocation, setCurrentGpsLocation] = useState({ lat: 11.0168, lng: 76.9558 }); // Default sector
-  const [mapLocation, setMapLocation] = useState({ lat: 11.0168, lng: 76.9558 });
-  const [locationName, setLocationName] = useState('Kattur, Coimbatore, Tamil Nadu, India');
-  const [locationUpdating, setLocationUpdating] = useState(false);
-  const [locationError, setLocationError] = useState('');
-
-  // Weather & Telemetry States
+  // ── Location & Weather ───────────────────────────────────────────────────────
+  const [currentGpsLocation, setCurrentGpsLocation] = useState({ lat: 11.0168, lng: 76.9558 });
+  const [addressText, setAddressText] = useState(() => localStorage.getItem('rakshasetu_user_city') || 'Coimbatore, Tamil Nadu');
   const [weatherData, setWeatherData] = useState(null);
-  const [weatherLoading, setWeatherLoading] = useState(false);
-  const [weatherError, setWeatherError] = useState('');
+  const [safetyScore] = useState(92);
+  const [riskLevel] = useState('Safe (Green)');
 
-  // Nearby Services States
+  // ── Search ───────────────────────────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const searchRef = useRef(null);
+  const abortRef = useRef(null);
+
+  // ── Category Counts ──────────────────────────────────────────────────────────
+  const [categoryCounts, setCategoryCounts] = useState({
+    'Adventure': 0, 'Nature & Parks': 0, 'Heritage & Forts': 0,
+    'Beaches & Lakes': 0, 'Wildlife & Safaris': 0, 'Local Food & Street': 0,
+    'Culture & Temples': 0, 'Family & Shopping': 0
+  });
+
+  // ── Category Modal ───────────────────────────────────────────────────────────
+  const [categoryModal, setCategoryModal] = useState({ isOpen: false, categoryName: '', items: [], loading: false });
+
+  // ── Data Lists ───────────────────────────────────────────────────────────────
+  const [exploreDestinations, setExploreDestinations] = useState([]);
   const [nearbyPlaces, setNearbyPlaces] = useState([]);
   const [nearbyCategory, setNearbyCategory] = useState('all');
-  const [nearbyLoading, setNearbyLoading] = useState(false);
+  const [nearbyLoading, setNearbyLoading] = useState(true);
+  const [savedIds, setSavedIds] = useState(() => {
+    const saved = localStorage.getItem('rakshasetu_saved_places');
+    return saved ? JSON.parse(saved).map(p => p.id) : [];
+  });
 
-  // SOS & Position States
-  const [sosActive, setSosActive] = useState(false);
-  const [activeSosCode, setActiveSosCode] = useState('');
-  const [safeLocations, setSafeLocations] = useState([
-    { id: 1, name: 'Central Police Station Connaught Place', type: 'police_station', latitude: 11.0180, longitude: 76.9580, phone: '+911123363364', address: 'Central Sector Corridor' },
-    { id: 2, name: 'District Emergency Medical Post', type: 'hospital', latitude: 11.0140, longitude: 76.9530, phone: '+911123365555', address: 'Medical Sector Road' }
-  ]);
-  const [sosLoading, setSosLoading] = useState(false);
+  // ── Explore Section Tabs ─────────────────────────────────────────────────────
+  const [exploreTab, setExploreTab] = useState('featured'); // 'featured' | 'states'
 
-  // Initial Location Setup
+  // ── Init: Geolocation + Weather + Category Counts ────────────────────────────
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          const p = { lat, lng };
-          setCurrentGpsLocation(p);
-          setMapLocation(p);
-        },
-        () => console.warn('Default sector location loaded.')
-      );
-    }
-  }, []);
+    // Fetch category counts
+    api.get('/places/category-counts')
+      .then(res => {
+        const payload = res.data?.data || res.data;
+        if (payload && typeof payload === 'object') setCategoryCounts(payload);
+      })
+      .catch(() => {});
 
-  // Fetch Weather Telemetry
-  useEffect(() => {
-    const fetchWeather = async () => {
-      setWeatherLoading(true);
-      setWeatherError('');
-      try {
-        const res = await api.get(`/places/weather?lat=${currentGpsLocation.lat}&lng=${currentGpsLocation.lng}`);
-        const data = res.data?.data || res.data;
-        if (data) {
-          setWeatherData(data);
-          if (data.fullAddress || data.locationName) {
-            setLocationName(data.fullAddress || data.locationName);
-          }
-        }
-      } catch (e) {
-        setWeatherError('Weather information temporarily unavailable.');
-      } finally {
-        setWeatherLoading(false);
-      }
-    };
-    fetchWeather();
-  }, [currentGpsLocation]);
-
-  // Fetch Live Nearby Services Sorted by Distance
-  useEffect(() => {
-    const fetchNearby = async () => {
-      setNearbyLoading(true);
-      try {
-        const res = await api.get(`/places/nearby?lat=${currentGpsLocation.lat}&lng=${currentGpsLocation.lng}&category=${nearbyCategory}`);
-        const list = res.data?.data || res.data || [];
-        if (Array.isArray(list)) {
-          setNearbyPlaces(list);
-        }
-      } catch (err) {
-        console.warn('Nearby places fetch warning');
-      } finally {
-        setNearbyLoading(false);
-      }
-    };
-    fetchNearby();
-  }, [currentGpsLocation, nearbyCategory]);
-
-  // Dynamic Destination Search Trigger (Queries ANY city/place globally)
-  useEffect(() => {
-    let active = true;
-    if (!destinationQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
-    setIsSearching(true);
-    const timer = setTimeout(async () => {
-      try {
-        const latParam = currentGpsLocation ? `&lat=${currentGpsLocation.lat}&lng=${currentGpsLocation.lng}` : '';
-        const res = await api.get(`/places/search?query=${encodeURIComponent(destinationQuery)}${latParam}`);
-        const list = res.data?.data || res.data || [];
-        if (active && Array.isArray(list)) setSearchResults(list);
-      } catch (e) {
-        console.warn('Search query fallback');
-      } finally {
-        if (active) setIsSearching(false);
-      }
-    }, 350);
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [destinationQuery, currentGpsLocation]);
-
-  // Target Button Recenter Logic (Returns camera to live GPS)
-  const handleRecenterMyLocation = (leafletMapInstance) => {
-    setLocationUpdating(true);
-    setLocationError('');
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
-          const newPos = { lat, lng };
-          setCurrentGpsLocation(newPos);
-          setMapLocation(newPos);
-          setSearchedDestination(null);
-          setLastLocationTime(new Date().toLocaleTimeString());
-          setLocationUpdating(false);
-
-          if (leafletMapInstance) {
-            leafletMapInstance.flyTo([lat, lng], 15, { duration: 1.2 });
+          const coords = { lat, lng };
+          setCurrentGpsLocation(coords);
+          try {
+            const res = await axios.get(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+              { headers: { 'User-Agent': 'RakshaSetu/2.0' }, timeout: 3500 }
+            );
+            if (res.data?.address) {
+              const addr = res.data.address;
+              const city = addr.city || addr.town || addr.village || addr.suburb || addr.county || addr.state_district || 'Local Area';
+              const state = addr.state || '';
+              const clean = `${city}${state ? `, ${state}` : ''}`;
+              setAddressText(clean);
+              localStorage.setItem('rakshasetu_user_city', clean);
+            } else if (res.data?.display_name) {
+              const clean = res.data.display_name.split(',').slice(0, 3).join(', ');
+              setAddressText(clean);
+              localStorage.setItem('rakshasetu_user_city', clean);
+            }
+          } catch (_) {
+            if (!localStorage.getItem('rakshasetu_user_city')) {
+              setAddressText('Coimbatore, Tamil Nadu');
+            }
           }
-
-          socket.emit('tourist_location_update', {
-            userId: tourist?.id || 4,
-            latitude: lat,
-            longitude: lng,
-            touristName: tourist?.full_name || 'Tourist',
-            battery: 98
-          });
+          try {
+            const wRes = await api.get(`/places/weather?lat=${lat}&lng=${lng}`);
+            if (wRes.data?.data) setWeatherData(wRes.data.data);
+          } catch (_) {}
         },
-        (err) => {
-          setLocationUpdating(false);
-          setLocationError('Unable to access your current location.');
+        () => {
+          const savedCity = localStorage.getItem('rakshasetu_user_city') || 'Coimbatore, Tamil Nadu';
+          setAddressText(savedCity);
         },
-        { enableHighAccuracy: true, timeout: 8000 }
+        { timeout: 5000, maximumAge: 30000, enableHighAccuracy: false }
       );
-    } else {
-      setLocationUpdating(false);
-      setLocationError('Unable to access your current location.');
     }
-  };
-
-  // Location Permission Request Logic
-  const requestLocationPermission = (allow) => {
-    localStorage.setItem('rakshasetu_location_permission_prompted', 'true');
-    setPermissionAsked(true);
-
-    if (allow) {
-      localStorage.setItem('rakshasetu_location_granted', 'true');
-      localStorage.setItem('rakshasetu_location_sharing_active', 'true');
-      setLocationGranted(true);
-      setLocationSharingEnabled(true);
-      handleRecenterMyLocation(null);
-    } else {
-      localStorage.setItem('rakshasetu_location_granted', 'false');
-      localStorage.setItem('rakshasetu_location_sharing_active', 'false');
-      setLocationGranted(false);
-      setLocationSharingEnabled(false);
-    }
-  };
-
-  const handleStopSharing = () => {
-    localStorage.setItem('rakshasetu_location_sharing_active', 'false');
-    setLocationSharingEnabled(false);
-    alert('Location sharing stopped. Real-time GPS broadcasts are now OFF.');
-  };
-
-  useEffect(() => {
-    if (locationGranted && locationSharingEnabled && navigator.geolocation) {
-      const watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          const newPos = { lat, lng };
-          setCurrentGpsLocation(newPos);
-          setLastLocationTime(new Date().toLocaleTimeString());
-
-          if (liveTrackingEnabled) {
-            socket.emit('tourist_location_update', {
-              userId: tourist?.id || 4,
-              latitude: lat,
-              longitude: lng,
-              touristName: tourist?.full_name || 'Tourist',
-              battery: 98
-            });
-          }
-        },
-        (err) => console.warn('Geolocation error'),
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-      return () => navigator.geolocation.clearWatch(watchId);
-    }
-  }, [locationGranted, locationSharingEnabled, liveTrackingEnabled, tourist]);
-
-  useEffect(() => {
-    const fetchResponders = async () => {
-      try {
-        const res = await api.get('/admin/safe-locations');
-        const list = res.data?.data || res.data || [];
-        if (Array.isArray(list) && list.length > 0) setSafeLocations(list);
-      } catch (err) {}
-    };
-    fetchResponders();
   }, []);
 
-  const handleTriggerSos = async (triggerType = 'one_tap') => {
-    setSosLoading(true);
-    try {
-      const res = await api.post('/sos/trigger', {
-        latitude: currentGpsLocation.lat,
-        longitude: currentGpsLocation.lng,
-        address: locationName,
-        triggerType
-      });
+  // ── Fetch Explore Destinations ───────────────────────────────────────────────
+  useEffect(() => {
+    api.get(`/places/search?lat=${currentGpsLocation.lat}&lng=${currentGpsLocation.lng}`)
+      .then(res => {
+        const list = res.data?.data || res.data || [];
+        if (Array.isArray(list) && list.length > 0) setExploreDestinations(list);
+      })
+      .catch(() => {});
+  }, [currentGpsLocation]);
 
-      const dataObj = res.data?.data || res.data;
-      if (dataObj) {
-        setSosActive(true);
-        setActiveSosCode(dataObj.sos_code || `SOS-${Date.now().toString().slice(-5)}`);
-        socket.emit('trigger_sos_event', {
-          ...dataObj,
-          touristName: tourist?.full_name || 'Tourist',
-          touristPhone: tourist?.phone,
-          nationality: tourist?.nationality
-        });
+  // ── Fetch Nearby Places ──────────────────────────────────────────────────────
+  useEffect(() => {
+    setNearbyLoading(true);
+    api.get(`/places/nearby?lat=${currentGpsLocation.lat}&lng=${currentGpsLocation.lng}&category=${nearbyCategory}`)
+      .then(res => {
+        const list = res.data?.data || res.data || [];
+        if (Array.isArray(list)) setNearbyPlaces(list);
+      })
+      .catch(() => {})
+      .finally(() => setNearbyLoading(false));
+  }, [currentGpsLocation, nearbyCategory]);
+
+  // ── Debounced Search (300ms) with AbortController ────────────────────────────
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchSuggestions([]);
+      setIsSearching(false);
+      setHasSearched(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      // Cancel previous request
+      if (abortRef.current) abortRef.current.abort();
+      abortRef.current = new AbortController();
+
+      setIsSearching(true);
+      setHasSearched(true);
+      try {
+        const res = await api.get(
+          `/places/search?query=${encodeURIComponent(searchQuery)}&lat=${currentGpsLocation.lat}&lng=${currentGpsLocation.lng}`,
+          { signal: abortRef.current.signal }
+        );
+        const list = res.data?.data || res.data || [];
+        if (Array.isArray(list)) setSearchSuggestions(list);
+      } catch (e) {
+        if (e.name !== 'AbortError' && e.name !== 'CanceledError') setSearchSuggestions([]);
+      } finally {
+        setIsSearching(false);
       }
-    } catch (err) {
-      setSosActive(true);
-      const code = `SOS-EMERGENCY-${Math.floor(1000 + Math.random() * 9000)}`;
-      setActiveSosCode(code);
-      socket.emit('trigger_sos_event', {
-        sos_code: code,
-        touristName: tourist?.full_name || 'Tourist',
-        touristPhone: tourist?.phone,
-        nationality: tourist?.nationality,
-        latitude: currentGpsLocation.lat,
-        longitude: currentGpsLocation.lng,
-        address: locationName,
-        trigger_type: triggerType,
-        status: 'active',
-        created_at: new Date().toISOString()
-      });
-    } finally {
-      setSosLoading(false);
-    }
-  };
+    }, 300);
 
-  const handleCancelSos = async () => {
-    setSosLoading(true);
+    return () => clearTimeout(timer);
+  }, [searchQuery, currentGpsLocation]);
+
+  // ── Category Modal Handler ───────────────────────────────────────────────────
+  const handleOpenCategory = useCallback(async (catName) => {
+    setSelectedCategory(catName);
+    setCategoryModal({ isOpen: true, categoryName: catName, items: [], loading: true });
     try {
-      await api.put('/sos/cancel', { reason: 'User resolved situation safely' });
-    } catch (err) {
-    } finally {
-      setSosActive(false);
-      setActiveSosCode('');
-      setSosLoading(false);
+      const res = await api.get(
+        `/places/search?category=${encodeURIComponent(catName)}&lat=${currentGpsLocation.lat}&lng=${currentGpsLocation.lng}`
+      );
+      const list = res.data?.data || res.data || [];
+      setCategoryModal(prev => ({ ...prev, items: Array.isArray(list) ? list : [], loading: false }));
+    } catch (_) {
+      setCategoryModal(prev => ({ ...prev, loading: false }));
+    }
+  }, [currentGpsLocation]);
+
+  // ── Save/Unsave ──────────────────────────────────────────────────────────────
+  const toggleSavePlace = useCallback((place) => {
+    const saved = localStorage.getItem('rakshasetu_saved_places');
+    let list = saved ? JSON.parse(saved) : [];
+    const exists = list.some(p => p.id === place.id);
+    if (exists) { list = list.filter(p => p.id !== place.id); }
+    else { list.push(place); }
+    localStorage.setItem('rakshasetu_saved_places', JSON.stringify(list));
+    setSavedIds(list.map(p => p.id));
+  }, []);
+
+  // ── Directions ───────────────────────────────────────────────────────────────
+  const handleGetDirections = useCallback((place) => {
+    if (!place) return;
+    const destLat = parseFloat(place.latitude);
+    const destLng = parseFloat(place.longitude);
+    const hasCoords = !isNaN(destLat) && !isNaN(destLng) && !(destLat === 0 && destLng === 0);
+
+    const openMaps = (originLat, originLng) => {
+      let url;
+      if (hasCoords) {
+        url = originLat && originLng
+          ? `https://www.google.com/maps/dir/?api=1&origin=${originLat},${originLng}&destination=${destLat},${destLng}&travelmode=driving`
+          : `https://www.google.com/maps/dir/?api=1&destination=${destLat},${destLng}&travelmode=driving`;
+      } else {
+        const dest = encodeURIComponent(`${place.name}, ${place.address || `${place.city}, ${place.state}`}`);
+        url = originLat && originLng
+          ? `https://www.google.com/maps/dir/?api=1&origin=${originLat},${originLng}&destination=${dest}&travelmode=driving`
+          : `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`;
+      }
+      window.open(url, '_blank', 'noopener,noreferrer');
+    };
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => openMaps(pos.coords.latitude, pos.coords.longitude),
+        () => openMaps(null, null),
+        { timeout: 4000, maximumAge: 30000 }
+      );
+    } else {
+      openMaps(null, null);
+    }
+  }, []);
+
+  // ── Handle search Enter key ──────────────────────────────────────────────────
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      if (searchSuggestions.length > 0) {
+        const first = searchSuggestions[0];
+        setSearchQuery('');
+        setSearchSuggestions([]);
+        navigate(`/places/${first.id}`);
+      }
+    }
+    if (e.key === 'Escape') {
+      setSearchQuery('');
+      setSearchSuggestions([]);
     }
   };
 
-  const cardClass = darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200';
-  const textClass = darkMode ? 'text-slate-100' : 'text-slate-900';
-  const mutedClass = darkMode ? 'text-slate-400' : 'text-slate-500';
-  const subtextClass = darkMode ? 'text-slate-300' : 'text-slate-600';
+  // ── Quick Actions ────────────────────────────────────────────────────────────
+  const quickActions = [
+    { label: t('nav.sosButton', 'Emergency SOS'), path: '/contacts', icon: AlertTriangle, color: 'from-red-600 to-rose-700' },
+    { label: t('nav.safetyMap', 'Safety Map'), path: '/safety-map', icon: Shield, color: 'from-emerald-600 to-teal-700' },
+    { label: t('nav.nearbyHelp', 'Nearby Help'), path: '/nearby', icon: Building2, color: 'from-blue-600 to-indigo-700' },
+    { label: 'Hospitals', path: '/nearby?category=hospital', icon: Stethoscope, color: 'from-rose-500 to-pink-600' },
+    { label: 'Police', path: '/nearby?category=police', icon: Building2, color: 'from-[#0D47A1] to-blue-800' },
+    { label: t('nav.vehicleBooking', 'Book Ride'), path: '/vehicles', icon: Car, color: 'from-amber-500 to-orange-600' },
+    { label: t('nav.travelBooking', 'Travel'), path: '/travel', icon: Ticket, color: 'from-purple-600 to-indigo-700' },
+    { label: t('nav.aiAssistant', 'AI Tourist'), path: '/ai', icon: Zap, color: 'from-teal-500 to-emerald-600' }
+  ];
+
+  const activityCategories = [
+    { name: 'Adventure', icon: '🧗', type: 'Adventure', countKey: 'Adventure', unit: 'Activities', color: 'bg-orange-500/10 border-orange-500/20 text-orange-700 dark:text-orange-400' },
+    { name: 'Nature & Parks', icon: '🌿', type: 'Nature', countKey: 'Nature & Parks', unit: 'Places', color: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400' },
+    { name: 'Heritage & Forts', icon: '🏰', type: 'Heritage', countKey: 'Heritage & Forts', unit: 'Monuments', color: 'bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-400' },
+    { name: 'Beaches & Lakes', icon: '🏖️', type: 'Beach', countKey: 'Beaches & Lakes', unit: 'Beaches', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-700 dark:text-cyan-400' },
+    { name: 'Wildlife & Safaris', icon: '🐅', type: 'Wildlife', countKey: 'Wildlife & Safaris', unit: 'Parks', color: 'bg-lime-500/10 border-lime-500/20 text-lime-700 dark:text-lime-400' },
+    { name: 'Local Food & Street', icon: '🍲', type: 'Food', countKey: 'Local Food & Street', unit: 'Outlets', color: 'bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-400' },
+    { name: 'Culture & Temples', icon: '🛕', type: 'Culture', countKey: 'Culture & Temples', unit: 'Sites', color: 'bg-purple-500/10 border-purple-500/20 text-purple-700 dark:text-purple-400' },
+    { name: 'Family & Shopping', icon: '🛍️', type: 'Shopping', countKey: 'Family & Shopping', unit: 'Malls', color: 'bg-pink-500/10 border-pink-500/20 text-pink-700 dark:text-pink-400' }
+  ];
 
   return (
-    <div className="space-y-6 pb-12 max-w-6xl mx-auto">
-      {/* Location Permission Prompt Modal */}
-      {!permissionAsked && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
-          <div className={`${cardClass} max-w-md w-full p-6 rounded-3xl border shadow-2xl space-y-4`}>
-            <div className="w-12 h-12 rounded-2xl bg-blue-100 text-[#0D47A1] flex items-center justify-center mx-auto">
-              <MapPin className="w-6 h-6" />
+    <div className="max-w-7xl mx-auto space-y-8 pb-24 animate-fade-in">
+
+      {/* ── 1. HERO GLOBAL SEARCH BANNER ────────────────────────────────────── */}
+      <div className="relative rounded-3xl overflow-visible p-6 md:p-10 bg-gradient-to-r from-[#0a2540] via-[#0D47A1] to-[#1e3a8a] text-white shadow-xl space-y-6">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/15 border border-white/20 text-white text-xs font-black mb-2 backdrop-blur-md">
+              <Shield className="w-3.5 h-3.5 text-emerald-400" />
+              <span>RakshaSetu AI Tourist Safety Network</span>
             </div>
-            <div className="space-y-2">
-              <h3 className={`text-lg font-black text-center ${textClass}`}>{t('dashboard.locationPermission', 'Location Protection Permission')}</h3>
-              <p className={`text-xs font-semibold ${subtextClass}`}>
-                {t('dashboard.locationPermissionDesc', 'RakshaSetu needs your location to provide:')}
-              </p>
-              <ul className="text-xs font-medium space-y-1 text-slate-600 dark:text-slate-300 pl-4 list-disc">
-                <li>{t('dashboard.liveSafetyMonitoring', 'live safety monitoring')}</li>
-                <li>{t('dashboard.routeNavigation', 'route navigation')}</li>
-                <li>{t('dashboard.nearbyEmergencyServices', 'nearby emergency services')}</li>
-                <li>{t('dashboard.dangerZoneAlerts', 'danger-zone alerts')}</li>
-                <li>{t('dashboard.sosAssistance', 'SOS assistance')}</li>
-              </ul>
-              <p className="text-xs font-extrabold text-[#0D47A1] text-center pt-1 m-0">{t('dashboard.allowSharingPrompt', 'Allow location sharing?')}</p>
+            <h1 className="text-2xl md:text-4xl font-black tracking-tight m-0 text-white">
+              Where would you like to explore safely?
+            </h1>
+            <p className="text-xs md:text-sm text-blue-100 font-medium m-0 mt-1">
+              Search destinations worldwide — Ooty, Taj Mahal, Paris, Eiffel Tower, Tokyo, Dubai, and beyond.
+            </p>
+          </div>
+        </div>
+
+        {/* ── Global Search Input ─────────────────────────────────────────── */}
+        <div className="relative z-30" ref={searchRef}>
+          <div className="relative">
+            <Search className="w-5 h-5 text-slate-400 absolute left-4 top-3.5 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Search any city, monument, hill station, country... (e.g. Ooty, Taj Mahal, Paris, Dubai, Tokyo)"
+              className="w-full pl-12 pr-12 py-3.5 rounded-2xl bg-white text-slate-900 text-sm font-bold shadow-lg border-2 border-transparent focus:border-blue-400 focus:ring-4 focus:ring-blue-400/20 outline-none transition-all placeholder:text-slate-400 placeholder:font-medium"
+              autoComplete="off"
+              aria-label="Search tourist destinations worldwide"
+            />
+            {searchQuery ? (
+              <button
+                onClick={() => { setSearchQuery(''); setSearchSuggestions([]); setHasSearched(false); }}
+                className="absolute right-3.5 top-3.5 p-1 rounded-full text-slate-400 hover:text-slate-600 cursor-pointer transition-colors"
+                aria-label="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            ) : null}
+          </div>
+
+          {/* ── Search Dropdown Panel ────────────────────────────────────── */}
+          {searchQuery.trim() && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50 animate-fade-in max-h-96 overflow-y-auto divide-y divide-slate-100">
+              {isSearching ? (
+                <div className="p-6 text-center text-slate-500 flex items-center justify-center gap-2 font-bold text-xs">
+                  <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
+                  Searching worldwide databases (Nominatim + OpenStreetMap)...
+                </div>
+              ) : searchSuggestions.length === 0 && hasSearched ? (
+                <div className="p-6 text-center text-slate-500 space-y-1">
+                  <p className="text-sm font-black text-slate-700 m-0">No matching destinations found for "{searchQuery}"</p>
+                  <p className="text-xs text-slate-400 m-0 font-medium">Try searching for a city, state, monument, or country name.</p>
+                </div>
+              ) : (
+                searchSuggestions.map((place) => (
+                  <SearchResultRow
+                    key={place.id}
+                    place={place}
+                    darkMode={false}
+                    onSelect={() => {
+                      setSearchQuery('');
+                      setSearchSuggestions([]);
+                      navigate(`/places/${place.id}`);
+                    }}
+                    onDirections={() => {
+                      setSearchQuery('');
+                      setSearchSuggestions([]);
+                      handleGetDirections(place);
+                    }}
+                    onSave={() => toggleSavePlace(place)}
+                    isSaved={savedIds.includes(place.id)}
+                  />
+                ))
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── Category Quick Filters ──────────────────────────────────────── */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar pt-1">
+          {['All', 'Adventure', 'Nature', 'Heritage', 'Beach', 'Wildlife', 'Food', 'Culture', 'Shopping'].map((cat) => (
+            <button
+              key={cat}
+              onClick={() => handleOpenCategory(cat)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                selectedCategory === cat
+                  ? 'bg-white text-blue-900 shadow-md scale-105'
+                  : 'bg-white/15 text-white hover:bg-white/25 border border-white/10'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── 2. WEATHER & SAFETY INDEX CARD ──────────────────────────────────── */}
+      <div className="p-6 rounded-3xl bg-white/95 border border-slate-200/90 shadow-sm backdrop-blur-md text-slate-900 space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 block mb-0.5">
+              Live Location Sentinel
+            </span>
+            <h3 className="text-xl font-black text-slate-900 m-0 flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-red-500 shrink-0" />
+              <span className="truncate">{addressText}</span>
+            </h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="px-3.5 py-1.5 rounded-2xl bg-emerald-50 text-emerald-700 text-xs font-black border border-emerald-200 whitespace-nowrap shadow-xs">
+              🛡️ Safety: {safetyScore}/100
+            </span>
+            <span className="px-3.5 py-1.5 rounded-2xl bg-blue-50 text-blue-700 text-xs font-black border border-blue-200 whitespace-nowrap shadow-xs">
+              {riskLevel}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
+          {[
+            { label: 'Temperature', value: weatherData?.temperature ? `${weatherData.temperature}°C` : '28°C', icon: Sun, color: 'text-amber-600' },
+            { label: 'Condition', value: weatherData?.condition || 'Clear & Pleasant', icon: CloudRain, color: 'text-blue-600' },
+            { label: 'Humidity', value: weatherData?.humidity ? `${weatherData.humidity}%` : '62%', icon: null, color: 'text-slate-800' },
+            { label: 'Wind Speed', value: weatherData?.windSpeed ? `${weatherData.windSpeed} km/h` : '12 km/h', icon: null, color: 'text-slate-800' }
+          ].map((item, i) => (
+            <div key={i} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 shadow-xs">
+              <span className="text-[10px] font-black text-slate-400 uppercase block mb-1">{item.label}</span>
+              <span className={`text-sm font-black ${item.color} flex items-center gap-1`}>
+                {item.icon && <item.icon className="w-4 h-4" />}
+                {item.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── 3. QUICK ACTIONS GRID ───────────────────────────────────────────── */}
+      <div className="p-6 rounded-3xl bg-white/95 border border-slate-200/90 shadow-sm backdrop-blur-md text-slate-900 space-y-4">
+        <div>
+          <h3 className="text-xl font-black text-slate-900 m-0 flex items-center gap-2">
+            <Zap className="w-5 h-5 text-amber-500" /> {t('dashboard.quickActions', 'Quick Actions')}
+          </h3>
+          <p className="text-xs text-slate-500 font-semibold m-0 mt-0.5">Instant one-tap emergency, safety navigation and travel booking tools</p>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+          {quickActions.map((action, idx) => {
+            const Icon = action.icon;
+            return (
+              <Link
+                key={idx}
+                to={action.path}
+                className={`p-3.5 rounded-2xl bg-gradient-to-br ${action.color} text-white shadow-sm hover:shadow-md hover:scale-105 transition-all text-center flex flex-col items-center justify-center gap-2 no-underline border border-white/20`}
+              >
+                <Icon className="w-5 h-5 stroke-[2.5]" />
+                <span className="text-[11px] font-black leading-tight text-white">{action.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── 4. EXPLORE DESTINATIONS — Featured + By State ─────────────────── */}
+      <div className="p-6 rounded-3xl bg-white/95 border border-slate-200/90 shadow-sm backdrop-blur-md text-slate-900 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="text-xl font-black text-slate-900 tracking-tight m-0 flex items-center gap-2">
+              <Compass className="w-6 h-6 text-blue-600" />
+              {t('dashboard.exploreTitle', 'Explore Destinations')}
+            </h3>
+            <p className="text-xs text-slate-500 font-semibold m-0 mt-0.5">Verified destinations with live safety ratings and GPS telemetry</p>
+          </div>
+          <Link to="/safety-map" className="px-4 py-2 rounded-xl bg-[#0D47A1] hover:bg-blue-900 text-white text-xs font-black shadow-sm flex items-center gap-1.5 no-underline transition-all">
+            View Live Map <ChevronRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        {/* Tab Switcher */}
+        <div className="flex gap-1.5 p-1 rounded-2xl border border-slate-200 bg-slate-100/90 w-fit">
+          <button
+            onClick={() => setExploreTab('featured')}
+            className={`px-4 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              exploreTab === 'featured'
+                ? 'bg-[#0D47A1] text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            ⭐ Featured Destinations
+          </button>
+          <button
+            onClick={() => setExploreTab('states')}
+            className={`px-4 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+              exploreTab === 'states'
+                ? 'bg-[#0D47A1] text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Flag className="w-3.5 h-3.5" /> Explore by Indian State
+          </button>
+        </div>
+
+        {exploreTab === 'featured' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {exploreDestinations.slice(0, 6).map((dest) => (
+              <FeaturedDestinationCard
+                key={dest.id}
+                dest={dest}
+                darkMode={darkMode}
+                isSaved={savedIds.includes(dest.id)}
+                onSave={() => toggleSavePlace(dest)}
+                onDirections={() => handleGetDirections(dest)}
+              />
+            ))}
+          </div>
+        ) : (
+          <StateExplorer
+            darkMode={darkMode}
+            currentGpsLocation={currentGpsLocation}
+          />
+        )}
+      </div>
+
+      {/* ── 5. THINGS TO DO — ACTIVITY CATEGORIES ──────────────────────────── */}
+      <div className="p-6 rounded-3xl bg-white/95 border border-slate-200/90 shadow-sm backdrop-blur-md text-slate-900 space-y-4">
+        <div>
+          <h3 className="text-xl font-black text-slate-900 tracking-tight m-0">
+            {t('dashboard.thingsToDo', 'Things to Do & Experience')}
+          </h3>
+          <p className="text-xs text-slate-500 font-semibold m-0 mt-0.5">
+            {t('dashboard.thingsToDoSub', 'Curated activities by category with live safety ratings')}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {activityCategories.map((act, idx) => {
+            const count = categoryCounts[act.countKey] !== undefined ? categoryCounts[act.countKey] : 0;
+            return (
+              <button
+                key={idx}
+                className={`p-4 rounded-2xl border ${act.color} hover:scale-105 transition-all cursor-pointer flex items-center gap-3 text-left w-full shadow-xs`}
+                onClick={() => handleOpenCategory(act.type)}
+              >
+                <span className="text-2xl">{act.icon}</span>
+                <div>
+                  <h4 className="text-xs font-black m-0 text-slate-900">{act.name}</h4>
+                  <span className="text-[10px] text-slate-600 block font-bold mt-0.5">
+                    {count > 0 ? `${count} ${act.unit}` : `Browse ${act.unit}`}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── 6. CATEGORY MODAL ──────────────────────────────────────────────── */}
+      {categoryModal.isOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="w-full max-w-4xl max-h-[88vh] rounded-3xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col bg-white text-slate-900">
+            {/* Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="text-lg font-black m-0 flex items-center gap-2 text-slate-900">
+                  <Compass className="w-5 h-5 text-blue-600" />
+                  {categoryModal.categoryName} Destinations
+                </h3>
+                <p className="text-xs m-0 text-slate-500 font-semibold">
+                  {categoryModal.loading
+                    ? 'Loading...'
+                    : `Showing ${categoryModal.items.length} verified destination${categoryModal.items.length !== 1 ? 's' : ''}`}
+                </p>
+              </div>
+              <button
+                onClick={() => setCategoryModal({ isOpen: false, categoryName: '', items: [], loading: false })}
+                className="p-2 rounded-full cursor-pointer bg-slate-100 text-slate-500 hover:text-slate-900"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 pt-2">
-              <button
-                onClick={() => requestLocationPermission(false)}
-                className="py-2.5 rounded-xl border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-100 cursor-pointer text-center"
-              >
-                {t('dashboard.denyBtn', 'Deny')}
-              </button>
-              <button
-                onClick={() => setShowPrivacyModal(true)}
-                className="py-2.5 rounded-xl border border-blue-200 text-blue-700 text-xs font-bold hover:bg-blue-50 cursor-pointer text-center"
-              >
-                {t('nav.privacy', 'Privacy Settings')}
-              </button>
-              <button
-                onClick={() => requestLocationPermission(true)}
-                className="py-2.5 rounded-xl bg-[#0D47A1] text-white text-xs font-extrabold hover:bg-blue-800 cursor-pointer shadow-md text-center"
-              >
-                {t('dashboard.allowBtn', 'Allow')}
-              </button>
+            {/* Scrollable Content */}
+            <div className="p-5 overflow-y-auto flex-1">
+              {categoryModal.loading ? (
+                <div className="flex items-center justify-center py-12 gap-2">
+                  <RefreshCw className="w-5 h-5 animate-spin text-blue-600" />
+                  <span className="text-sm font-bold text-slate-400">Loading destinations...</span>
+                </div>
+              ) : categoryModal.items.length === 0 ? (
+                <div className="text-center py-12">
+                  <AlertCircle className="w-10 h-10 mx-auto mb-2 text-amber-500 opacity-60" />
+                  <h4 className="text-sm font-black m-0 text-slate-700">
+                    No destinations in this category yet.
+                  </h4>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {categoryModal.items.map((item) => (
+                    <CategoryModalCard
+                      key={item.id}
+                      item={item}
+                      darkMode={false}
+                      isSaved={savedIds.includes(item.id)}
+                      onSave={() => toggleSavePlace(item)}
+                      onDirections={() => { setCategoryModal(p => ({ ...p, isOpen: false })); handleGetDirections(item); }}
+                      onView={() => { setCategoryModal(p => ({ ...p, isOpen: false })); navigate(`/places/${item.id}`); }}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Top Welcome & Destination Search Bar — Frosted Glass Container for High Text Visibility */}
-      <div className={`p-6 rounded-3xl border shadow-md space-y-4 ${
-        darkMode ? 'bg-slate-900/90 border-slate-700 text-white' : 'bg-white/95 border-slate-200 text-slate-900'
-      } backdrop-blur-md`}>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* ── 7. SAFETY AROUND YOU MAP ────────────────────────────────────────── */}
+      <div className="p-6 rounded-3xl bg-white/95 border border-slate-200/90 shadow-sm backdrop-blur-md text-slate-900 space-y-4">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className={`text-xl sm:text-2xl font-black m-0 ${darkMode ? 'text-blue-400' : 'text-blue-900'}`}>
-              {t('dashboard.welcome', 'Namaste')}, {tourist?.full_name || 'Traveler'} 👋
-            </h1>
-            <p className={`text-xs font-semibold m-0 flex items-center gap-2 mt-0.5 ${
-              darkMode ? 'text-slate-300' : 'text-slate-700'
-            }`}>
-              <span>{t('dashboard.exploreIndia', 'Explore India safely with RakshaSetu AI Tourist Protection')}</span>
-              <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
-                locationSharingEnabled ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' : 'bg-slate-200 text-slate-800 border border-slate-300'
-              }`}>
-                📍 {t('dashboard.locationSharing', 'Location Sharing')}: {locationSharingEnabled ? 'ON' : 'OFF'}
-              </span>
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {locationSharingEnabled && (
-              <button
-                onClick={handleStopSharing}
-                className="px-3 py-1.5 rounded-xl bg-red-100 text-red-700 text-xs font-bold hover:bg-red-200 cursor-pointer"
-              >
-                {t('dashboard.stopSharing', 'Stop Location Sharing')}
-              </button>
-            )}
-            <button
-              onClick={() => setShowPrivacyModal(!showPrivacyModal)}
-              className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 cursor-pointer ${
-                darkMode ? 'bg-slate-700 border-slate-600 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700'
-              }`}
-            >
-              <Lock className="w-3.5 h-3.5 text-blue-600" /> {t('dashboard.privacyControls', 'Privacy Controls')}
-            </button>
-          </div>
-        </div>
-
-        {/* Dynamic Destination Search Input (Queries ANY place globally) */}
-        <div className="relative">
-          <Search className="w-5 h-5 text-slate-400 absolute left-4 top-3.5" />
-          <input
-            type="text"
-            placeholder={t('dashboard.searchPlaceholder', 'Search ANY destination, city, landmark, hotel, beach (e.g. Coimbatore, Delhi, Taj Mahal, Goa, Ooty)...')}
-            value={destinationQuery}
-            onChange={(e) => setDestinationQuery(e.target.value)}
-            className={`w-full pl-12 pr-4 py-3 rounded-2xl border text-xs font-semibold focus:ring-2 focus:outline-none ${
-              darkMode ? 'bg-slate-700 border-slate-600 text-white focus:ring-blue-500' : 'bg-slate-50 border-slate-300 text-slate-900 focus:ring-[#0D47A1]'
-            }`}
-          />
-
-          {isSearching && (
-            <div className="absolute right-4 top-3.5 text-xs text-blue-600 font-bold flex items-center gap-1">
-              <Activity className="w-4 h-4 animate-spin" /> {t('dashboard.geocoding', 'Geocoding...')}
-            </div>
-          )}
-
-          {searchResults.length > 0 && (
-            <div className={`absolute top-14 left-0 right-0 z-30 rounded-2xl border shadow-xl overflow-hidden max-h-96 overflow-y-auto ${
-              darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
-            }`}>
-              {searchResults.map((place) => (
-                <div
-                  key={place.id}
-                  className="p-3.5 border-b border-slate-100 hover:bg-blue-50/60 transition-colors"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-extrabold text-[#0D47A1]">{place.name}</span>
-                        <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-900 font-bold text-[9px] uppercase">{place.category || 'Attraction'}</span>
-                      </div>
-                      <span className="text-xs text-slate-600 font-medium block mt-0.5">{place.address || `${place.city}, ${place.state}, ${place.country}`}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={() => {
-                          setMapLocation({ lat: place.latitude, lng: place.longitude });
-                          setSearchedDestination(place);
-                          setSearchResults([]);
-                          setDestinationQuery(place.name);
-                        }}
-                        className="px-3 py-1.5 rounded-xl border border-[#0D47A1] text-[#0D47A1] font-extrabold text-xs hover:bg-blue-50 cursor-pointer"
-                      >
-                        {t('dashboard.selectMap', '🗺 Select on Map')}
-                      </button>
-                      <button
-                        onClick={() => {
-                          navigate(`/places/${place.id}`);
-                        }}
-                        className="px-3 py-1.5 rounded-xl bg-[#0D47A1] text-white font-extrabold text-xs hover:bg-blue-800 cursor-pointer shadow-xs"
-                      >
-                        View Full Details ➔
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Main Panic SOS Section */}
-      <div className={`${cardClass} p-6 md:p-8 rounded-3xl border shadow-md text-center space-y-6`}>
-        <div>
-          <span className={`px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider ${
-            darkMode ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-100 text-[#0D47A1]'
-          }`}>
-            {t('dashboard.deskTitle', '24/7 National Tourist Protection Desk')}
-          </span>
-          <h2 className={`text-2xl md:text-3xl font-extrabold mt-2.5 mb-1 ${textClass}`}>
-            {t('dashboard.panicTitle', 'Emergency Distress Panic Response')}
-          </h2>
-          <p className={`text-xs md:text-sm font-medium max-w-xl mx-auto mt-1 ${subtextClass}`}>
-            {t('dashboard.panicSubtitle', 'Tap the button below in case of imminent threat, harassment, medical distress, or crime. Instantly dispatches nearest police units and emergency contacts.')}
-          </p>
-        </div>
-
-        {/* Big One-Tap SOS Panic Button */}
-        <div className="flex justify-center my-6">
-          <button
-            onClick={() => handleTriggerSos('one_tap')}
-            disabled={sosActive || sosLoading}
-            className={`w-48 h-48 md:w-56 md:h-56 rounded-full flex flex-col items-center justify-center text-white font-extrabold shadow-2xl transition-all border-4 border-red-400/40 ${
-              sosActive
-                ? 'bg-slate-700 opacity-60 cursor-not-allowed'
-                : 'bg-gradient-to-br from-red-500 via-[#D32F2F] to-red-800 hover:scale-105 active:scale-95 sos-button-pulse cursor-pointer'
-            }`}
-          >
-            <AlertOctagon className="w-16 h-16 mb-2 text-white animate-bounce" />
-            <span className="text-3xl font-black tracking-widest uppercase text-white drop-shadow-md">{t('dashboard.emergencySos', 'SOS')}</span>
-            <span className="text-[11px] font-bold text-white/95 uppercase font-mono mt-1 tracking-wider">{t('dashboard.pressEmergency', 'Press for Emergency')}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Main Grid: Real GPS Interactive Map & Live Weather/Safety Telemetry */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className={`lg:col-span-2 ${cardClass} p-4 rounded-2xl border shadow-xs flex flex-col h-[520px]`}>
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h3 className={`text-sm font-bold flex items-center gap-2 m-0 ${textClass}`}>
-              <MapPin className="w-4 h-4 text-[#0D47A1]" /> {t('dashboard.sentinelMap', 'Live Spatial Sentinel Map')}
+            <h3 className="text-xl font-black text-slate-900 m-0 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-emerald-600" /> {t('dashboard.safetyAroundYou', 'Safety Around You')}
             </h3>
-            <div className="flex items-center gap-2">
-              {searchedDestination && (
-                <button
-                  onClick={() => {
-                    setSearchedDestination(null);
-                    setMapLocation(currentGpsLocation);
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 font-extrabold text-[10px] cursor-pointer"
-                >
-                  {t('dashboard.clearSearch', 'Clear Search Destination ✕')}
-                </button>
-              )}
-              <span className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> {t('dashboard.gpsActive', 'Live GPS Active')}
-              </span>
-            </div>
+            <p className="text-xs text-slate-500 font-semibold m-0 mt-0.5">
+              {t('dashboard.safetyAroundYouSub', 'Interactive crime-risk heatmap and safe zone radar')}
+            </p>
           </div>
-
-          <div className="flex-1 w-full rounded-xl overflow-hidden border border-slate-200 relative">
-            <TouristMap
-              location={mapLocation}
-              destination={searchedDestination}
-              safeLocations={safeLocations}
-              nearbyPlaces={nearbyPlaces}
-              onMyLocationClick={handleRecenterMyLocation}
-            />
-
-            {/* Google Maps style detail panel overlay */}
-            {searchedDestination && (
-              <div className="absolute top-4 left-4 z-[1000] w-72 sm:w-80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden text-left flex flex-col max-h-[90%] pointer-events-auto">
-                {/* Photo */}
-                <div className="h-32 bg-slate-100 dark:bg-slate-800 relative">
-                  <img
-                    src={searchedDestination.photos?.[0] || 'https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=600&q=80'}
-                    alt={searchedDestination.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.src = 'https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=600&q=80';
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setSearchedDestination(null)}
-                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center cursor-pointer font-bold text-xs border-none"
-                  >
-                    ✕
-                  </button>
-                  <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-blue-600 text-white text-[9px] font-black uppercase">
-                    {searchedDestination.category || 'Attraction'}
-                  </span>
-                </div>
-
-                {/* Details */}
-                <div className="p-4 space-y-3 overflow-y-auto flex-1">
-                  <div>
-                    <h4 className="text-sm font-black text-slate-900 dark:text-white m-0">{searchedDestination.name}</h4>
-                    <span className="text-[10px] text-slate-500 font-semibold block mt-0.5">{searchedDestination.address}</span>
-                  </div>
-
-                  {searchedDestination.distanceKm !== undefined && searchedDestination.distanceKm !== null && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black text-[10px]">
-                      📍 {searchedDestination.distanceKm} km away (~{Math.round((searchedDestination.distanceKm / 35) * 60)} mins)
-                    </span>
-                  )}
-
-                  <p className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold m-0 leading-relaxed line-clamp-3">
-                    {searchedDestination.description}
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-2 text-[10px] border-t border-slate-100 dark:border-slate-800 pt-2 font-semibold">
-                    <div className="space-y-0.5">
-                      <span className="text-slate-400 block uppercase font-bold text-[9px]">Timing / Hours</span>
-                      <span className="text-slate-700 dark:text-slate-200 block truncate">{searchedDestination.openingHours || 'Open 24 Hours'}</span>
-                    </div>
-                    <div className="space-y-0.5">
-                      <span className="text-slate-400 block uppercase font-bold text-[9px]">Entry Cost</span>
-                      <span className="text-slate-700 dark:text-slate-200 block truncate">{searchedDestination.entryFee || 'Free Entry'}</span>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/places/${searchedDestination.id}`)}
-                      className="w-full py-2 bg-[#0D47A1] hover:bg-blue-800 text-white font-extrabold text-[10px] uppercase text-center rounded-xl flex items-center justify-center gap-1 cursor-pointer border-none shadow-xs"
-                    >
-                      <Info className="w-3.5 h-3.5"/> Full Safety Profile & Details ➔
-                    </button>
-                    <div className="flex gap-2">
-                      <a
-                        href={`https://www.google.com/maps/dir/?api=1&destination=${searchedDestination.latitude},${searchedDestination.longitude}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex-1 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-[10px] uppercase text-center rounded-xl flex items-center justify-center gap-1 decoration-none"
-                      >
-                        <Navigation className="w-3 h-3 text-[#0D47A1]"/> Route
-                      </a>
-                      <Link
-                        to={`/travel?from=Coimbatore&to=${encodeURIComponent(searchedDestination.name)}`}
-                        className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase text-center rounded-xl flex items-center justify-center gap-1 decoration-none"
-                      >
-                        <Car className="w-3 h-3"/> Book Travel
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          <Link to="/safety-map" className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-sm flex items-center gap-1 no-underline transition-all">
+            Full Interactive Map <ChevronRight className="w-4 h-4" />
+          </Link>
         </div>
-
-        {/* Weather & Safety Telemetry Widget */}
-        <div className={`${cardClass} p-5 rounded-2xl border shadow-xs flex flex-col justify-between h-[520px]`}>
-          <div className="space-y-3 overflow-y-auto pr-1">
-            <div className="flex items-center justify-between border-b pb-2.5 border-slate-100">
-              <h3 className={`text-sm font-extrabold m-0 ${textClass}`}>{t('dashboard.weatherSafetyIndex', 'Weather & Safety Index')}</h3>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">🟢 SAFE (92/100)</span>
-            </div>
-
-            {locationUpdating && (
-              <div className="p-2.5 rounded-xl bg-blue-50 text-blue-700 text-xs font-bold animate-pulse flex items-center justify-center gap-2">
-                <Activity className="w-4 h-4 animate-spin" /> {t('dashboard.updatingLocation', 'Updating location...')}
-              </div>
-            )}
-
-            {locationError && (
-              <div className="p-2.5 rounded-xl bg-amber-50 text-amber-800 text-xs font-bold text-center border border-amber-200">
-                {locationError}
-              </div>
-            )}
-
-            {/* Current Geocoded Location Box */}
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
-              <span className="text-[10px] font-extrabold uppercase text-slate-400">{t('dashboard.currentLocationLabel', 'CURRENT LOCATION')}</span>
-              <p className="font-bold text-slate-900 m-0 leading-snug">{weatherData?.fullAddress || locationName}</p>
-              <div className="grid grid-cols-3 gap-1 pt-1 text-[10px] font-semibold text-slate-600 border-t border-slate-200/60 mt-1">
-                <span>{t('dashboard.cityLabel', 'City')}: <strong className="text-slate-800">{weatherData?.city || 'Coimbatore'}</strong></span>
-                <span>{t('dashboard.stateLabel', 'State')}: <strong className="text-slate-800">{weatherData?.state || 'Tamil Nadu'}</strong></span>
-                <span>{t('dashboard.countryLabel', 'Country')}: <strong className="text-slate-800">{weatherData?.country || 'India'}</strong></span>
-              </div>
-              <p className="font-mono text-[10px] text-[#0D47A1] m-0 pt-0.5">
-                Lat: {currentGpsLocation.lat.toFixed(4)}, Lng: {currentGpsLocation.lng.toFixed(4)}
-              </p>
-            </div>
-
-            {/* Live Weather Box */}
-            {weatherError ? (
-              <div className="p-3 rounded-xl bg-red-50 text-red-700 text-xs font-bold border border-red-200 text-center">
-                {weatherError}
-              </div>
-            ) : weatherData ? (
-              <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 text-xs space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-extrabold uppercase text-blue-900">{t('dashboard.weatherLabel', 'WEATHER')}</span>
-                    <p className="text-xs font-bold text-slate-800 m-0">{weatherData.condition}</p>
-                  </div>
-                  <span className="text-2xl font-black text-[#0D47A1]">{weatherData.temperatureC}°C</span>
-                </div>
-                <div className="grid grid-cols-2 gap-1 text-[10px] text-slate-600 font-medium pt-1 border-t border-blue-200/60">
-                  <span>{t('dashboard.feelsLike', 'Feels like')}: <strong>{weatherData.feelsLikeC}°C</strong></span>
-                  <span>{t('dashboard.humidity', 'Humidity')}: <strong>{weatherData.humidity}%</strong></span>
-                  <span>{t('dashboard.wind', 'Wind')}: <strong>{weatherData.windKmH} km/h</strong></span>
-                  <span>{t('dashboard.visibility', 'Visibility')}: <strong>{weatherData.visibilityKm} km</strong></span>
-                </div>
-                <div className="text-[10px] text-slate-400 text-right pt-0.5">
-                  {t('dashboard.updatedLabel', 'Updated')}: {weatherData.updatedAt || t('dashboard.justNow', 'Just now')}
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          <div className="pt-2 border-t border-slate-100">
-            <button
-              onClick={() => handleRecenterMyLocation(null)}
-              className="w-full py-2.5 rounded-xl bg-[#0D47A1] hover:bg-blue-800 text-white font-extrabold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-sm"
-            >
-              <Compass className="w-4 h-4 text-white" /> ⦿ {t('dashboard.myLocationBtn', 'MY LOCATION')}
-            </button>
-          </div>
+        <div className="h-72 rounded-2xl overflow-hidden border border-slate-200 shadow-inner">
+          <TouristMap location={currentGpsLocation} darkMode={false} />
         </div>
       </div>
 
-      {/* Nearby Tourist Safety & Emergency Services Section */}
-      <div className={`${cardClass} p-6 rounded-3xl border shadow-md space-y-4`}>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3 border-slate-100">
+      {/* ── 8. NEARBY SAFETY & TOURIST SERVICES ─────────────────────────────── */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <h2 className={`text-lg font-black m-0 text-[#0D47A1] flex items-center gap-2`}>
-              <Navigation className="w-5 h-5 text-blue-600" /> {t('dashboard.nearbyTitleSec', 'Nearby Safety & Tourist Services')}
-            </h2>
-            <p className={`text-xs font-medium m-0 ${mutedClass}`}>
-              {t('dashboard.liveGpsDesc', 'Calculated live from your current GPS position')} ({currentGpsLocation.lat.toFixed(4)}, {currentGpsLocation.lng.toFixed(4)})
+            <h3 className="text-xl font-black text-slate-900 tracking-tight m-0">
+              {t('dashboard.nearbyTitleSec', 'Nearby Safety & Tourist Services')}
+            </h3>
+            <p className="text-xs text-slate-500 font-semibold m-0 mt-0.5">
+              {t('dashboard.liveGpsDesc', 'Calculated live from your current GPS coordinates')}
             </p>
           </div>
-
-          <div className="flex items-center gap-1.5 overflow-x-auto text-xs font-bold pb-1">
-            {[
-              { id: 'all', label: t('dashboard.allServices', 'All Services') },
-              { id: 'police', label: t('dashboard.policeCat', '👮 Police') },
-              { id: 'hospital', label: t('dashboard.hospitalCat', '🏥 Hospitals') },
-              { id: 'pharmacy', label: t('dashboard.pharmacyCat', '💊 Pharmacies') },
-              { id: 'hotel', label: t('dashboard.hotelCat', '🏨 Hotels') },
-              { id: 'restaurant', label: t('dashboard.restaurantCat', '🍽 Restaurants') },
-              { id: 'fuel', label: t('dashboard.fuelCat', '⛽ Fuel') },
-              { id: 'atm', label: t('dashboard.atmCat', '🏧 ATMs') },
-              { id: 'transport', label: t('dashboard.transportCat', '🚆 Transport') }
-            ].map(cat => (
+          <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 scrollbar-none">
+            {['all', 'police', 'hospital', 'restaurant', 'hotel', 'pharmacy', 'fuel'].map((cat) => (
               <button
-                key={cat.id}
-                onClick={() => setNearbyCategory(cat.id)}
-                className={`px-3 py-1.5 rounded-full border transition-all cursor-pointer whitespace-nowrap ${
-                  nearbyCategory === cat.id
-                    ? 'bg-[#0D47A1] text-white border-[#0D47A1] shadow-xs'
-                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                key={cat}
+                onClick={() => setNearbyCategory(cat)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-black capitalize transition-all cursor-pointer ${
+                  nearbyCategory === cat
+                    ? 'bg-[#0D47A1] text-white shadow-sm'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                {cat.label}
+                {cat}
               </button>
             ))}
           </div>
         </div>
 
         {nearbyLoading ? (
-          <div className="p-8 text-center text-xs font-bold text-slate-500 flex items-center justify-center gap-2">
-            <Activity className="w-4 h-4 animate-spin text-blue-600" /> {t('dashboard.calculatingDistances', 'Calculating distances to nearby services...')}
-          </div>
-        ) : nearbyPlaces.length === 0 ? (
-          <div className="p-8 text-center text-xs font-semibold text-slate-500">
-            {t('dashboard.noNearbyServices', 'No nearby services found for category')} "{nearbyCategory}". {t('dashboard.trySelectingAnother', 'Try selecting another category or pressing My Location.')}
+          <div className="text-center py-12">
+            <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+            <p className="text-xs text-slate-400 font-semibold">Fetching nearby services for your GPS location...</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {nearbyPlaces.map(place => (
-              <div key={place.id} className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:shadow-md transition-all space-y-3 flex flex-col justify-between">
-                <div className="space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-900 font-extrabold text-[10px] uppercase">{place.category}</span>
-                      <h3 className="text-sm font-extrabold text-slate-900 mt-1 m-0">{place.name}</h3>
-                    </div>
-                    <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-black text-xs shrink-0">
-                      📍 {place.formattedDistance || `${place.distanceKm} km`}
+            {nearbyPlaces.slice(0, 6).map((place) => (
+              <div
+                key={place.id}
+                className={`p-4 rounded-3xl border shadow-xs space-y-3 ${
+                  darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                      {place.category}
                     </span>
+                    <h4 className={`text-sm font-extrabold m-0 mt-1.5 leading-snug ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                      {place.name}
+                    </h4>
                   </div>
-
-                  <p className="text-xs text-slate-600 font-medium m-0 leading-relaxed line-clamp-2">{place.address}</p>
-
-                  <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 pt-1 border-t border-slate-200/60">
-                    <span className="text-emerald-700 font-bold">🟢 {place.openStatusText || t('dashboard.openNow', 'Open Now')}</span>
-                    <span>📞 {place.phone}</span>
-                  </div>
+                  <span className="text-xs font-black text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-md whitespace-nowrap">
+                    ⭐ {place.rating || 4.8}
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-2 pt-2 border-t border-slate-200/60">
+                <p className="text-xs text-slate-400 font-medium m-0 flex items-start gap-1">
+                  <MapPin className="w-3 h-3 text-red-500 shrink-0 mt-0.5" />
+                  <span className="line-clamp-1">{place.address}</span>
+                </p>
+
+                <div className="pt-2 border-t border-slate-200/20 flex items-center justify-between text-xs">
+                  <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                    📍 {place.formattedDistance || `${place.distanceKm} km`}
+                  </span>
                   <a
-                    href={`tel:${place.phone}`}
-                    className="flex-1 py-2 rounded-xl bg-emerald-600 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 hover:bg-emerald-700 transition-colors cursor-pointer decoration-none shadow-xs text-center"
+                    href={`tel:${place.phone || '112'}`}
+                    className="px-3 py-1 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs no-underline flex items-center gap-1"
                   >
-                    <PhoneCall className="w-3.5 h-3.5" /> {t('dashboard.callBtn', 'Call')}
+                    <Phone className="w-3 h-3" /> Call
                   </a>
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${place.latitude},${place.longitude}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex-1 py-2 rounded-xl bg-[#0D47A1] text-white font-extrabold text-xs flex items-center justify-center gap-1.5 hover:bg-blue-800 transition-colors cursor-pointer decoration-none shadow-xs text-center"
-                  >
-                    <Navigation className="w-3.5 h-3.5" /> {t('dashboard.directionsBtn', 'Directions')}
-                  </a>
-                  <button
-                    onClick={() => {
-                      setMapLocation({ lat: place.latitude, lng: place.longitude });
-                      setSearchedDestination(place);
-                    }}
-                    className="px-3 py-2 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-100 cursor-pointer shrink-0"
-                    title={t('dashboard.viewOnMap', 'View on Map')}
-                  >
-                    <MapPin className="w-3.5 h-3.5 text-blue-600" />
-                  </button>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+    </div>
+  );
+};
 
-      {/* Quick Navigation Action Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Link
-          to="/vehicles"
-          className={`${cardClass} p-5 rounded-2xl border shadow-xs hover:shadow-md transition-all space-y-2 group decoration-none ${
-            darkMode ? 'hover:border-blue-500' : 'hover:border-[#0D47A1]'
-          }`}
-        >
-          <div className="w-11 h-11 rounded-xl bg-blue-100 text-[#0D47A1] flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Car className="w-6 h-6" />
-          </div>
-          <h4 className={`text-sm font-extrabold m-0 ${textClass}`}>{t('dashboard.vehicleBooking', 'Vehicle Booking')}</h4>
-          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>{t('dashboard.verifiedCabs', 'Verified cabs, bikes & SUVs')}</p>
-        </Link>
+// ── Sub-components & Fallback Image Helper ───────────────────────────────────
 
-        <Link
-          to="/food"
-          className={`${cardClass} p-5 rounded-2xl border shadow-xs hover:shadow-md transition-all space-y-2 group decoration-none ${
-            darkMode ? 'hover:border-blue-500' : 'hover:border-[#0D47A1]'
-          }`}
-        >
-          <div className="w-11 h-11 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Utensils className="w-6 h-6" />
-          </div>
-          <h4 className={`text-sm font-extrabold m-0 ${textClass}`}>{t('dashboard.foodDining', 'Food & Dining')}</h4>
-          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>{t('dashboard.hygienicDining', 'Hygienic local dining & delivery')}</p>
-        </Link>
+const getPlaceFallbackImage = (place) => {
+  const cat = (place?.category || '').toLowerCase();
+  const name = (place?.name || '').toLowerCase();
+  if (cat.includes('beach') || name.includes('beach')) return 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=800&q=80';
+  if (cat.includes('temple') || cat.includes('culture')) return 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=800&q=80';
+  if (cat.includes('fort') || cat.includes('heritage')) return 'https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=800&q=80';
+  if (cat.includes('wildlife') || cat.includes('safari')) return 'https://images.unsplash.com/photo-1561731216-c3a4d99437d5?auto=format&fit=crop&w=800&q=80';
+  if (cat.includes('food') || cat.includes('street')) return 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80';
+  if (cat.includes('adventure')) return 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80';
+  return 'https://images.unsplash.com/photo-1589182373726-e4f658ab50f0?auto=format&fit=crop&w=800&q=80';
+};
 
-        <Link
-          to="/ai"
-          className={`${cardClass} p-5 rounded-2xl border shadow-xs hover:shadow-md transition-all space-y-2 group decoration-none ${
-            darkMode ? 'hover:border-blue-500' : 'hover:border-[#0D47A1]'
-          }`}
-        >
-          <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Sparkles className="w-6 h-6" />
-          </div>
-          <h4 className={`text-sm font-extrabold m-0 ${textClass}`}>{t('dashboard.aiAssistant', 'AI Assistant')}</h4>
-          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>{t('dashboard.languagesMode', '15 Languages & Emergency Mode')}</p>
-        </Link>
+const FeaturedDestinationCard = ({ dest, darkMode, isSaved, onSave, onDirections }) => {
+  const navigate = useNavigate();
+  const [imgSrc, setImgSrc] = useState(() => dest.photos?.[0] || getPlaceFallbackImage(dest));
 
-        <Link
-          to="/incidents"
-          className={`${cardClass} p-5 rounded-2xl border shadow-xs hover:shadow-md transition-all space-y-2 group decoration-none ${
-            darkMode ? 'hover:border-blue-500' : 'hover:border-[#0D47A1]'
-          }`}
-        >
-          <div className="w-11 h-11 rounded-xl bg-red-100 text-[#D32F2F] flex items-center justify-center group-hover:scale-110 transition-transform">
-            <FileText className="w-6 h-6" />
+  useEffect(() => {
+    if (dest.photos?.[0]) setImgSrc(dest.photos[0]);
+  }, [dest]);
+
+  return (
+    <div className={`rounded-3xl border overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 group flex flex-col justify-between ${
+      darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+    }`}>
+      <div>
+        <div className="relative h-48 overflow-hidden bg-slate-100 dark:bg-slate-800">
+          <img
+            src={imgSrc}
+            referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
+            alt={dest.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={() => setImgSrc(getPlaceFallbackImage(dest))}
+            loading="lazy"
+          />
+          <button
+            onClick={onSave}
+            className={`absolute top-3 right-3 p-2 rounded-full backdrop-blur-md transition-all cursor-pointer ${
+              isSaved ? 'bg-rose-600 text-white' : 'bg-slate-900/60 text-white hover:bg-slate-900'
+            }`}
+            aria-label={isSaved ? 'Remove from saved' : 'Save destination'}
+          >
+            <Heart className={`w-4 h-4 ${isSaved ? 'fill-white' : ''}`} />
+          </button>
+          <div className="absolute bottom-3 left-3 px-3 py-1 rounded-full bg-emerald-600/90 text-white text-[10px] font-black backdrop-blur-md flex items-center gap-1">
+            <Shield className="w-3 h-3" /> {dest.safetyScore ? `Safety: ${dest.safetyScore}/100` : 'RakshaSetu Verified'}
           </div>
-          <h4 className={`text-sm font-extrabold m-0 ${textClass}`}>{t('dashboard.reportIncident', 'Report Incident')}</h4>
-          <p className={`text-xs font-semibold m-0 ${mutedClass}`}>{t('dashboard.reportScam', 'Report scam, theft or hazard')}</p>
-        </Link>
+        </div>
+
+        <div className="p-4 space-y-2">
+          <div className="flex items-start justify-between">
+            <div className="min-w-0">
+              <h4 className={`text-base font-black m-0 leading-tight truncate ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                {dest.name}
+              </h4>
+              <p className="text-xs text-slate-400 font-medium m-0 flex items-center gap-1 mt-0.5">
+                <MapPin className="w-3 h-3 text-red-500" /> {dest.city}, {dest.state}{dest.country && dest.country !== 'India' ? `, ${dest.country}` : ''}
+              </p>
+            </div>
+            {dest.rating && (
+              <span className="flex items-center gap-1 text-amber-500 text-xs font-bold bg-amber-500/10 px-2 py-0.5 rounded-md shrink-0">
+                <Star className="w-3 h-3 fill-amber-500" /> {dest.rating}
+              </span>
+            )}
+          </div>
+          <p className={`text-xs line-clamp-2 leading-relaxed m-0 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            {dest.description}
+          </p>
+        </div>
+      </div>
+
+      <div className="p-4 pt-0 flex items-center justify-between border-t border-slate-200/20 mt-2">
+        <span className={`text-xs font-semibold ${darkMode ? 'text-slate-400' : 'text-slate-400'}`}>
+          {dest.distanceKm ? `${dest.distanceKm} km away` : dest.category}
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onDirections}
+            className="p-2 rounded-xl bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white transition-all cursor-pointer"
+            title="Get directions"
+          >
+            <Navigation className="w-4 h-4" />
+          </button>
+          <Link
+            to={`/places/${dest.id}`}
+            className="px-4 py-2 rounded-xl bg-[#0D47A1] hover:bg-blue-900 text-white font-extrabold text-xs shadow-sm no-underline"
+          >
+            Explore
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CategoryModalCard = ({ item, darkMode, isSaved, onSave, onDirections, onView }) => {
+  const [imgSrc, setImgSrc] = useState(() => item.photos?.[0] || getPlaceFallbackImage(item));
+
+  useEffect(() => {
+    if (item.photos?.[0]) setImgSrc(item.photos[0]);
+  }, [item]);
+
+  return (
+    <div className={`p-4 rounded-3xl border shadow-xs hover:shadow-lg transition-all space-y-3 flex flex-col justify-between ${
+      darkMode ? 'bg-slate-800/60 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+    }`}>
+      <div className="space-y-2">
+        <div className="h-36 rounded-2xl overflow-hidden relative bg-slate-100 dark:bg-slate-700">
+          <img
+            src={imgSrc}
+            referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
+            alt={item.name}
+            className="w-full h-full object-cover"
+            onError={() => setImgSrc(getPlaceFallbackImage(item))}
+            loading="lazy"
+          />
+          {item.safetyScore && (
+            <div className="absolute top-2 right-2 px-2.5 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black">
+              Safety: {item.safetyScore}/100
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h4 className="text-sm font-black m-0 truncate">{item.name}</h4>
+            <p className="text-xs text-slate-400 m-0 flex items-center gap-1 mt-0.5">
+              <MapPin className="w-3 h-3 text-red-500" />
+              <span className="truncate">{item.city}, {item.state}</span>
+            </p>
+          </div>
+          {item.rating && (
+            <span className="text-xs font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-md shrink-0">
+              ⭐ {item.rating}
+            </span>
+          )}
+        </div>
+
+        <p className={`text-xs line-clamp-2 m-0 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+          {item.description}
+        </p>
+      </div>
+
+      <div className="pt-3 border-t border-slate-200/20 flex items-center justify-between">
+        <span className={`text-xs font-semibold ${darkMode ? 'text-slate-400' : 'text-slate-400'}`}>
+          {item.distanceKm ? `${item.distanceKm} km away` : item.category}
+        </span>
+        <div className="flex gap-2">
+          <button
+            onClick={onDirections}
+            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs cursor-pointer flex items-center gap-1"
+          >
+            <Navigation className="w-3 h-3" /> Directions
+          </button>
+          <button
+            onClick={onView}
+            className="px-3 py-1.5 rounded-xl bg-[#0D47A1] text-white font-extrabold text-xs shadow-xs cursor-pointer hover:bg-blue-900"
+          >
+            View
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Compact search result row
+const SearchResultRow = ({ place, darkMode, onSelect, onDirections, onSave, isSaved }) => {
+  const [imgSrc, setImgSrc] = useState(() => place.photos?.[0] || getPlaceFallbackImage(place));
+
+  useEffect(() => {
+    if (place.photos?.[0]) setImgSrc(place.photos[0]);
+  }, [place]);
+
+  return (
+    <div
+      className="p-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/80 cursor-pointer flex items-center justify-between transition-colors group"
+    >
+      <div className="flex items-center gap-3 min-w-0 flex-1" onClick={onSelect}>
+        {/* Thumbnail */}
+        <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-700 shrink-0">
+          <img
+            src={imgSrc}
+            referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
+            alt={place.name}
+            className="w-full h-full object-cover"
+            onError={() => setImgSrc(getPlaceFallbackImage(place))}
+          />
+        </div>
+
+        <div className="min-w-0">
+          <h4 className="text-sm font-black m-0 text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors truncate">
+            {place.name}
+          </h4>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium m-0 truncate">
+            {place.address || `${place.city}${place.state ? ', ' + place.state : ''}${place.country ? ', ' + place.country : ''}`}
+          </p>
+          <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded-full">
+            {place.category || 'Attraction'}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
+        {place.safetyScore && (
+          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+            Safety: {place.safetyScore}/100
+          </span>
+        )}
+        <div className="flex gap-1">
+          <button
+            onClick={(e) => { e.stopPropagation(); onSave(); }}
+            className={`p-1 rounded-lg cursor-pointer ${isSaved ? 'text-rose-500' : 'text-slate-400 hover:text-rose-400'}`}
+            title={isSaved ? 'Remove from saved' : 'Save'}
+          >
+            <Heart className={`w-3.5 h-3.5 ${isSaved ? 'fill-rose-500' : ''}`} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDirections(); }}
+            className="p-1 rounded-lg text-slate-400 hover:text-emerald-500 cursor-pointer"
+            title="Get directions"
+          >
+            <Navigation className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        {place.distanceKm && (
+          <span className="text-[10px] font-bold text-slate-400">{place.distanceKm} km</span>
+        )}
       </div>
     </div>
   );

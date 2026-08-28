@@ -46,8 +46,31 @@ app.get('/', (req, res) => {
   });
 });
 
+const fs = require('fs');
+
 // API v1 Routes
 app.use('/api/v1', routes);
+
+// Serve Admin Dashboard build if present
+const adminDistPath = path.join(__dirname, '../../admin-dashboard/dist');
+if (fs.existsSync(adminDistPath)) {
+  app.use('/admin', express.static(adminDistPath));
+  app.get('/admin/*', (req, res) => {
+    res.sendFile(path.join(adminDistPath, 'index.html'));
+  });
+}
+
+// Serve Tourist Frontend build if present
+const frontendDistPath = path.join(__dirname, '../../frontend/dist');
+if (fs.existsSync(frontendDistPath)) {
+  app.use(express.static(frontendDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/admin')) {
+      return next();
+    }
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+}
 
 // Global Error Handler
 app.use(errorHandler);
