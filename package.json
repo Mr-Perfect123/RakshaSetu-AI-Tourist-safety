@@ -11,7 +11,7 @@
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:admin\" \"npm run dev:tourist\"",
     "build:admin": "cd admin-dashboard && npm run build",
     "build:tourist": "cd frontend && npm run build",
-    "build": "npm run build:admin && npm run build:tourist",
+    "build": "cd frontend && npm run build",
     "test": "cd backend && node test_api_runner.js"
   },
   "devDependencies": {

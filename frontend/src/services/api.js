@@ -1,7 +1,10 @@
 import axios from 'axios';
 
+const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+const baseURL = API_BASE ? `${API_BASE}/api/v1` : '/api/v1';
+
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -28,7 +31,8 @@ api.interceptors.response.use(
 
       if (refreshToken && refreshToken !== 'undefined' && refreshToken !== 'null') {
         try {
-          const res = await axios.post('/api/v1/auth/refresh-token', { refreshToken });
+          const refreshEndpoint = API_BASE ? `${API_BASE}/api/v1/auth/refresh-token` : '/api/v1/auth/refresh-token';
+          const res = await axios.post(refreshEndpoint, { refreshToken });
           const responseData = res.data;
           const newToken = responseData?.data?.accessToken || responseData?.accessToken;
 
