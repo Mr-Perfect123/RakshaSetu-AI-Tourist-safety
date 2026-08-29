@@ -42,6 +42,7 @@ router.use('/vehicles', vehicleRoutes);
 router.use('/food', foodRoutes);
 router.use('/places', placeRoutes);
 router.use('/zones', zoneRoutes);
+router.use('/danger-zones', zoneRoutes);
 router.use('/alerts', alertRoutes);
 router.use('/travel', travelRoutes);
 router.use('/activities', activityRoutes);

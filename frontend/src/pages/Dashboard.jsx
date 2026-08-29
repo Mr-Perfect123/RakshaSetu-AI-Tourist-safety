@@ -44,6 +44,7 @@ const Dashboard = ({ tourist, darkMode }) => {
 
   // ── Data Lists ───────────────────────────────────────────────────────────────
   const [exploreDestinations, setExploreDestinations] = useState([]);
+  const [dangerZones, setDangerZones] = useState([]);
   const [nearbyPlaces, setNearbyPlaces] = useState([]);
   const [nearbyCategory, setNearbyCategory] = useState('all');
   const [nearbyLoading, setNearbyLoading] = useState(true);
@@ -55,8 +56,16 @@ const Dashboard = ({ tourist, darkMode }) => {
   // ── Explore Section Tabs ─────────────────────────────────────────────────────
   const [exploreTab, setExploreTab] = useState('featured'); // 'featured' | 'states'
 
-  // ── Init: Geolocation + Weather + Category Counts ────────────────────────────
+  // ── Init: Geolocation + Weather + Category Counts + Danger Zones ────────────
   useEffect(() => {
+    // Fetch danger zones
+    api.get('/zones')
+      .then(res => {
+        const list = res.data?.data || res.data || [];
+        if (Array.isArray(list)) setDangerZones(list);
+      })
+      .catch(() => {});
+
     // Fetch category counts
     api.get('/places/category-counts')
       .then(res => {
@@ -595,7 +604,7 @@ const Dashboard = ({ tourist, darkMode }) => {
           </Link>
         </div>
         <div className="h-72 rounded-2xl overflow-hidden border border-slate-200 shadow-inner">
-          <TouristMap location={currentGpsLocation} darkMode={false} />
+          <TouristMap location={currentGpsLocation} dangerZones={dangerZones} darkMode={false} />
         </div>
       </div>
 

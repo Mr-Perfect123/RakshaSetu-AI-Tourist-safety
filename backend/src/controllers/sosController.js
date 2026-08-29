@@ -9,7 +9,17 @@ const asyncHandler = require('../utils/asyncHandler');
 class SosController {
   static triggerSos = asyncHandler(async (req, res) => {
     const userId = req.user.id;
-    const { latitude, longitude, address, triggerType = 'one_tap', audioRecordingUrl } = req.body;
+    const {
+      latitude,
+      longitude,
+      address,
+      triggerType = 'one_tap',
+      audioRecordingUrl,
+      dangerZoneId,
+      dangerType,
+      severity,
+      event: sosEvent
+    } = req.body;
 
     const sos = await SosRequest.create({
       userId,
@@ -17,7 +27,10 @@ class SosController {
       latitude,
       longitude,
       address: address || `Lat: ${latitude}, Lng: ${longitude}`,
-      audioRecordingUrl
+      audioRecordingUrl,
+      dangerZoneId,
+      dangerType,
+      severity
     });
 
     const touristName = req.user?.full_name || sos.tourist_name || 'Tourist User';
@@ -31,6 +44,8 @@ class SosController {
     const contacts = await EmergencyContact.findByUserId(userId);
     NotificationService.notifyEmergencyContacts(contacts, touristName, latitude, longitude, sos.sos_code);
     NotificationService.notifyAdminsOfSos(touristName, latitude, longitude, sos.sos_code, address);
+
+    const dangerInfoPrefix = dangerType ? `[⚠️ DANGER ZONE: ${dangerType} (${severity || 'HIGH'})] ` : '';
 
     // Broadcast live alert to Admin, Police & Hospital WebSocket Dashboards
     broadcastSosAlert({
@@ -46,6 +61,10 @@ class SosController {
       emergencyMedicalInfo,
       address: address || sos.address || `Lat: ${latitude}, Lng: ${longitude}`,
       trigger_type: triggerType,
+      dangerZoneId: dangerZoneId || null,
+      dangerType: dangerType || null,
+      severity: severity || null,
+      event: sosEvent || 'SOS_TRIGGERED',
       status: 'active'
     });
 
@@ -54,8 +73,8 @@ class SosController {
       broadcastTouristActivity({
         id: sos.id || Date.now(),
         type: 'sos_alert',
-        title: `🚨 SOS Emergency Triggered (${sos.sos_code || 'ACTIVE'})`,
-        description: `Tourist: ${touristName} (${touristPhone}) • Location: ${address || `Lat: ${latitude}, Lng: ${longitude}`}`,
+        title: `🚨 ${dangerInfoPrefix}SOS Emergency Triggered (${sos.sos_code || 'ACTIVE'})`,
+        description: `Tourist: ${touristName} (${touristPhone}) • Location: ${address || `Lat: ${latitude}, Lng: ${longitude}`}${dangerType ? ` • In Hazard Zone: ${dangerType}` : ''}`,
         touristName,
         touristPhone,
         details: {
@@ -63,7 +82,10 @@ class SosController {
           touristName,
           touristPhone,
           nationality,
-          bloodGroup
+          bloodGroup,
+          dangerZoneId,
+          dangerType,
+          severity
         }
       });
     } catch (err) {}

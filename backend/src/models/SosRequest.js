@@ -1,7 +1,7 @@
 const { executeQuery } = require('../config/database');
 
 class SosRequest {
-  static async create({ userId, triggerType = 'one_tap', latitude, longitude, address, audioRecordingUrl = null }) {
+  static async create({ userId, triggerType = 'one_tap', latitude, longitude, address, audioRecordingUrl = null, dangerZoneId = null, dangerType = null, severity = null }) {
     const sosCode = `SOS-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
     const sql = `
       INSERT INTO sos_requests (sos_code, user_id, trigger_type, latitude, longitude, address, audio_recording_url, status)
@@ -9,7 +9,25 @@ class SosRequest {
     `;
     const result = await executeQuery(sql, [sosCode, userId, triggerType, latitude, longitude, address, audioRecordingUrl]);
     const sosId = result.insertId || Date.now();
-    return this.findById(sosId);
+    const record = await this.findById(sosId);
+    if (record) {
+      record.danger_zone_id = dangerZoneId;
+      record.danger_type = dangerType;
+      record.severity = severity;
+    }
+    return record || {
+      id: sosId,
+      sos_code: sosCode,
+      user_id: userId,
+      latitude,
+      longitude,
+      address,
+      danger_zone_id: dangerZoneId,
+      danger_type: dangerType,
+      severity,
+      status: 'active',
+      created_at: new Date().toISOString()
+    };
   }
 
   static async findById(id) {

@@ -55,6 +55,141 @@ const inMemoryStore = {
     { id: 3, user_id: 6, contact_name: 'Yoko Sato', contact_phone: '+819088776655', relationship: 'Wife', priority_order: 1, is_primary: 1 },
     { id: 4, user_id: 7, contact_name: 'David Jenkins', contact_phone: '+447700900112', relationship: 'Brother', priority_order: 1, is_primary: 1 }
   ],
+  danger_zones: [
+    {
+      id: 1,
+      zone_code: 'DZ-DEL-001',
+      name: 'Paharganj Alley Market',
+      danger_type: 'THEFT',
+      severity: 'high',
+      description: 'Narrow unlit corridors with high crowd density and frequent pickpocketing reports.',
+      safety_instructions: 'Keep your phone and wallet secure. Avoid isolated alleys after 9 PM. Stay with other people.',
+      recommended_action: 'Proceed along the main brightly lit arterial street and keep valuables in inner zipped pockets.',
+      latitude: 28.6420,
+      longitude: 77.2180,
+      radius_meters: 400,
+      warning_distance_meters: 200,
+      network_status: 'available',
+      is_active: 1,
+      is_sample_data: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    },
+    {
+      id: 2,
+      zone_code: 'DZ-DEL-002',
+      name: 'Old Delhi Station Rear Transit Hub',
+      danger_type: 'HIGH_CRIME',
+      severity: 'critical',
+      description: 'Congested transport terminal with aggressive unauthorized touts and vehicle solicitations.',
+      safety_instructions: 'Only book taxis through verified RakshaSetu app or official pre-paid booth inside station.',
+      recommended_action: 'Do not accept rides or tours from individuals approaching on foot.',
+      latitude: 28.6550,
+      longitude: 77.2400,
+      radius_meters: 550,
+      warning_distance_meters: 250,
+      network_status: 'available',
+      is_active: 1,
+      is_sample_data: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    },
+    {
+      id: 3,
+      zone_code: 'DZ-AGR-001',
+      name: 'Taj West Parking Dead Zone',
+      danger_type: 'NO_NETWORK',
+      severity: 'moderate',
+      description: 'Mobile network coverage may be weak or unstable in this low-lying parking sector.',
+      safety_instructions: 'Download offline maps before entering and keep emergency contact numbers saved locally.',
+      recommended_action: 'Download your digital tickets beforehand and note the location of the nearest Help Desk.',
+      latitude: 27.1730,
+      longitude: 78.0380,
+      radius_meters: 450,
+      warning_distance_meters: 200,
+      network_status: 'unavailable',
+      is_active: 1,
+      is_sample_data: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    },
+    {
+      id: 4,
+      zone_code: 'DZ-CBE-001',
+      name: 'Town Hall Commercial Sector',
+      danger_type: 'THEFT',
+      severity: 'high',
+      description: 'Heavy evening market rush with elevated risk of bag snatching and pickpocketing.',
+      safety_instructions: 'Wear backpack in front. Secure handbags. Avoid counting large amounts of cash in public.',
+      recommended_action: 'Stay on the main lighted DB Road and avoid poorly lit side passages.',
+      latitude: 10.9980,
+      longitude: 76.9650,
+      radius_meters: 500,
+      warning_distance_meters: 200,
+      network_status: 'available',
+      is_active: 1,
+      is_sample_data: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    },
+    {
+      id: 5,
+      zone_code: 'DZ-CBE-002',
+      name: 'Marudamalai Foothill Wildlife Corridor',
+      danger_type: 'WILDLIFE_DANGER',
+      severity: 'high',
+      description: 'Elephant crossing and nocturnal wildlife movement reported after sunset along the forest fringe.',
+      safety_instructions: 'Do not travel on foot after 6:00 PM. Do not honk loudly or provoke animals.',
+      recommended_action: 'Use enclosed 4-wheeler transport and follow Forest Department advisories.',
+      latitude: 11.0450,
+      longitude: 76.8550,
+      radius_meters: 750,
+      warning_distance_meters: 300,
+      network_status: 'unstable',
+      is_active: 1,
+      is_sample_data: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    },
+    {
+      id: 6,
+      zone_code: 'DZ-GOA-001',
+      name: 'Calangute Coastal Rip-Current Sector',
+      danger_type: 'ACCIDENT_PRONE',
+      severity: 'high',
+      description: 'Strong undertow and rip currents. High risk of marine drowning accidents.',
+      safety_instructions: 'Do not enter sea after 6:00 PM or in red-flagged zones. Swim only near active Lifeguard towers.',
+      recommended_action: 'Observe lifeguard warning flags and stay within safe marked perimeter.',
+      latitude: 15.5440,
+      longitude: 73.7550,
+      radius_meters: 600,
+      warning_distance_meters: 250,
+      network_status: 'available',
+      is_active: 1,
+      is_sample_data: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    },
+    {
+      id: 7,
+      zone_code: 'DZ-JAI-001',
+      name: 'Nahargarh Ghat Road Curve',
+      danger_type: 'POOR_ROAD',
+      severity: 'moderate',
+      description: 'Steep winding curves with poor guardrails and sharp blind turns.',
+      safety_instructions: 'Maintain low driving speed. Use horn at blind bends. Avoid late night descent in low visibility.',
+      recommended_action: 'Engage low gear on descent and adhere to speed limit of 25 km/h.',
+      latitude: 26.9370,
+      longitude: 75.8160,
+      radius_meters: 500,
+      warning_distance_meters: 200,
+      network_status: 'unstable',
+      is_active: 1,
+      is_sample_data: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+  ],
   notifications: [],
   audit_logs: [
     { id: 1, action: 'SYSTEM_BOOT', details: 'RakshaSetu Emergency Dispatch Engine Initialized', created_at: new Date().toISOString() }
@@ -379,6 +514,81 @@ const executeQuery = async (sql, params = []) => {
     };
     inMemoryStore.safe_locations.push(newLoc);
     return { insertId: newLoc.id, affectedRows: 1 };
+  }
+
+  if (cleanSql.includes('danger_zones')) {
+    if (cleanSql.includes('select')) {
+      let list = [...inMemoryStore.danger_zones];
+      if (cleanSql.includes('id =')) {
+        const id = params[0];
+        return list.filter(z => z.id === parseInt(id, 10));
+      }
+      if (cleanSql.includes('is_active = true') || cleanSql.includes('is_active = 1')) {
+        list = list.filter(z => z.is_active === 1 || z.is_active === true);
+      }
+      return list;
+    }
+
+    if (cleanSql.includes('insert into')) {
+      const newZone = {
+        id: inMemoryStore.danger_zones.length + 1,
+        zone_code: params[0] || `DZ-${Date.now().toString().slice(-6)}`,
+        name: params[1] || 'Hazard Zone',
+        description: params[2] || '',
+        latitude: parseFloat(params[3]) || 28.6139,
+        longitude: parseFloat(params[4]) || 77.2090,
+        radius_meters: parseInt(params[5], 10) || 500,
+        warning_distance_meters: parseInt(params[6], 10) || 200,
+        severity: params[7] || 'high',
+        danger_type: params[8] || 'THEFT',
+        safety_instructions: params[9] || 'Stay alert and avoid displaying valuables.',
+        recommended_action: params[10] || 'Move toward a safer public area.',
+        network_status: params[11] || 'available',
+        is_active: 1,
+        is_sample_data: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      inMemoryStore.danger_zones.unshift(newZone);
+      return { insertId: newZone.id, affectedRows: 1 };
+    }
+
+    if (cleanSql.includes('update')) {
+      if (cleanSql.includes('is_active = not is_active')) {
+        const id = parseInt(params[0], 10);
+        const z = inMemoryStore.danger_zones.find(item => item.id === id);
+        if (z) {
+          z.is_active = z.is_active === 1 ? 0 : 1;
+          z.updated_at = new Date().toISOString();
+        }
+        return { affectedRows: 1 };
+      }
+      const id = parseInt(params[params.length - 1], 10);
+      const z = inMemoryStore.danger_zones.find(item => item.id === id);
+      if (z) {
+        // Generic update parameters
+        if (params.length >= 8) {
+          z.name = params[0] || z.name;
+          z.description = params[1] || z.description;
+          z.latitude = parseFloat(params[2]) || z.latitude;
+          z.longitude = parseFloat(params[3]) || z.longitude;
+          z.radius_meters = parseInt(params[4], 10) || z.radius_meters;
+          z.warning_distance_meters = parseInt(params[5], 10) || z.warning_distance_meters;
+          z.severity = params[6] || z.severity;
+          z.danger_type = params[7] || z.danger_type;
+          z.safety_instructions = params[8] || z.safety_instructions;
+          z.recommended_action = params[9] || z.recommended_action;
+        }
+        z.updated_at = new Date().toISOString();
+      }
+      return { affectedRows: 1 };
+    }
+
+    if (cleanSql.includes('delete from')) {
+      const id = parseInt(params[0], 10);
+      inMemoryStore.danger_zones = inMemoryStore.danger_zones.filter(z => z.id !== id);
+      return { affectedRows: 1 };
+    }
   }
 
   return [];
