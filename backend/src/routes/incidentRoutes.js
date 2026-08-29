@@ -10,6 +10,7 @@ router.post(
   upload.fields([{ name: 'images', maxCount: 5 }, { name: 'videos', maxCount: 2 }]),
   IncidentController.createReport
 );
+router.get('/cluster-recommendation', authenticateJWT, IncidentController.getClusterRecommendation);
 router.get('/', authenticateJWT, IncidentController.getAllReports);
 router.get('/:id', authenticateJWT, IncidentController.getReportById);
 router.patch('/:id/status', authenticateJWT, authorizeRoles('Admin', 'Police'), IncidentController.updateReportStatus);

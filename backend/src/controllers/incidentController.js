@@ -73,7 +73,86 @@ class IncidentController {
     }
 
     const updated = await IncidentReport.updateStatus(id, status, req.user.id);
-    return res.status(200).json(new ApiResponse(200, updated, `Incident status updated to ${status}.`));
+
+    // Check clustering if verified
+    let clusterRecommendation = null;
+    if (status === 'verified') {
+      const cLat = parseFloat(updated.latitude);
+      const cLng = parseFloat(updated.longitude);
+      const category = updated.category;
+
+      const allIncidents = await IncidentReport.findAll({ status: 'verified', limit: 1000 });
+      const calculateDist = (lat1, lon1, lat2, lon2) => {
+        const R = 6371000;
+        const dLat = ((lat2 - lat1) * Math.PI) / 180;
+        const dLon = ((lon2 - lon1) * Math.PI) / 180;
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+      };
+
+      const nearby = allIncidents.filter(inc => {
+        return calculateDist(cLat, cLng, parseFloat(inc.latitude), parseFloat(inc.longitude)) <= 500;
+      });
+
+      if (nearby.length >= 3) {
+        clusterRecommendation = {
+          clusterDetected: true,
+          incidentCount: nearby.length,
+          recommendedName: `Emerging ${category || 'Safety'} Risk Area`,
+          recommendedRadius: 400,
+          recommendedSeverity: nearby.length >= 5 ? 'high' : 'moderate'
+        };
+      }
+    }
+
+    return res.status(200).json(new ApiResponse(200, { report: updated, clusterRecommendation }, `Incident status updated to ${status}.`));
+  });
+
+  static getClusterRecommendation = asyncHandler(async (req, res) => {
+    const { lat, lng, category } = req.query;
+    if (!lat || !lng) {
+      throw new ApiError(400, 'lat and lng parameters are required.');
+    }
+
+    const cLat = parseFloat(lat);
+    const cLng = parseFloat(lng);
+
+    const allIncidents = await IncidentReport.findAll({ status: 'verified', limit: 1000 });
+
+    const calculateDist = (lat1, lon1, lat2, lon2) => {
+      const R = 6371000;
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLon = ((lon2 - lon1) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    };
+
+    const nearby = allIncidents.filter(inc => {
+      if (category && inc.category !== category) return false;
+      const distance = calculateDist(cLat, cLng, parseFloat(inc.latitude), parseFloat(inc.longitude));
+      return distance <= 500;
+    });
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          clusterDetected: nearby.length >= 3,
+          incidentCount: nearby.length,
+          incidents: nearby,
+          recommendedName: `Emerging ${category || 'Safety'} Risk Area`,
+          recommendedRadius: 400,
+          recommendedSeverity: nearby.length >= 5 ? 'high' : 'moderate'
+        },
+        'Cluster recommendation retrieved.'
+      )
+    );
   });
 }
 

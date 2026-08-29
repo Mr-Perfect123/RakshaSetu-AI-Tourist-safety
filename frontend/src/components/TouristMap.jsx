@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, Polygon, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Compass, Navigation, ExternalLink, Loader2, Shield, Radio, AlertTriangle } from 'lucide-react';
@@ -83,49 +83,83 @@ export const getDangerZoneTheme = (zone) => {
   const type = (zone.danger_type || zone.dangerType || zone.crime_type || '').toUpperCase();
   const sev = (zone.severity || 'high').toLowerCase();
 
-  // Color mappings
-  if (type.includes('NO_NETWORK') || type.includes('NETWORK') || type.includes('DEAD_ZONE')) {
-    return { color: '#7C3AED', fillColor: '#8B5CF6', label: 'No Network Coverage', icon: '📵', bgBadge: 'bg-purple-100 text-purple-800 border-purple-300' };
+  // All 20 Extensible Categories
+  if (type === 'HIGH_CRIME') {
+    return { color: '#B91C1C', fillColor: '#EF4444', label: 'High Crime Area', icon: '⚠️', bgBadge: 'bg-red-100 text-red-950 border-red-300' };
   }
-  if (type.includes('WILDLIFE') || type.includes('ANIMAL')) {
-    return { color: '#15803D', fillColor: '#22C55E', label: 'Wildlife Hazard', icon: '🐅', bgBadge: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
+  if (type === 'THEFT') {
+    return { color: '#DC2626', fillColor: '#F87171', label: 'Theft / Pickpocketing', icon: '🎒', bgBadge: 'bg-red-100 text-red-800 border-red-200' };
   }
-  if (type.includes('FLOOD') || type.includes('WATER') || type.includes('CURRENT')) {
-    return { color: '#0284C7', fillColor: '#38BDF8', label: 'Flood / Water Hazard', icon: '🌊', bgBadge: 'bg-sky-100 text-sky-800 border-sky-300' };
+  if (type === 'NO_NETWORK') {
+    const isUnverified = (zone.confidence === 'UNVERIFIED' || zone.confidence === 'LOW');
+    return { 
+      color: '#7C3AED', 
+      fillColor: '#A78BFA', 
+      label: isUnverified ? 'Limited/Unverified Network Coverage' : 'No Network Coverage', 
+      icon: '📵', 
+      bgBadge: 'bg-purple-100 text-purple-800 border-purple-300' 
+    };
   }
-  if (type.includes('LANDSLIDE') || type.includes('TERRAIN')) {
-    return { color: '#854D0E', fillColor: '#EAB308', label: 'Landslide-Prone Sector', icon: '⛰️', bgBadge: 'bg-amber-100 text-amber-800 border-amber-300' };
+  if (type === 'WILDLIFE') {
+    return { color: '#15803D', fillColor: '#4ADE80', label: 'Wildlife Zone', icon: '🐅', bgBadge: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
   }
-  if (type.includes('POOR_ROAD') || type.includes('ROAD') || type.includes('CURVE')) {
-    return { color: '#D97706', fillColor: '#FBBF24', label: 'Poor Road Condition', icon: '🚧', bgBadge: 'bg-amber-100 text-amber-800 border-amber-300' };
+  if (type === 'ACCIDENT_PRONE') {
+    return { color: '#EA580C', fillColor: '#FDBA74', label: 'Accident-Prone', icon: '🚗', bgBadge: 'bg-orange-100 text-orange-800 border-orange-300' };
   }
-  if (type.includes('NIGHT') || type.includes('UNLIT')) {
-    return { color: '#4338CA', fillColor: '#6366F1', label: 'Unsafe at Night', icon: '🌙', bgBadge: 'bg-indigo-100 text-indigo-800 border-indigo-300' };
+  if (type === 'ROAD_HAZARD') {
+    return { color: '#D97706', fillColor: '#FCD34D', label: 'Road Hazard', icon: '🚧', bgBadge: 'bg-amber-100 text-amber-800 border-amber-300' };
   }
-  if (type.includes('ACCIDENT')) {
-    return { color: '#EA580C', fillColor: '#FB923C', label: 'Accident-Prone Area', icon: '🚗', bgBadge: 'bg-orange-100 text-orange-800 border-orange-300' };
+  if (type === 'HILL_CURVE') {
+    return { color: '#B45309', fillColor: '#FBBF24', label: 'Hill Curve / Blind Turn', icon: '⛰️', bgBadge: 'bg-yellow-100 text-yellow-800 border-yellow-300' };
   }
-  if (type.includes('MEDICAL')) {
-    return { color: '#E11D48', fillColor: '#FB7185', label: 'Medical Emergency Risk', icon: '🚑', bgBadge: 'bg-rose-100 text-rose-800 border-rose-300' };
+  if (type === 'FLOOD_RISK') {
+    return { color: '#0284C7', fillColor: '#7DD3FC', label: 'Flood Risk Area', icon: '🌊', bgBadge: 'bg-sky-100 text-sky-800 border-sky-300' };
   }
-  if (type.includes('RESTRICTED')) {
-    return { color: '#475569', fillColor: '#94A3B8', label: 'Restricted Sector', icon: '⛔', bgBadge: 'bg-slate-100 text-slate-800 border-slate-300' };
+  if (type === 'LANDSLIDE_RISK') {
+    return { color: '#854D0E', fillColor: '#F59E0B', label: 'Landslide Risk', icon: '⛰️', bgBadge: 'bg-amber-100 text-amber-900 border-amber-400' };
   }
-  if (type.includes('THEFT') || type.includes('PICKPOCKET') || type.includes('SCAM')) {
-    return { color: '#DC2626', fillColor: '#EF4444', label: 'Theft / Pickpocketing', icon: '🎒', bgBadge: 'bg-red-100 text-red-800 border-red-300' };
+  if (type === 'FIRE_RISK') {
+    return { color: '#C2410C', fillColor: '#F97316', label: 'Fire Risk Sector', icon: '🔥', bgBadge: 'bg-orange-100 text-orange-900 border-orange-400' };
+  }
+  if (type === 'EXTREME_WEATHER') {
+    return { color: '#1E3A8A', fillColor: '#3B82F6', label: 'Extreme Weather Zone', icon: '⛈️', bgBadge: 'bg-blue-100 text-blue-900 border-blue-400' };
+  }
+  if (type === 'DANGEROUS_TERRAIN') {
+    return { color: '#78350F', fillColor: '#B45309', label: 'Dangerous Terrain', icon: '🏔️', bgBadge: 'bg-amber-900/10 text-amber-900 border-amber-700' };
+  }
+  if (type === 'WATER_DANGER') {
+    return { color: '#0D9488', fillColor: '#2DD4BF', label: 'Water Danger', icon: '🏊', bgBadge: 'bg-teal-100 text-teal-800 border-teal-300' };
+  }
+  if (type === 'DROWNING_RISK') {
+    return { color: '#2563EB', fillColor: '#60A5FA', label: 'Drowning Risk Area', icon: '🌊', bgBadge: 'bg-blue-100 text-blue-800 border-blue-300' };
+  }
+  if (type === 'POLICE_ALERT') {
+    return { color: '#1E293B', fillColor: '#64748B', label: 'Police Safety Alert', icon: '👮', bgBadge: 'bg-slate-100 text-slate-800 border-slate-300' };
+  }
+  if (type === 'MEDICAL_RISK') {
+    return { color: '#E11D48', fillColor: '#F43F5E', label: 'Medical Emergency Risk', icon: '🚑', bgBadge: 'bg-rose-100 text-rose-800 border-rose-300' };
+  }
+  if (type === 'RIOT_OR_UNREST') {
+    return { color: '#991B1B', fillColor: '#F87171', label: 'Riot / Unrest Zone', icon: '📢', bgBadge: 'bg-red-200 text-red-950 border-red-400' };
+  }
+  if (type === 'CONSTRUCTION_HAZARD') {
+    return { color: '#CA8A04', fillColor: '#FDE047', label: 'Construction Hazard', icon: '🏗️', bgBadge: 'bg-yellow-50 text-yellow-800 border-yellow-200' };
+  }
+  if (type === 'RESTRICTED_AREA') {
+    return { color: '#475569', fillColor: '#94A3B8', label: 'Restricted Sector', icon: '⛔', bgBadge: 'bg-slate-200 text-slate-800 border-slate-400' };
   }
 
-  // Fallback by Severity
+  // Fallbacks by Severity
   if (sev === 'critical') {
-    return { color: '#B91C1C', fillColor: '#DC2626', label: 'Critical Hazard Zone', icon: '🚨', bgBadge: 'bg-red-100 text-red-900 border-red-400' };
+    return { color: '#B91C1C', fillColor: '#EF4444', label: 'Critical Hazard Zone', icon: '🚨', bgBadge: 'bg-red-100 text-red-900 border-red-400' };
   }
   if (sev === 'high') {
-    return { color: '#DC2626', fillColor: '#EF4444', label: 'High Risk Hazard', icon: '⚠️', bgBadge: 'bg-red-100 text-red-800 border-red-300' };
+    return { color: '#DC2626', fillColor: '#F87171', label: 'High Risk Hazard', icon: '⚠️', bgBadge: 'bg-red-100 text-red-800 border-red-300' };
   }
   if (sev === 'moderate') {
-    return { color: '#EA580C', fillColor: '#F97316', label: 'Moderate Risk', icon: '⚠️', bgBadge: 'bg-orange-100 text-orange-800 border-orange-300' };
+    return { color: '#EA580C', fillColor: '#FB923C', label: 'Moderate Risk', icon: '⚠️', bgBadge: 'bg-orange-100 text-orange-800 border-orange-300' };
   }
-  return { color: '#059669', fillColor: '#10B981', label: 'Safe Monitored Patrol Zone', icon: '🛡️', bgBadge: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
+  return { color: '#64748B', fillColor: '#94A3B8', label: 'Safety Warning Info', icon: '🛡️', bgBadge: 'bg-slate-100 text-slate-700 border-slate-300' };
 };
 
 // Map Auto-Pan Controller with Follow-Me support
@@ -153,6 +187,33 @@ const MapBoundsFitter = ({ allPoints, shouldFit }) => {
       hasFittedRef.current = true;
     }
   }, [allPoints, shouldFit, map]);
+  return null;
+};
+
+const MapViewportListener = ({ onViewportChange }) => {
+  const map = useMapEvents({
+    moveend() {
+      const bounds = map.getBounds();
+      onViewportChange({
+        minLat: bounds.getSouthWest().lat,
+        maxLat: bounds.getNorthEast().lat,
+        minLng: bounds.getSouthWest().lng,
+        maxLng: bounds.getNorthEast().lng,
+        zoom: map.getZoom()
+      });
+    }
+  });
+  return null;
+};
+
+const MapClickListener = ({ onMapClick }) => {
+  useMapEvents({
+    click(e) {
+      if (onMapClick) {
+        onMapClick(e.latlng.lat, e.latlng.lng);
+      }
+    }
+  });
   return null;
 };
 
@@ -250,7 +311,9 @@ const TouristMap = ({
   isLiveTracking = true,
   onMyLocationClick = null,
   onSelectDestination = null,
-  isOffline = false
+  isOffline = false,
+  onViewportChange = null,
+  onMapClick = null
 }) => {
   const navigate = useNavigate();
   const mapContainerRef = useRef(null);
@@ -294,6 +357,8 @@ const TouristMap = ({
 
         <MapViewController position={position} followMe={followMe} />
         <MapBoundsFitter allPoints={activePoints} shouldFit={!followMe && Boolean(destination)} />
+        {onViewportChange && <MapViewportListener onViewportChange={onViewportChange} />}
+        {onMapClick && <MapClickListener onMapClick={onMapClick} />}
 
         {/* 1. Tourist's Live Movement Trail (Polyline) */}
         {movementTrail && movementTrail.length > 1 && (
@@ -389,67 +454,120 @@ const TouristMap = ({
           const warningDist = parseInt(zone.warning_distance_meters || zone.warningDistance || 200, 10);
           const isApproaching = distToCenter > radius && distToCenter <= radius + warningDist;
 
+          let polyCoords = null;
+          if (zone.polygon_coordinates) {
+            try {
+              const parsed = typeof zone.polygon_coordinates === 'string' ? JSON.parse(zone.polygon_coordinates) : zone.polygon_coordinates;
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                polyCoords = parsed.map(pt => [parseFloat(pt[0]), parseFloat(pt[1])]);
+              }
+            } catch (err) {
+              console.warn('Failed to parse polygon coordinates', err);
+            }
+          }
+
+          const pathOptions = {
+            color: theme.color,
+            fillColor: theme.fillColor,
+            fillOpacity: isInside ? 0.45 : isApproaching ? 0.35 : 0.25,
+            weight: isInside ? 3 : 2,
+            dashArray: isApproaching ? '4, 6' : null
+          };
+
+          const popupContent = (
+            <Popup>
+              <div className="p-1 space-y-2 max-w-xs text-slate-900">
+                <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase border ${theme.bgBadge} flex items-center gap-1`}>
+                    <span>{theme.icon}</span>
+                    <span>{theme.label}</span>
+                  </span>
+                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                    (zone.severity || '').toLowerCase() === 'critical' ? 'bg-red-600 text-white' :
+                    (zone.severity || '').toLowerCase() === 'high' ? 'bg-red-500 text-white' :
+                    'bg-amber-500 text-white'
+                  }`}>
+                    {zone.severity || 'High'} Risk
+                  </span>
+                </div>
+
+                <div>
+                  <h4 className="font-black text-sm text-slate-950 m-0 leading-tight">
+                    {zone.name}
+                  </h4>
+                  <p className="text-[11px] text-slate-700 m-0 mt-1 leading-snug">
+                    {zone.description || zone.advisory_message}
+                  </p>
+                </div>
+
+                {/* Safety Advice */}
+                {(zone.safety_instructions || zone.precautions) && (
+                  <div className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-700 space-y-0.5">
+                    <span className="font-extrabold text-slate-900 block text-[10px] uppercase text-blue-900">Safety Instructions:</span>
+                    <p className="m-0 leading-tight font-medium">{zone.safety_instructions || zone.precautions}</p>
+                  </div>
+                )}
+
+                {/* Proximity Telemetry */}
+                <div className="p-2 rounded-xl bg-blue-50/70 border border-blue-100 flex items-center justify-between text-[10px] font-bold text-slate-700">
+                  <span>Size/Radius: {radius}m</span>
+                  <span className={isInside ? 'text-red-700 font-black' : isApproaching ? 'text-amber-700 font-black' : 'text-slate-600'}>
+                    {isInside ? `🚨 Inside (${formatDistance(distToCenter)})` : `📍 ${formatDistance(distToCenter)} away`}
+                  </span>
+                </div>
+
+                {/* Source & Confidence Transparency */}
+                {(zone.source || zone.confidence) && (
+                  <div className="text-[10px] text-slate-500 border-t border-slate-100 pt-2 flex flex-col gap-0.5">
+                    {zone.source && (
+                      <span>
+                        Source: {zone.source_url ? (
+                          <a href={zone.source_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-bold inline-flex items-center gap-0.5">
+                            {zone.source} <ExternalLink className="w-2.5 h-2.5 inline" />
+                          </a>
+                        ) : (
+                          <span className="font-bold text-slate-600">{zone.source}</span>
+                        )}
+                      </span>
+                    )}
+                    {zone.confidence && (
+                      <span>Confidence: <strong className="text-slate-700">{zone.confidence}</strong></span>
+                    )}
+                    {zone.last_verified && (
+                      <span>Last Verified: <span className="font-mono">{new Date(zone.last_verified).toLocaleDateString()}</span></span>
+                    )}
+                  </div>
+                )}
+
+                {zone.is_sample_data ? (
+                  <div className="text-[9px] text-slate-400 italic">
+                    * Sample safety perimeter for demo & testing purposes
+                  </div>
+                ) : null}
+              </div>
+            </Popup>
+          );
+
+          if (polyCoords) {
+            return (
+              <Polygon
+                key={`zone-poly-${zone.id || zone.zone_code}`}
+                positions={polyCoords}
+                pathOptions={pathOptions}
+              >
+                {popupContent}
+              </Polygon>
+            );
+          }
+
           return (
             <Circle
-              key={`zone-${zone.id || zone.zone_code}`}
+              key={`zone-circle-${zone.id || zone.zone_code}`}
               center={[lat, lng]}
               radius={radius}
-              pathOptions={{
-                color: theme.color,
-                fillColor: theme.fillColor,
-                fillOpacity: isInside ? 0.45 : isApproaching ? 0.35 : 0.25,
-                weight: isInside ? 3 : 2,
-                dashArray: isApproaching ? '4, 6' : null
-              }}
+              pathOptions={pathOptions}
             >
-              <Popup>
-                <div className="p-1 space-y-2 max-w-xs text-slate-900">
-                  <div className="flex items-center justify-between gap-1.5">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase border ${theme.bgBadge} flex items-center gap-1`}>
-                      <span>{theme.icon}</span>
-                      <span>{theme.label}</span>
-                    </span>
-                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
-                      (zone.severity || '').toLowerCase() === 'critical' ? 'bg-red-600 text-white' :
-                      (zone.severity || '').toLowerCase() === 'high' ? 'bg-red-500 text-white' :
-                      'bg-amber-500 text-white'
-                    }`}>
-                      {zone.severity || 'High'} Risk
-                    </span>
-                  </div>
-
-                  <div>
-                    <h4 className="font-black text-sm text-slate-900 m-0 leading-tight flex items-center gap-1">
-                      {zone.name}
-                    </h4>
-                    <p className="text-[11px] text-slate-600 m-0 mt-1 leading-snug">
-                      {zone.description || zone.advisory_message}
-                    </p>
-                  </div>
-
-                  {/* Safety Advice */}
-                  {(zone.safety_instructions || zone.precautions) && (
-                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-700 space-y-0.5">
-                      <span className="font-extrabold text-slate-900 block text-[10px] uppercase text-blue-900">Safety Instructions:</span>
-                      <p className="m-0 leading-tight font-medium">{zone.safety_instructions || zone.precautions}</p>
-                    </div>
-                  )}
-
-                  {/* Proximity Telemetry */}
-                  <div className="p-2 rounded-xl bg-blue-50/70 border border-blue-100 flex items-center justify-between text-[10px] font-bold text-slate-700">
-                    <span>Radius: {radius}m</span>
-                    <span className={isInside ? 'text-red-700 font-black' : isApproaching ? 'text-amber-700 font-black' : 'text-slate-600'}>
-                      {isInside ? `🚨 Inside (${formatDistance(distToCenter)})` : `📍 ${formatDistance(distToCenter)} away`}
-                    </span>
-                  </div>
-
-                  {zone.is_sample_data ? (
-                    <div className="text-[9px] text-slate-400 italic">
-                      * Sample safety perimeter for demo & testing purposes
-                    </div>
-                  ) : null}
-                </div>
-              </Popup>
+              {popupContent}
             </Circle>
           );
         })}

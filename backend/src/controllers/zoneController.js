@@ -9,11 +9,28 @@ class ZoneController {
    */
   static getDangerZones = asyncHandler(async (req, res) => {
     const showAll = req.query.all === 'true' || req.query.all === true;
-    let sql = 'SELECT * FROM danger_zones WHERE is_active = TRUE ORDER BY id DESC';
+    const { minLat, maxLat, minLng, maxLng, type } = req.query;
+
+    let sql = 'SELECT * FROM danger_zones WHERE is_active = TRUE';
+    let params = [];
+
     if (showAll) {
-      sql = 'SELECT * FROM danger_zones ORDER BY id DESC';
+      sql = 'SELECT * FROM danger_zones WHERE 1=1';
     }
-    const zones = await executeQuery(sql);
+
+    if (minLat && maxLat && minLng && maxLng) {
+      sql += ' AND latitude >= ? AND latitude <= ? AND longitude >= ? AND longitude <= ?';
+      params.push(parseFloat(minLat), parseFloat(maxLat), parseFloat(minLng), parseFloat(maxLng));
+    }
+
+    if (type) {
+      sql += ' AND danger_type = ?';
+      params.push(type.toUpperCase());
+    }
+
+    sql += ' ORDER BY id DESC';
+
+    const zones = await executeQuery(sql, params);
     return res.status(200).json(new ApiResponse(200, zones, 'Danger zones retrieved successfully.'));
   });
 
@@ -178,6 +195,106 @@ class ZoneController {
 
     const updatedRows = await executeQuery('SELECT * FROM danger_zones WHERE id = ?', [id]);
     return res.status(200).json(new ApiResponse(200, updatedRows[0] || current, 'Danger zone updated successfully.'));
+  });
+
+  /**
+   * Analyze safety score of a proposed travel route
+   */
+  static analyzeRouteSafety = asyncHandler(async (req, res) => {
+    const { routeCoordinates } = req.body;
+
+    if (!Array.isArray(routeCoordinates) || routeCoordinates.length === 0) {
+      throw new ApiError(400, 'routeCoordinates array is required for safety analysis.');
+    }
+
+    // Load active danger zones
+    const zones = await executeQuery('SELECT * FROM danger_zones WHERE is_active = TRUE');
+
+    const warnings = [];
+    const intersectedZoneIds = new Set();
+
+    const calculateDist = (lat1, lon1, lat2, lon2) => {
+      const R = 6371000;
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLon = ((lon2 - lon1) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    };
+
+    for (const point of routeCoordinates) {
+      const ptLat = parseFloat(point.lat || point[0]);
+      const ptLng = parseFloat(point.lng || point[1]);
+
+      if (isNaN(ptLat) || isNaN(ptLng)) continue;
+
+      for (const zone of zones) {
+        if (intersectedZoneIds.has(zone.id)) continue;
+
+        const distance = calculateDist(ptLat, ptLng, parseFloat(zone.latitude), parseFloat(zone.longitude));
+        const radius = zone.radius_meters || 500;
+
+        if (distance <= radius) {
+          intersectedZoneIds.add(zone.id);
+          warnings.push({
+            id: zone.id,
+            zone_code: zone.zone_code,
+            name: zone.name,
+            danger_type: zone.danger_type,
+            severity: zone.severity,
+            description: zone.description,
+            safety_instructions: zone.safety_instructions,
+            distanceMeters: Math.round(distance),
+            type: 'INTERSECTING'
+          });
+        } else if (distance <= radius + 300) {
+          intersectedZoneIds.add(zone.id);
+          warnings.push({
+            id: zone.id,
+            zone_code: zone.zone_code,
+            name: zone.name,
+            danger_type: zone.danger_type,
+            severity: zone.severity,
+            description: zone.description,
+            safety_instructions: zone.safety_instructions,
+            distanceMeters: Math.round(distance),
+            type: 'NEAR_ROUTE'
+          });
+        }
+      }
+    }
+
+    let safetyScore = 100;
+    warnings.forEach(w => {
+      const reduction = w.severity === 'critical' ? 25 : w.severity === 'high' ? 15 : 8;
+      safetyScore = Math.max(10, safetyScore - reduction);
+    });
+
+    let safetyStatus = 'Mostly Safe';
+    let safetyColor = 'Green';
+
+    if (safetyScore < 50) {
+      safetyStatus = 'Dangerous';
+      safetyColor = 'Red';
+    } else if (safetyScore < 85) {
+      safetyStatus = 'Caution Advisable';
+      safetyColor = 'Orange';
+    }
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          safetyScore,
+          safetyStatus,
+          safetyColor,
+          warnings
+        },
+        'Route safety analysis completed.'
+      )
+    );
   });
 
   /**

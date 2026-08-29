@@ -6,6 +6,7 @@ const { authenticateJWT, authorizeRoles } = require('../middleware/auth');
 // Public & Tourist Read Endpoints
 router.get('/', ZoneController.getDangerZones);
 router.get('/danger-zones', ZoneController.getDangerZones);
+router.post('/route-analysis', ZoneController.analyzeRouteSafety);
 router.get('/danger-zones/:id', ZoneController.getDangerZoneById);
 router.get('/:id', ZoneController.getDangerZoneById);
 

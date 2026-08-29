@@ -30,6 +30,21 @@ const SafetyMap = ({ darkMode }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchedDestination, setSearchedDestination] = useState(null);
   const [routeInfo, setRouteInfo] = useState(null);
+  const [routeSafety, setRouteSafety] = useState(null);
+
+  // ── User Incident Reporting Form States ───────────────────────────────────────
+  const [showIncidentModal, setShowIncidentModal] = useState(false);
+  const [reportingCoordinates, setReportingCoordinates] = useState(null);
+  const [incidentCategory, setIncidentCategory] = useState('THEFT');
+  const [incidentSeverity, setIncidentSeverity] = useState('medium');
+  const [incidentTitle, setIncidentTitle] = useState('');
+  const [incidentDescription, setIncidentDescription] = useState('');
+  const [submittingIncident, setSubmittingIncident] = useState(false);
+  const [submittedIncidentCode, setSubmittedIncidentCode] = useState(null);
+
+  // ── Viewport Lazy Loading States ──────────────────────────────────────────────
+  const [viewportBounds, setViewportBounds] = useState(null);
+  const viewportTimerRef = useRef(null);
 
   // ── Raw API Datasets ──────────────────────────────────────────────────────────
   const [dangerZones, setDangerZones] = useState(() => {
@@ -270,6 +285,41 @@ const SafetyMap = ({ darkMode }) => {
     fetchMapLayersData();
   }, [mapCenter, evaluateGeofences, gpsLocation]);
 
+  const handleViewportChange = useCallback((bounds) => {
+    setViewportBounds(bounds);
+  }, []);
+
+  // Bounding-box progressive lazy loading of danger zones
+  useEffect(() => {
+    if (!viewportBounds) return;
+    if (viewportTimerRef.current) clearTimeout(viewportTimerRef.current);
+
+    viewportTimerRef.current = setTimeout(async () => {
+      setDataLoading(true);
+      try {
+        const res = await api.get('/zones', {
+          params: {
+            minLat: viewportBounds.minLat,
+            maxLat: viewportBounds.maxLat,
+            minLng: viewportBounds.minLng,
+            maxLng: viewportBounds.maxLng
+          }
+        });
+        const list = res.data?.data || res.data || [];
+        if (Array.isArray(list)) {
+          setDangerZones(list);
+          localStorage.setItem('rakshasetu_cached_danger_zones', JSON.stringify(list));
+        }
+      } catch (err) {
+        console.warn('Failed to load viewport zones', err);
+      } finally {
+        setDataLoading(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(viewportTimerRef.current);
+  }, [viewportBounds]);
+
   // ── Recenter Live GPS ─────────────────────────────────────────────────────────
   const handleRecenterMyLocation = (coordsOrMap) => {
     if (coordsOrMap && typeof coordsOrMap === 'object' && 'lat' in coordsOrMap && 'lng' in coordsOrMap) {
@@ -347,6 +397,42 @@ const SafetyMap = ({ darkMode }) => {
     }
   };
 
+  const handleMapClick = useCallback((lat, lng) => {
+    setReportingCoordinates({ lat, lng });
+    setShowIncidentModal(true);
+    setSubmittedIncidentCode(null);
+    setIncidentTitle('');
+    setIncidentDescription('');
+  }, []);
+
+  const handleIncidentSubmit = async (e) => {
+    e.preventDefault();
+    if (!reportingCoordinates) return;
+    setSubmittingIncident(true);
+
+    try {
+      const payload = {
+        category: incidentCategory,
+        title: incidentTitle || `${incidentCategory} Incident`,
+        description: incidentDescription,
+        severity: incidentSeverity,
+        latitude: parseFloat(reportingCoordinates.lat),
+        longitude: parseFloat(reportingCoordinates.lng),
+        locationName: `GPS Point (${parseFloat(reportingCoordinates.lat).toFixed(4)}, ${parseFloat(reportingCoordinates.lng).toFixed(4)})`
+      };
+
+      const res = await api.post('/incidents/report', payload);
+      const data = res.data?.data || res.data;
+      setSubmittedIncidentCode(data?.report_code || `INC-${Date.now().toString().slice(-6)}`);
+      setIncidentTitle('');
+      setIncidentDescription('');
+    } catch (err) {
+      alert(`Submission failed: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setSubmittingIncident(false);
+    }
+  };
+
   // ── Search Destination ────────────────────────────────────────────────────────
   const handleSearchLocation = async (e) => {
     e.preventDefault();
@@ -369,19 +455,36 @@ const SafetyMap = ({ darkMode }) => {
         setSearchedDestination(dest);
         setMapCenter({ lat: dest.lat, lng: dest.lng });
 
-        // OSRM Driving Route
+        // OSRM Driving Route with geometries=geojson for detailed path tracking
         try {
-          const osrm = await axios.get(`https://router.project-osrm.org/route/v1/driving/${gpsLocation.lng},${gpsLocation.lat};${dest.lng},${dest.lat}?overview=full`, { timeout: 3000 });
+          const osrm = await axios.get(`https://router.project-osrm.org/route/v1/driving/${gpsLocation.lng},${gpsLocation.lat};${dest.lng},${dest.lat}?overview=full&geometries=geojson`, { timeout: 3500 });
           if (osrm.data?.routes?.[0]) {
             const r = osrm.data.routes[0];
             setRouteInfo({
               distanceKm: Math.round((r.distance / 1000) * 10) / 10,
               durationMins: Math.round(r.duration / 60)
             });
+
+            // Perform Backend Route Safety Score & Intersecting Danger Zones Analysis
+            try {
+              const routeCoords = r.geometry?.coordinates 
+                ? r.geometry.coordinates.map(pt => [pt[1], pt[0]]) 
+                : [[gpsLocation.lat, gpsLocation.lng], [dest.lat, dest.lng]];
+
+              const analysisRes = await api.post('/zones/route-analysis', { routeCoordinates: routeCoords });
+              if (analysisRes.data?.data) {
+                setRouteSafety(analysisRes.data.data);
+              }
+            } catch (err) {
+              console.warn('Route safety analysis failed', err);
+            }
           }
-        } catch {}
+        } catch (err) {
+          console.warn('OSRM routing query failed', err);
+        }
       }
-    } catch {
+    } catch (err) {
+      console.warn('Geocoding query failed', err);
     } finally {
       setLocLoading(false);
     }
@@ -563,22 +666,64 @@ const SafetyMap = ({ darkMode }) => {
         </div>
       )}
 
-      {/* ── Route & Distance Info Banner ────────────────────────────────────── */}
+      {/* ── Route & Distance Info Banner & Safety Scorecard (Requirement 29) ── */}
       {searchedDestination && routeInfo && (
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-[#0a2540] via-[#0D47A1] to-[#1e3a8a] text-white flex items-center justify-between shadow-lg">
-          <div className="flex items-center gap-3">
-            <Navigation className="w-6 h-6 text-emerald-400 animate-pulse" />
-            <div>
-              <h4 className="text-sm font-black m-0 text-white">Route to {searchedDestination.name}</h4>
-              <p className="text-xs text-blue-100 m-0">Distance: {routeInfo.distanceKm} km • Est. Time: {routeInfo.durationMins} mins</p>
+        <div className="space-y-3">
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-[#0a2540] via-[#0D47A1] to-[#1e3a8a] text-white flex items-center justify-between shadow-lg">
+            <div className="flex items-center gap-3">
+              <Navigation className="w-6 h-6 text-emerald-400 animate-pulse" />
+              <div>
+                <h4 className="text-sm font-black m-0 text-white font-sans">Route to {searchedDestination.name}</h4>
+                <p className="text-xs text-blue-100 m-0">Distance: {routeInfo.distanceKm} km • Est. Time: {routeInfo.durationMins} mins</p>
+              </div>
             </div>
+            <button
+              onClick={() => { setSearchedDestination(null); setRouteInfo(null); setRouteSafety(null); }}
+              className="px-3.5 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-xs font-black text-white cursor-pointer transition-all"
+            >
+              Clear Route
+            </button>
           </div>
-          <button
-            onClick={() => { setSearchedDestination(null); setRouteInfo(null); }}
-            className="px-3.5 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-xs font-black text-white cursor-pointer transition-all"
-          >
-            Clear Route
-          </button>
+
+          {/* Route Safety Scorecard */}
+          {routeSafety && (
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm text-slate-900 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Route Safety Analysis Scorecard</span>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase ${
+                  routeSafety.safetyColor === 'Green' ? 'bg-emerald-100 text-emerald-800' :
+                  routeSafety.safetyColor === 'Orange' ? 'bg-amber-100 text-amber-800' :
+                  'bg-red-100 text-red-800'
+                }`}>
+                  {routeSafety.safetyStatus} (Score: {routeSafety.safetyScore}/100)
+                </span>
+              </div>
+
+              {routeSafety.warnings.length === 0 ? (
+                <p className="text-xs text-emerald-700 m-0 font-bold">✓ This route is completely clear of all registered geofenced hazard zones.</p>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-600 font-bold m-0">⚠️ Selected route passes through or near the following danger zones:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {routeSafety.warnings.map((w, idx) => (
+                      <div key={idx} className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs space-y-1">
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span className="font-extrabold text-slate-900">{w.name}</span>
+                          <span className="text-[9px] uppercase bg-red-100 text-red-800 px-1.5 py-0.5 rounded font-black shrink-0">
+                            {w.danger_type || 'HAZARD'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 m-0 leading-tight">{w.description}</p>
+                        {w.safety_instructions && (
+                          <p className="text-[10px] text-blue-900 m-0 font-bold">Advice: {w.safety_instructions}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -599,6 +744,21 @@ const SafetyMap = ({ darkMode }) => {
               <Compass className="w-3.5 h-3.5" /> Target
             </button>
           </div>
+
+          {/* Report Incident Action Button (Requirement 17) */}
+          <button
+            type="button"
+            onClick={() => {
+              setReportingCoordinates(gpsLocation);
+              setShowIncidentModal(true);
+              setSubmittedIncidentCode(null);
+              setIncidentTitle('');
+              setIncidentDescription('');
+            }}
+            className="w-full py-3 rounded-2xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-extrabold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+          >
+            <AlertTriangle className="w-4 h-4 text-red-600 animate-pulse" /> Report Safety Incident Here
+          </button>
 
           <div className="space-y-2 text-xs">
             {[
@@ -647,6 +807,12 @@ const SafetyMap = ({ darkMode }) => {
             </div>
           </div>
 
+          {/* Safety Assistance Disclaimer (Requirement 43) */}
+          <div className="p-3 rounded-2xl bg-amber-50/70 border border-amber-200 text-[10px] text-amber-900 leading-relaxed font-medium space-y-0.5">
+            <span className="font-extrabold uppercase block text-[9px] tracking-wide text-amber-800">⚠️ System Disclaimer</span>
+            <p className="m-0">Safety information is provided for awareness and assistance. Conditions can change rapidly. Always follow local authority instructions and use your judgment.</p>
+          </div>
+
           {dataLoading && (
             <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold flex items-center justify-center gap-2">
               <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Fetching live layer data...
@@ -668,6 +834,8 @@ const SafetyMap = ({ darkMode }) => {
             isLiveTracking={isLiveTracking}
             isOffline={isOffline}
             onMyLocationClick={handleRecenterMyLocation}
+            onViewportChange={handleViewportChange}
+            onMapClick={handleMapClick}
             onSelectDestination={(dest) => {
               setSearchedDestination(dest);
               setMapCenter({ lat: dest.lat, lng: dest.lng });
@@ -808,6 +976,153 @@ const SafetyMap = ({ darkMode }) => {
               </div>
             )}
 
+          </div>
+        </div>
+      )}
+      {/* ── 10. REPORT SAFETY INCIDENT MODAL (Requirement 17) ────────────────── */}
+      {showIncidentModal && reportingCoordinates && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-lg rounded-3xl p-6 shadow-2xl bg-white border border-slate-200 text-slate-900 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b">
+              <h3 className="text-base font-black text-[#0D47A1] m-0 flex items-center gap-1.5 uppercase tracking-wide">
+                <AlertTriangle className="w-5 h-5 text-red-600 animate-pulse" /> Report Travel Safety Incident
+              </h3>
+              <button
+                onClick={() => setShowIncidentModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {!submittedIncidentCode ? (
+              <form onSubmit={handleIncidentSubmit} className="space-y-3">
+                <p className="text-[11px] text-slate-500 font-semibold m-0 leading-relaxed">
+                  Your current GPS location coordinates will be submitted along with this report to assist in local police/municipal sentinel updates.
+                </p>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Incident Type *</label>
+                    <select
+                      value={incidentCategory}
+                      onChange={(e) => setIncidentCategory(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50"
+                    >
+                      <option value="THEFT">🎒 Theft / Pickpocketing</option>
+                      <option value="HIGH_CRIME">⚠️ High Crime Area</option>
+                      <option value="NO_NETWORK">📵 Limited/No Network</option>
+                      <option value="WILDLIFE">🐅 Wildlife Danger</option>
+                      <option value="ACCIDENT_PRONE">🚗 Accident-Prone Area</option>
+                      <option value="ROAD_HAZARD">🚧 Poor Road Condition</option>
+                      <option value="HILL_CURVE">⛰️ Sharp Hill Curve</option>
+                      <option value="FLOOD_RISK">🌊 Flood Risk Area</option>
+                      <option value="LANDSLIDE_RISK">⛰️ Landslide Hazard</option>
+                      <option value="FIRE_RISK">🔥 Fire Risk Area</option>
+                      <option value="EXTREME_WEATHER">⛈️ Extreme Weather</option>
+                      <option value="DANGEROUS_TERRAIN">🏔️ Dangerous Terrain</option>
+                      <option value="WATER_DANGER">🏊 Water Danger</option>
+                      <option value="DROWNING_RISK">🌊 Drowning Risk Area</option>
+                      <option value="POLICE_ALERT">👮 Police Alert Zone</option>
+                      <option value="MEDICAL_RISK">🚑 Medical Emergency Risk</option>
+                      <option value="RIOT_OR_UNREST">📢 Civil Unrest / Protest</option>
+                      <option value="CONSTRUCTION_HAZARD">🏗️ Construction Hazard</option>
+                      <option value="RESTRICTED_AREA">⛔ Restricted Area</option>
+                      <option value="OTHER">🛡️ Other Safety Issue</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Severity *</label>
+                    <select
+                      value={incidentSeverity}
+                      onChange={(e) => setIncidentSeverity(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50 font-bold"
+                    >
+                      <option value="low">🟢 Low Alert</option>
+                      <option value="medium">🟡 Medium Risk</option>
+                      <option value="high">🔴 High Danger</option>
+                      <option value="critical">🚨 Critical Emergency</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Brief Title *</label>
+                  <input
+                    type="text"
+                    value={incidentTitle}
+                    onChange={(e) => setIncidentTitle(e.target.value)}
+                    placeholder="e.g. Broken guardrails on cliff corner"
+                    required
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Description & Details *</label>
+                  <textarea
+                    value={incidentDescription}
+                    onChange={(e) => setIncidentDescription(e.target.value)}
+                    placeholder="Provide safety instructions, details, or recommended escape routes..."
+                    required
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50 h-20 outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 font-mono text-[10px] flex items-center justify-between">
+                  <span>Target Coordinates:</span>
+                  <span className="font-bold text-slate-800">
+                    {parseFloat(reportingCoordinates.lat).toFixed(5)}, {parseFloat(reportingCoordinates.lng).toFixed(5)}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowIncidentModal(false)}
+                    className="flex-1 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-black text-xs cursor-pointer hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingIncident}
+                    className="flex-1 py-2.5 rounded-xl bg-[#0D47A1] hover:bg-blue-900 text-white font-extrabold text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-75"
+                  >
+                    {submittingIncident ? (
+                      <><RefreshCw className="w-4 h-4 animate-spin" /> Submitting...</>
+                    ) : (
+                      'Submit Incident Report'
+                    )}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              /* Success View */
+              <div className="py-6 text-center space-y-4 animate-fade-in">
+                <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-8 h-8" />
+                </div>
+                <div>
+                  <h4 className="text-base font-black text-emerald-700 m-0">
+                    Report Submitted Successfully
+                  </h4>
+                  <p className="text-xs text-slate-600 font-medium m-0 mt-1.5 px-4 leading-relaxed">
+                    Thank you for helping protect future tourists. Your safety report has been queued for district police and sentinel admin verification.
+                  </p>
+                </div>
+                <div className="p-3 rounded-2xl bg-slate-100 border font-mono text-xs font-black text-blue-950">
+                  Incident ID: {submittedIncidentCode} (PENDING)
+                </div>
+                <button
+                  onClick={() => setShowIncidentModal(false)}
+                  className="w-full py-2.5 rounded-xl bg-[#0D47A1] text-white font-black text-xs shadow-md"
+                >
+                  Return to Safety Map
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
