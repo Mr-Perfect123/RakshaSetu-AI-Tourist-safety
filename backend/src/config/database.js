@@ -344,6 +344,29 @@ const testConnection = async () => {
   try {
     const connection = await pool.getConnection();
     console.log(`[Database] Successfully connected to MySQL database '${dbConfig.database}' on ${dbConfig.host}:${dbConfig.port}`);
+    
+    // Ensure all global metadata columns exist on danger_zones table
+    const columnsToAdd = [
+      { name: 'source', type: 'VARCHAR(255) DEFAULT NULL' },
+      { name: 'source_url', type: 'VARCHAR(255) DEFAULT NULL' },
+      { name: 'confidence', type: 'VARCHAR(50) DEFAULT "MEDIUM"' },
+      { name: 'country', type: 'VARCHAR(100) DEFAULT NULL' },
+      { name: 'state', type: 'VARCHAR(100) DEFAULT NULL' },
+      { name: 'city', type: 'VARCHAR(100) DEFAULT NULL' },
+      { name: 'expires_at', type: 'TIMESTAMP NULL DEFAULT NULL' }
+    ];
+
+    for (const col of columnsToAdd) {
+      try {
+        await connection.query(`ALTER TABLE danger_zones ADD COLUMN ${col.name} ${col.type}`);
+      } catch (err) {
+        // Suppress "duplicate column" error (1060 / ER_DUP_FIELDNAME)
+        if (err.errno !== 1060 && err.code !== 'ER_DUP_FIELDNAME') {
+          console.warn(`[Database Migration] Warning adding column ${col.name}:`, err.message);
+        }
+      }
+    }
+    
     connection.release();
     dbConnected = true;
   } catch (error) {

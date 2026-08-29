@@ -32,6 +32,14 @@ server.listen(PORT, async () => {
 
   await initAutoSetup();
   await testConnection();
+
+  // Trigger startup synchronization of global safety feeds
+  try {
+    const SafetyDataSyncService = require('./services/safetyDataSyncService');
+    await SafetyDataSyncService.syncAllSources();
+  } catch (err) {
+    logger.warn(`[Sync Warning] Startup safety sync failed: ${err.message}`);
+  }
 });
 
 module.exports = server;

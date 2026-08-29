@@ -46,6 +46,94 @@ const SafetyMap = ({ darkMode }) => {
   const [viewportBounds, setViewportBounds] = useState(null);
   const viewportTimerRef = useRef(null);
 
+  // ── Alert History Log State (Requirement 41) ───────────────────────────────────
+  const [alertHistory, setAlertHistory] = useState(() => {
+    try {
+      const cached = localStorage.getItem('rakshasetu_alert_history');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const addAlertHistory = useCallback((message) => {
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setAlertHistory(prev => {
+      const updated = [{ time: timestamp, message }, ...prev].slice(0, 50);
+      localStorage.setItem('rakshasetu_alert_history', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  // ── Safe Escape Route Navigation (Requirement 16) ─────────────────────────────
+  const handleGetSafeRoute = useCallback(() => {
+    const candidates = [
+      ...safeLocations,
+      ...nearbyHospitals,
+      ...nearbyPolice
+    ];
+
+    if (candidates.length === 0) {
+      alert("No registered emergency shelters, police stations, or hospitals found in your immediate vicinity. Please follow major highways or move towards populated public spaces.");
+      return;
+    }
+
+    // Find closest candidate by distance
+    let closest = null;
+    let minD = Infinity;
+
+    candidates.forEach(c => {
+      const lat = parseFloat(c.latitude);
+      const lng = parseFloat(c.longitude);
+      if (isValidCoord(lat, lng)) {
+        const d = calculateDistanceMeters(gpsLocation.lat, gpsLocation.lng, lat, lng);
+        if (d < minD) {
+          minD = d;
+          closest = c;
+        }
+      }
+    });
+
+    if (closest) {
+      const dest = {
+        lat: parseFloat(closest.latitude),
+        lng: parseFloat(closest.longitude),
+        name: closest.name || closest.hospital_name || closest.station_name || 'Emergency Point',
+        address: closest.address || 'Safe Corridor'
+      };
+
+      setSearchedDestination(dest);
+      setMapCenter({ lat: dest.lat, lng: dest.lng });
+      
+      // Request route from OSRM
+      axios.get(`https://router.project-osrm.org/route/v1/driving/${gpsLocation.lng},${gpsLocation.lat};${dest.lng},${dest.lat}?overview=full&geometries=geojson`, { timeout: 3500 })
+        .then(async (osrm) => {
+          if (osrm.data?.routes?.[0]) {
+            const r = osrm.data.routes[0];
+            setRouteInfo({
+              distanceKm: Math.round((r.distance / 1000) * 10) / 10,
+              durationMins: Math.round(r.duration / 60)
+            });
+
+            // Perform route safety analysis
+            const routeCoords = r.geometry?.coordinates 
+              ? r.geometry.coordinates.map(pt => [pt[1], pt[0]]) 
+              : [[gpsLocation.lat, gpsLocation.lng], [dest.lat, dest.lng]];
+
+            try {
+              const analysisRes = await api.post('/zones/route-analysis', { routeCoordinates: routeCoords });
+              if (analysisRes.data?.data) {
+                setRouteSafety(analysisRes.data.data);
+              }
+            } catch {}
+          }
+        })
+        .catch(() => {});
+
+      alert(`🚨 Emergency Escape Navigation Activated towards closest facility: ${dest.name}. Safety Advisory: Move steadily along primary well-lit paths.`);
+    }
+  }, [gpsLocation, safeLocations, nearbyHospitals, nearbyPolice]);
+
   // ── Raw API Datasets ──────────────────────────────────────────────────────────
   const [dangerZones, setDangerZones] = useState(() => {
     try {
@@ -137,9 +225,11 @@ const SafetyMap = ({ darkMode }) => {
           setActiveEmergencyZone({ zone, dist, distanceInside });
           setMinimizedDangerBanner({ zone, dist, distanceInside });
           setApproachingAlert(null); // Clear approaching if jumped into inside
+          addAlertHistory(`🚨 Entered: ${zone.name} (${zone.danger_type || zone.crime_type || 'Hazard'})`);
         } else if (newState === 'APPROACHING' && prevState === 'OUTSIDE') {
           // APPROACHING -> Trigger warning toast
           setApproachingAlert({ zone, dist: Math.round(dist) });
+          addAlertHistory(`⚠️ Approaching: ${zone.name}`);
           // Auto-dismiss approaching toast after 8 seconds
           setTimeout(() => setApproachingAlert(prev => (prev?.zone?.id === zone.id ? null : prev)), 8000);
         } else if (prevState === 'INSIDE' && newState !== 'INSIDE') {
@@ -147,6 +237,7 @@ const SafetyMap = ({ darkMode }) => {
           setActiveEmergencyZone(null);
           setMinimizedDangerBanner(null);
           setExitAlert({ zone });
+          addAlertHistory(`✅ Exited: ${zone.name}`);
           setTimeout(() => setExitAlert(null), 7000);
         }
       }
@@ -159,7 +250,7 @@ const SafetyMap = ({ darkMode }) => {
     if (currentlyInsideZone && !activeEmergencyZone && !minimizedDangerBanner) {
       setMinimizedDangerBanner(currentlyInsideZone);
     }
-  }, [activeEmergencyZone, minimizedDangerBanner]);
+  }, [activeEmergencyZone, minimizedDangerBanner, addAlertHistory]);
 
   // ── Continuous Geolocation Stream (watchPosition) ─────────────────────────────
   useEffect(() => {
@@ -795,6 +886,47 @@ const SafetyMap = ({ darkMode }) => {
             })}
           </div>
 
+          {/* Emergency Escape Navigator Action Button (Requirement 16) */}
+          <button
+            type="button"
+            onClick={handleGetSafeRoute}
+            className="w-full py-2.5 rounded-2xl bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white font-extrabold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+          >
+            <Compass className="w-4 h-4" /> Find Closest Emergency Escape Route
+          </button>
+
+          {/* Safety Alerts Log Timeline Panel (Requirement 41) */}
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Safety Alert History</span>
+              {alertHistory.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAlertHistory([]);
+                    localStorage.removeItem('rakshasetu_alert_history');
+                  }}
+                  className="text-[9px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer"
+                >
+                  Clear History
+                </button>
+              )}
+            </div>
+
+            {alertHistory.length === 0 ? (
+              <p className="text-[10px] text-slate-400 m-0 font-medium italic">No recent safety alerts triggered. Proceeding in monitored zone.</p>
+            ) : (
+              <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
+                {alertHistory.map((item, idx) => (
+                  <div key={idx} className="text-[10px] leading-tight flex items-start gap-1">
+                    <span className="text-slate-400 font-mono text-[9px] shrink-0 font-bold">[{item.time}]</span>
+                    <span className="font-semibold text-slate-700">{item.message}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Active Status Badge */}
           <div className="pt-3 border-t border-slate-100 space-y-1.5 text-[11px] text-slate-600">
             <div className="flex items-center justify-between font-bold">
@@ -929,23 +1061,34 @@ const SafetyMap = ({ darkMode }) => {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center gap-3 pt-2">
+                <div className="grid grid-cols-3 gap-2 pt-2">
+                  <button
+                    onClick={() => {
+                      setActiveEmergencyZone(null);
+                      handleGetSafeRoute();
+                    }}
+                    className="py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-[10px] uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer shadow-xs"
+                    title="Get Safe Escape Route directions"
+                  >
+                    <Compass className="w-3.5 h-3.5 shrink-0" /> Escape Route
+                  </button>
+
                   <button
                     onClick={() => setActiveEmergencyZone(null)}
-                    className="flex-1 py-3 rounded-2xl border border-slate-300 text-slate-700 font-extrabold text-xs hover:bg-slate-100 transition-all cursor-pointer"
+                    className="py-3 rounded-xl border border-slate-300 text-slate-700 font-extrabold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all cursor-pointer"
                   >
-                    I UNDERSTAND
+                    Dismiss
                   </button>
 
                   <button
                     onClick={handleTriggerDangerSos}
                     disabled={sosLoading}
-                    className="flex-1 py-3 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-black text-xs shadow-xl shadow-red-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-70"
+                    className="py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-[10px] uppercase tracking-wider shadow-lg flex items-center justify-center gap-1 transition-all cursor-pointer disabled:opacity-70"
                   >
                     {sosLoading ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" /><span>Broadcasting...</span></>
+                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /><span>Broadcasting...</span></>
                     ) : (
-                      <><AlertOctagon className="w-4 h-4" /><span>🚨 DISPATCH SOS</span></>
+                      <><AlertOctagon className="w-3.5 h-3.5" /><span>🚨 SOS</span></>
                     )}
                   </button>
                 </div>

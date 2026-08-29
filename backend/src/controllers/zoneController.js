@@ -315,6 +315,17 @@ class ZoneController {
     const updated = await executeQuery('SELECT * FROM danger_zones WHERE id = ?', [id]);
     return res.status(200).json(new ApiResponse(200, updated[0] || null, 'Danger zone status toggled.'));
   });
+
+  /**
+   * Trigger safety data ingestion sync from external feeds (USGS, GDACS, Curated official feeds)
+   */
+  static syncDangerZones = asyncHandler(async (req, res) => {
+    const SafetyDataSyncService = require('../services/safetyDataSyncService');
+    const ingestedCount = await SafetyDataSyncService.syncAllSources();
+    return res.status(200).json(
+      new ApiResponse(200, { ingestedCount }, 'Safety and hazard feed synchronization completed successfully.')
+    );
+  });
 }
 
 module.exports = ZoneController;

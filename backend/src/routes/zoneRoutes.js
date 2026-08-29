@@ -7,6 +7,7 @@ const { authenticateJWT, authorizeRoles } = require('../middleware/auth');
 router.get('/', ZoneController.getDangerZones);
 router.get('/danger-zones', ZoneController.getDangerZones);
 router.post('/route-analysis', ZoneController.analyzeRouteSafety);
+router.post('/sync', ZoneController.syncDangerZones);
 router.get('/danger-zones/:id', ZoneController.getDangerZoneById);
 router.get('/:id', ZoneController.getDangerZoneById);
 

@@ -74,6 +74,22 @@ const DangerZonesMgmt = () => {
     }
   };
 
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSyncFeeds = async () => {
+    setSyncing(true);
+    try {
+      const res = await api.post('/zones/sync');
+      const data = res.data?.data || res.data;
+      alert(`Synchronized successfully! Ingested or updated ${data?.ingestedCount || 0} active danger/disaster zones from GDACS, USGS, and Curated feeds.`);
+      fetchZones();
+    } catch (err) {
+      alert(`Synchronization failed: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   useEffect(() => {
     fetchZones();
   }, []);
@@ -186,12 +202,22 @@ const DangerZonesMgmt = () => {
             Configure real-time geofences, danger types, automated tourist warning triggers, and emergency instructions.
           </p>
         </div>
-        <button
-          onClick={fetchZones}
-          className="px-4 py-2 rounded-2xl bg-white/15 hover:bg-white/25 text-white text-xs font-black flex items-center gap-1.5 cursor-pointer backdrop-blur-md"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh Zones
-        </button>
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={handleSyncFeeds}
+            disabled={syncing}
+            className="px-4 py-2 rounded-2xl bg-amber-500 hover:bg-amber-650 text-white text-xs font-black flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-75 transition-all"
+            title="Sync GDACS Disasters and USGS Earthquakes active feeds"
+          >
+            <Radio className={`w-3.5 h-3.5 ${syncing ? 'animate-pulse' : ''}`} /> Sync USGS/GDACS Feeds
+          </button>
+          <button
+            onClick={fetchZones}
+            className="px-4 py-2 rounded-2xl bg-white/15 hover:bg-white/25 text-white text-xs font-black flex items-center gap-1.5 cursor-pointer backdrop-blur-md transition-all"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh Zones
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
