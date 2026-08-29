@@ -573,17 +573,17 @@ const TouristMap = ({
             </Marker>
           );
         })}
-      </MapContainer>
 
-      {/* Floating Overlay Controls on Top Right */}
-      <MapControlsOverlay
-        onRecenter={handleRecenter}
-        followMe={followMe}
-        setFollowMe={setFollowMe}
-        gpsAccuracy={gpsAccuracy}
-        isLiveTracking={isLiveTracking}
-        isOffline={isOffline}
-      />
+        {/* Floating Overlay Controls on Top Right (Inside MapContainer so useMap() has context) */}
+        <MapControlsOverlay
+          onRecenter={handleRecenter}
+          followMe={followMe}
+          setFollowMe={setFollowMe}
+          gpsAccuracy={gpsAccuracy}
+          isLiveTracking={isLiveTracking}
+          isOffline={isOffline}
+        />
+      </MapContainer>
 
       {/* Comprehensive Map Legend Footer */}
       <div className="bg-slate-900 text-white p-2.5 text-[11px] font-semibold flex items-center justify-between overflow-x-auto gap-3 border-t border-slate-800 shrink-0">
