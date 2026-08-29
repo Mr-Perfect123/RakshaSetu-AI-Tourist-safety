@@ -41,6 +41,7 @@ const Dashboard = ({ tourist, darkMode }) => {
 
   // ── Category Modal ───────────────────────────────────────────────────────────
   const [categoryModal, setCategoryModal] = useState({ isOpen: false, categoryName: '', items: [], loading: false });
+  const [categoryPageSize, setCategoryPageSize] = useState(6);
 
   // ── Data Lists ───────────────────────────────────────────────────────────────
   const [exploreDestinations, setExploreDestinations] = useState([]);
@@ -175,6 +176,7 @@ const Dashboard = ({ tourist, darkMode }) => {
   // ── Category Modal Handler ───────────────────────────────────────────────────
   const handleOpenCategory = useCallback(async (catName) => {
     setSelectedCategory(catName);
+    setCategoryPageSize(6);
     setCategoryModal({ isOpen: true, categoryName: catName, items: [], loading: true });
     try {
       const res = await api.get(
@@ -317,7 +319,7 @@ const Dashboard = ({ tourist, darkMode }) => {
 
           {/* ── Search Dropdown Panel ────────────────────────────────────── */}
           {searchQuery.trim() && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50 animate-fade-in max-h-96 overflow-y-auto divide-y divide-slate-100">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-[999] pointer-events-auto animate-fade-in max-h-80 overflow-y-auto divide-y divide-slate-100">
               {isSearching ? (
                 <div className="p-6 text-center text-slate-500 flex items-center justify-center gap-2 font-bold text-xs">
                   <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
@@ -543,7 +545,7 @@ const Dashboard = ({ tourist, darkMode }) => {
                 <p className="text-xs m-0 text-slate-500 font-semibold">
                   {categoryModal.loading
                     ? 'Loading...'
-                    : `Showing ${categoryModal.items.length} verified destination${categoryModal.items.length !== 1 ? 's' : ''}`}
+                    : `Showing 1–${Math.min(categoryPageSize, categoryModal.items.length)} of ${categoryModal.items.length} verified destinations`}
                 </p>
               </div>
               <button
@@ -569,18 +571,31 @@ const Dashboard = ({ tourist, darkMode }) => {
                   </h4>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {categoryModal.items.map((item) => (
-                    <CategoryModalCard
-                      key={item.id}
-                      item={item}
-                      darkMode={false}
-                      isSaved={savedIds.includes(item.id)}
-                      onSave={() => toggleSavePlace(item)}
-                      onDirections={() => { setCategoryModal(p => ({ ...p, isOpen: false })); handleGetDirections(item); }}
-                      onView={() => { setCategoryModal(p => ({ ...p, isOpen: false })); navigate(`/places/${item.id}`); }}
-                    />
-                  ))}
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {categoryModal.items.slice(0, categoryPageSize).map((item) => (
+                      <CategoryModalCard
+                        key={item.id}
+                        item={item}
+                        darkMode={false}
+                        isSaved={savedIds.includes(item.id)}
+                        onSave={() => toggleSavePlace(item)}
+                        onDirections={() => { setCategoryModal(p => ({ ...p, isOpen: false })); handleGetDirections(item); }}
+                        onView={() => { setCategoryModal(p => ({ ...p, isOpen: false })); navigate(`/places/${item.id}`); }}
+                      />
+                    ))}
+                  </div>
+
+                  {categoryModal.items.length > categoryPageSize && (
+                    <div className="flex justify-center pt-2 pb-4">
+                      <button
+                        onClick={() => setCategoryPageSize(prev => prev + 6)}
+                        className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-md hover:scale-102 transition-all cursor-pointer flex items-center gap-1.5"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" /> Load More
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

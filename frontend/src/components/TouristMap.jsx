@@ -297,6 +297,161 @@ const MapControlsOverlay = ({
   );
 };
 
+const createClusterIcon = (count, maxSeverity) => {
+  const colorClass = 
+    maxSeverity === 'critical' ? 'bg-red-600 text-white border-red-300 shadow-red-500/50' :
+    maxSeverity === 'high' ? 'bg-red-500 text-white border-red-200 shadow-red-500/40' :
+    maxSeverity === 'moderate' ? 'bg-orange-500 text-white border-orange-200 shadow-orange-500/40' :
+    'bg-amber-500 text-slate-900 border-amber-200 shadow-amber-500/40';
+
+  return new L.DivIcon({
+    className: 'custom-cluster-marker',
+    html: `
+      <div style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: 900; font-size: 11px; border: 2px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s;" class="${colorClass}">
+        <span>${count}</span>
+      </div>
+    `,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18]
+  });
+};
+
+const ClusterMarker = ({ cluster }) => {
+  const map = useMap();
+  const handleClusterClick = () => {
+    map.flyTo([cluster.latitude, cluster.longitude], map.getZoom() + 3, { duration: 1.0 });
+  };
+
+  return (
+    <Marker 
+      position={[cluster.latitude, cluster.longitude]} 
+      icon={createClusterIcon(cluster.count, cluster.maxSeverity)}
+      eventHandlers={{ click: handleClusterClick }}
+    >
+      <Popup>
+        <div className="p-1 space-y-2 max-w-xs text-slate-900">
+          <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1">
+            <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1">
+              ⚠️ Hazard Cluster ({cluster.count})
+            </span>
+            <span className="text-[9px] font-bold text-slate-400">{cluster.city || cluster.country}</span>
+          </div>
+          
+          <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1 divide-y divide-slate-50">
+            {cluster.zones.slice(0, 5).map(z => {
+              const theme = getDangerZoneTheme(z);
+              return (
+                <div key={z.id || z.zone_code} className="pt-1 first:pt-0">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px]">{theme.icon}</span>
+                    <span className="font-extrabold text-[10px] text-slate-900 leading-tight">{z.name}</span>
+                  </div>
+                  <span className="text-[9px] text-slate-500 block leading-tight truncate">{z.description || z.advisory_message}</span>
+                </div>
+              );
+            })}
+            {cluster.zones.length > 5 && (
+              <div className="text-[9px] text-slate-400 text-center font-bold pt-1">
+                + {cluster.zones.length - 5} more hazards in this area
+              </div>
+            )}
+          </div>
+          
+          <button
+            onClick={handleClusterClick}
+            className="w-full mt-1 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[10px] uppercase cursor-pointer"
+          >
+            Zoom in to View perimeters
+          </button>
+        </div>
+      </Popup>
+    </Marker>
+  );
+};
+
+const MapZoomListener = ({ onChangeZoom }) => {
+  const map = useMapEvents({
+    zoomend() {
+      onChangeZoom(map.getZoom());
+    }
+  });
+  return null;
+};
+
+const clusterZones = (zones, zoomLevel) => {
+  if (zoomLevel > 5) {
+    return { clusters: [], individuals: zones };
+  }
+
+  // zoom-specific clustering distance threshold in km
+  const thresholdKm = Math.pow(2, 6 - zoomLevel) * 70; 
+
+  const clusters = [];
+  const visited = new Set();
+
+  for (let i = 0; i < zones.length; i++) {
+    if (visited.has(zones[i].id || zones[i].zone_code)) continue;
+
+    const z1 = zones[i];
+    const cluster = [z1];
+    visited.add(z1.id || z1.zone_code);
+
+    const lat1 = parseFloat(z1.latitude);
+    const lng1 = parseFloat(z1.longitude);
+
+    for (let j = i + 1; j < zones.length; j++) {
+      if (visited.has(zones[j].id || zones[j].zone_code)) continue;
+
+      const z2 = zones[j];
+      const lat2 = parseFloat(z2.latitude);
+      const lng2 = parseFloat(z2.longitude);
+
+      if (!isValidCoord(lat2, lng2)) continue;
+
+      const dist = calculateDistanceMeters(lat1, lng1, lat2, lng2) / 1000;
+      if (dist <= thresholdKm) {
+        cluster.push(z2);
+        visited.add(z2.id || z2.zone_code);
+      }
+    }
+
+    if (cluster.length > 1) {
+      let sumLat = 0, sumLng = 0;
+      let maxSeverity = 'low';
+      const severities = ['low', 'moderate', 'high', 'critical'];
+
+      cluster.forEach(z => {
+        sumLat += parseFloat(z.latitude);
+        sumLng += parseFloat(z.longitude);
+        const s = (z.severity || 'high').toLowerCase();
+        if (severities.indexOf(s) > severities.indexOf(maxSeverity)) {
+          maxSeverity = s;
+        }
+      });
+
+      clusters.push({
+        id: `cluster-${z1.id || z1.zone_code}`,
+        latitude: sumLat / cluster.length,
+        longitude: sumLng / cluster.length,
+        count: cluster.length,
+        maxSeverity,
+        zones: cluster,
+        country: z1.country,
+        state: z1.state,
+        city: z1.city
+      });
+    } else {
+      visited.delete(z1.id || z1.zone_code);
+    }
+  }
+
+  const clusteredIds = new Set();
+  clusters.forEach(c => c.zones.forEach(z => clusteredIds.add(z.id || z.zone_code)));
+  const individuals = zones.filter(z => !clusteredIds.has(z.id || z.zone_code));
+
+  return { clusters, individuals };
+};
+
 const TouristMap = ({
   location = { lat: 11.0168, lng: 76.9558 },
   movementTrail = [],
@@ -318,6 +473,7 @@ const TouristMap = ({
   const navigate = useNavigate();
   const mapContainerRef = useRef(null);
   const [followMe, setFollowMe] = useState(false);
+  const [currentZoom, setCurrentZoom] = useState(15);
 
   const touristLat = parseFloat(location?.lat || 11.0168);
   const touristLng = parseFloat(location?.lng || 76.9558);
@@ -336,6 +492,10 @@ const TouristMap = ({
     });
     return pts;
   }, [position, destPos, dangerZones]);
+
+  const { clusters, individuals } = useMemo(() => {
+    return clusterZones(dangerZones || [], currentZoom);
+  }, [dangerZones, currentZoom]);
 
   // Recenter handler helper
   const handleRecenter = useCallback((mapInstance) => {
@@ -356,6 +516,7 @@ const TouristMap = ({
         />
 
         <MapViewController position={position} followMe={followMe} />
+        <MapZoomListener onChangeZoom={setCurrentZoom} />
         <MapBoundsFitter allPoints={activePoints} shouldFit={!followMe && Boolean(destination)} />
         {onViewportChange && <MapViewportListener onViewportChange={onViewportChange} />}
         {onMapClick && <MapClickListener onMapClick={onMapClick} />}
@@ -441,8 +602,12 @@ const TouristMap = ({
           />
         )}
 
-        {/* 5. Danger Zones System (Structured with Theme & Haversine Distance) */}
-        {(dangerZones || []).map((zone) => {
+        {/* 5. Danger Zones System (Structured with Theme & Haversine Distance, supporting Cluster view) */}
+        {clusters.map((cluster) => (
+          <ClusterMarker key={cluster.id} cluster={cluster} />
+        ))}
+
+        {individuals.map((zone) => {
           const lat = parseFloat(zone.latitude);
           const lng = parseFloat(zone.longitude);
           if (!isValidCoord(lat, lng)) return null;
