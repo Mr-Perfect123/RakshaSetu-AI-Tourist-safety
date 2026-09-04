@@ -210,7 +210,8 @@ const Navbar = ({ tourist, onLogout, darkMode, toggleDarkMode }) => {
         ) : (
           <Link
             to="/login"
-            className="px-4 py-1.5 rounded-xl bg-[#0D47A1] hover:bg-blue-900 text-white font-bold text-xs shadow-sm transition-all decoration-none"
+            style={{ color: '#ffffff' }}
+            className="px-4 py-1.5 rounded-xl bg-[#0D47A1] hover:bg-blue-900 !text-white font-bold text-xs shadow-sm transition-all decoration-none flex items-center justify-center"
           >
             {t('dashboard.navbarLoginBtn', 'Sign In')}
           </Link>

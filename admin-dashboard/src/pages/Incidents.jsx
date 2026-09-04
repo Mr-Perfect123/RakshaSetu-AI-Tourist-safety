@@ -87,10 +87,14 @@ const Incidents = () => {
     }
   };
 
+  const [conversionStatus, setConversionStatus] = useState(null);
+
   const handleStatusUpdate = async (id, status) => {
+    setConversionStatus(null);
     try {
       const res = await api.patch(`/incidents/${id}/status`, { status });
       const updated = res.data?.data?.report || res.data?.data || res.data;
+      const convData = res.data?.data;
       
       setIncidents((prev) =>
         prev.map((i) => (i.id === id ? { ...i, status: updated?.status || status } : i))
@@ -98,12 +102,19 @@ const Incidents = () => {
       
       if (selectedIncident && selectedIncident.id === id) {
         setSelectedIncident(prev => ({ ...prev, status: updated?.status || status }));
-        // Refresh cluster check if newly verified
+        if (convData) {
+          setConversionStatus({
+            zoneCreated: convData.zoneCreated,
+            zoneUpdated: convData.zoneUpdated,
+            safetyZone: convData.safetyZone,
+            reason: convData.conversionReason
+          });
+        }
         if (status === 'verified') {
           handleInspect({ ...selectedIncident, status: 'verified' });
         }
       }
-      alert(`Incident status updated to ${status}.`);
+      alert(`Incident status updated to ${status}. ${convData?.conversionReason || ''}`);
     } catch (err) {
       alert(`Failed to update status: ${err.message}`);
     }
@@ -333,42 +344,45 @@ const Incidents = () => {
                 </div>
               )}
 
-              {/* Cluster Recommendation Panel (Requirement 21) */}
+              {/* Automatic Safety Zone Status Card */}
               {selectedIncident.status === 'verified' && (
-                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-3">
-                  <div className="flex items-center gap-1.5 text-amber-800">
-                    <ShieldAlert className="w-5 h-5 shrink-0" />
-                    <span className="text-xs font-black uppercase tracking-wide">
-                      Safety Cluster Intelligence
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2 text-xs text-slate-800">
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-emerald-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600" /> Automatic Safety Zone Status
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-emerald-600 text-white font-black text-[9px] uppercase">
+                      Verified ✓
                     </span>
                   </div>
 
-                  {clusterLoading ? (
-                    <div className="text-xs text-slate-400 font-bold flex items-center gap-1.5">
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-600" /> Evaluating nearby verified clusters...
-                    </div>
-                  ) : clusterInfo?.clusterDetected ? (
-                    <div className="space-y-2 text-xs text-slate-700">
-                      <p className="m-0 leading-relaxed font-bold">
-                        🚨 Found <strong className="text-red-700">{clusterInfo.incidentCount} verified reports</strong> within 500m of this location.
-                      </p>
-                      <div className="p-2.5 rounded-xl bg-white border border-amber-300 space-y-1">
-                        <span className="text-[10px] font-black uppercase text-amber-800 block">Recommended Zone Preset</span>
-                        <div className="font-extrabold text-slate-900">{clusterInfo.recommendedName}</div>
-                        <div className="text-[10px] text-slate-500">Radius: {clusterInfo.recommendedRadius}m • Severity: {clusterInfo.recommendedSeverity}</div>
-                      </div>
+                  <p className="m-0 text-[11px] font-bold text-slate-700">
+                    {conversionStatus?.reason || 'Verified incident processed by Sentinel Automatic Zone Processor.'}
+                  </p>
 
-                      <button
-                        onClick={handleCreateZoneFromPreset}
-                        className="w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs uppercase tracking-wide flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                      >
-                        Create Geofenced Danger Zone <ArrowRight className="w-4 h-4" />
-                      </button>
+                  {conversionStatus?.safetyZone ? (
+                    <div className="p-2.5 rounded-xl bg-white border border-emerald-200 font-mono text-[10px] space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Zone Code:</span>
+                        <strong className="text-blue-900">{conversionStatus.safetyZone.zone_code || `DZ-${conversionStatus.safetyZone.id}`}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Radius / Perimeter:</span>
+                        <strong className="text-slate-900">{conversionStatus.safetyZone.radius_meters || 300} m</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Severity:</span>
+                        <strong className="uppercase text-red-700">{conversionStatus.safetyZone.severity || 'high'}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Source Provenance:</span>
+                        <strong className="text-emerald-700">{conversionStatus.safetyZone.source || 'Verified Community Report'}</strong>
+                      </div>
                     </div>
                   ) : (
-                    <p className="text-[11px] text-slate-500 m-0 leading-relaxed">
-                      No active cluster threshold detected yet. Needs at least 3 verified reports within 500m to recommend a permanent geofence perimeter.
-                    </p>
+                    <div className="text-[10px] text-slate-500 italic">
+                      * Automatic Danger Zone active on live Tourist Sentinel Map.
+                    </div>
                   )}
                 </div>
               )}

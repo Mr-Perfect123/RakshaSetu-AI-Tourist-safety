@@ -1,11 +1,140 @@
 import React, { useState, useEffect } from 'react';
-import { Car, Bike, Truck, Bus, Calendar, Clock, MapPin, CheckCircle2, ShieldCheck, UserCheck, ArrowRight, ArrowLeft, AlertCircle, History, Phone, Star, Shield, RefreshCw, Route, CreditCard, KeyRound, PlayCircle, FlagTriangleRight, Loader2, BadgeCheck, Wallet } from 'lucide-react';
+import { Car, Bike, Truck, Bus, Calendar, Clock, MapPin, CheckCircle2, ShieldCheck, UserCheck, ArrowRight, ArrowLeft, AlertCircle, History, Phone, Star, Shield, RefreshCw, Route, CreditCard, KeyRound, PlayCircle, FlagTriangleRight, Loader2, BadgeCheck, Wallet, LocateFixed, ArrowUpDown, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import PaymentModal from '../components/PaymentModal';
 import axios from 'axios';
 
-// Enhanced intercity and intracity distance calculator
+// Known Coordinates Dictionary for instant, high-accuracy geocoding across Indian cities & landmarks
+const KNOWN_COORDINATES = {
+  // Cities
+  'coimbatore': { lat: 11.0168, lng: 76.9558 },
+  'chennai': { lat: 13.0827, lng: 80.2707 },
+  'bangalore': { lat: 12.9716, lng: 77.5946 },
+  'bengaluru': { lat: 12.9716, lng: 77.5946 },
+  'delhi': { lat: 28.6139, lng: 77.2090 },
+  'new delhi': { lat: 28.6139, lng: 77.2090 },
+  'mumbai': { lat: 19.0760, lng: 72.8777 },
+  'agra': { lat: 27.1767, lng: 78.0081 },
+  'jaipur': { lat: 26.9124, lng: 75.7873 },
+  'hyderabad': { lat: 17.3850, lng: 78.4867 },
+  'kolkata': { lat: 22.5726, lng: 88.3639 },
+  'kochi': { lat: 9.9312, lng: 76.2673 },
+  'ernakulam': { lat: 9.9816, lng: 76.2999 },
+  'madurai': { lat: 9.9252, lng: 78.1198 },
+  'ooty': { lat: 11.4102, lng: 76.6950 },
+  'kodaikanal': { lat: 10.2381, lng: 77.4892 },
+  'goa': { lat: 15.2993, lng: 74.1240 },
+  'panaji': { lat: 15.4909, lng: 73.8278 },
+  'pune': { lat: 18.5204, lng: 73.8567 },
+  'mysore': { lat: 12.2958, lng: 76.6394 },
+  'mysuru': { lat: 12.2958, lng: 76.6394 },
+  'varanasi': { lat: 25.3176, lng: 82.9739 },
+  'amritsar': { lat: 31.6340, lng: 74.8723 },
+  'thanjavur': { lat: 10.7870, lng: 79.1378 },
+  'tirupati': { lat: 13.6288, lng: 79.4192 },
+  'shimla': { lat: 31.1048, lng: 77.1734 },
+  'manali': { lat: 32.2432, lng: 77.1892 },
+  'rishikesh': { lat: 30.0869, lng: 78.2676 },
+  'haridwar': { lat: 29.9457, lng: 78.1642 },
+  'pondicherry': { lat: 11.9416, lng: 79.8083 },
+  'puducherry': { lat: 11.9416, lng: 79.8083 },
+
+  // Coimbatore Landmarks
+  'coimbatore railway station': { lat: 11.0017, lng: 76.9629 },
+  'coimbatore junction': { lat: 11.0017, lng: 76.9629 },
+  'marudamalai temple': { lat: 11.0478, lng: 76.8524 },
+  'marudamalai': { lat: 11.0478, lng: 76.8524 },
+  'isha yoga': { lat: 10.9765, lng: 76.7348 },
+  'isha': { lat: 10.9765, lng: 76.7348 },
+  'adiyogi': { lat: 10.9765, lng: 76.7348 },
+  'coimbatore airport': { lat: 11.0300, lng: 77.0434 },
+  'gandhipuram': { lat: 11.0183, lng: 76.9658 },
+  'gandhipuram bus stand': { lat: 11.0183, lng: 76.9658 },
+  'peelamedu': { lat: 11.0315, lng: 77.0118 },
+  'rs puram': { lat: 11.0076, lng: 76.9497 },
+  'saravanampatti': { lat: 11.0827, lng: 76.9968 },
+  'singanallur': { lat: 10.9984, lng: 77.0270 },
+  'ukkkadam': { lat: 10.9892, lng: 76.9610 },
+  'perur': { lat: 10.9723, lng: 76.9189 },
+  'perur pateeswarar': { lat: 10.9723, lng: 76.9189 },
+  'voc park': { lat: 11.0055, lng: 76.9712 },
+  'brookefields mall': { lat: 11.0101, lng: 76.9575 },
+
+  // Delhi Landmarks
+  'red fort': { lat: 28.6562, lng: 77.2410 },
+  'lal qila': { lat: 28.6562, lng: 77.2410 },
+  'qutub minar': { lat: 28.5245, lng: 77.1855 },
+  'india gate': { lat: 28.6129, lng: 77.2295 },
+  'lotus temple': { lat: 28.5535, lng: 77.2588 },
+  'connaught place': { lat: 28.6315, lng: 77.2167 },
+  'cp': { lat: 28.6315, lng: 77.2167 },
+  'delhi airport': { lat: 28.5562, lng: 77.1000 },
+  'igi airport': { lat: 28.5562, lng: 77.1000 },
+  'new delhi railway station': { lat: 28.6427, lng: 77.2209 },
+  'chandni chowk': { lat: 28.6506, lng: 77.2303 },
+  'humayun tomb': { lat: 28.5847, lng: 77.2474 },
+  'akshardham': { lat: 28.6127, lng: 77.2773 },
+
+  // Bangalore Landmarks
+  'bengaluru airport': { lat: 13.1986, lng: 77.7066 },
+  'bangalore airport': { lat: 13.1986, lng: 77.7066 },
+  'kempegowda airport': { lat: 13.1986, lng: 77.7066 },
+  'mg road': { lat: 12.9756, lng: 77.6066 },
+  'indiranagar': { lat: 12.9719, lng: 77.6412 },
+  'koramangala': { lat: 12.9352, lng: 77.6245 },
+  'whitefield': { lat: 12.9698, lng: 77.7500 },
+  'cubbon park': { lat: 12.9763, lng: 77.5929 },
+  'lalbagh': { lat: 12.9507, lng: 77.5848 },
+  'electronic city': { lat: 12.8399, lng: 77.6770 },
+
+  // Mumbai Landmarks
+  'mumbai airport': { lat: 19.0896, lng: 72.8656 },
+  'cst station': { lat: 18.9400, lng: 72.8353 },
+  'csmt': { lat: 18.9400, lng: 72.8353 },
+  'gateway of india': { lat: 18.9220, lng: 72.8347 },
+  'marine drive': { lat: 18.9432, lng: 72.8231 },
+  'juhu beach': { lat: 19.0988, lng: 72.8264 },
+  'bandra': { lat: 19.0596, lng: 72.8295 },
+  'andheri': { lat: 19.1136, lng: 72.8697 },
+
+  // Chennai Landmarks
+  'chennai airport': { lat: 12.9941, lng: 80.1709 },
+  'chennai central': { lat: 13.0823, lng: 80.2755 },
+  'marina beach': { lat: 13.0499, lng: 80.2824 },
+  't nagar': { lat: 13.0418, lng: 80.2341 },
+  'guindy': { lat: 13.0067, lng: 80.2023 },
+
+  // Major Tourist Landmarks
+  'taj mahal': { lat: 27.1751, lng: 78.0421 },
+  'agra fort': { lat: 27.1795, lng: 78.0211 },
+  'agra railway station': { lat: 27.1593, lng: 77.9944 },
+  'golden temple': { lat: 31.6200, lng: 74.8765 },
+  'charminar': { lat: 17.3616, lng: 78.4747 },
+  'hyderabad airport': { lat: 17.2403, lng: 78.4294 },
+  'meenakshi temple': { lat: 9.9195, lng: 78.1193 },
+  'hawa mahal': { lat: 26.9239, lng: 75.8267 },
+  'amber fort': { lat: 26.9855, lng: 75.8513 },
+  'mysore palace': { lat: 12.3052, lng: 76.6552 },
+  'promenade beach': { lat: 11.9338, lng: 79.8359 },
+  'auroville': { lat: 12.0070, lng: 79.8106 }
+};
+
+const calculateHaversineDistanceKm = (lat1, lon1, lat2, lon2) => {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+// Enhanced intercity and intracity distance calculator fallback
 const estimateDistanceBetweenLocations = (pickupText, destText) => {
   if (!pickupText || !destText) return 5.0;
   const p = pickupText.toLowerCase().trim();
@@ -28,14 +157,14 @@ const estimateDistanceBetweenLocations = (pickupText, destText) => {
   if (hasBoth('airport', 'isha')) return 42.0;
   if (hasBoth('railway', 'gandhipuram')) return 3.5;
   if (hasBoth('connaught', 'airport')) return 18.5;
+  if (hasBoth('connaught', 'red fort') || hasBoth('cp', 'red fort')) return 6.5;
+  if (hasBoth('airport', 'marine drive')) return 22.0;
+  if (hasBoth('airport', 'indiranagar')) return 38.5;
+  if (hasBoth('central', 'marina')) return 4.2;
   if (p.includes('marudamalai') || d.includes('marudamalai')) return 16.8;
   if (p.includes('isha') || d.includes('isha')) return 30.5;
   if (p.includes('airport') || d.includes('airport')) return 18.5;
-  let hash1 = 0, hash2 = 0;
-  for (let i = 0; i < p.length; i++) hash1 = (hash1 * 31 + p.charCodeAt(i)) % 10007;
-  for (let i = 0; i < d.length; i++) hash2 = (hash2 * 37 + d.charCodeAt(i)) % 10007;
-  const diff = Math.abs(hash1 - hash2);
-  return parseFloat((3.2 + (diff % 220) / 10).toFixed(1));
+  return 12.0;
 };
 
 // Ride status progression
@@ -74,51 +203,146 @@ const VehicleBooking = ({ darkMode }) => {
   const [otpError, setOtpError] = useState('');
   const [simulatingRide, setSimulatingRide] = useState(false);
 
+  const resolveCoordinates = async (text) => {
+    if (!text || !text.trim()) return null;
+    const clean = text.toLowerCase().trim();
+
+    // Check if coordinates format exists e.g. "(11.0017, 76.9629)"
+    const coordMatch = text.match(/(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)/);
+    if (coordMatch) {
+      const lat = parseFloat(coordMatch[1]);
+      const lng = parseFloat(coordMatch[2]);
+      if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        return { lat, lng };
+      }
+    }
+
+    // 1. Direct dictionary lookup prioritized by longest match key first
+    const sortedKeys = Object.keys(KNOWN_COORDINATES).sort((a, b) => b.length - a.length);
+    for (const key of sortedKeys) {
+      if (clean.includes(key) || (clean.length >= 4 && key.includes(clean))) {
+        return KNOWN_COORDINATES[key];
+      }
+    }
+
+    // 2. Nominatim lookup with safe 2.5s timeout
+    try {
+      const res = await axios.get(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(text)}&format=json&limit=1`,
+        { headers: { 'User-Agent': 'RakshaSetu/2.0' }, timeout: 2500 }
+      );
+      if (res.data && res.data.length > 0) {
+        return {
+          lat: parseFloat(res.data[0].lat),
+          lng: parseFloat(res.data[0].lon)
+        };
+      }
+    } catch {}
+
+    return null;
+  };
+
   const calculateRouteAndFare = async () => {
     if (!pickup.trim() || !destination.trim()) return;
     setIsRouting(true);
     try {
-      let pLat = pickupCoords.lat, pLng = pickupCoords.lng;
-      let dLat = destCoords.lat, dLng = destCoords.lng;
-      try {
-        const [pRes, dRes] = await Promise.all([
-          axios.get(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(pickup)}&format=json&limit=1`, { headers: { 'User-Agent': 'RakshaSetu/1.0' }, timeout: 3000 }),
-          axios.get(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(destination)}&format=json&limit=1`, { headers: { 'User-Agent': 'RakshaSetu/1.0' }, timeout: 3000 })
-        ]);
-        if (pRes.data?.[0]) { pLat = parseFloat(pRes.data[0].lat); pLng = parseFloat(pRes.data[0].lon); setPickupCoords({ lat: pLat, lng: pLng }); }
-        if (dRes.data?.[0]) { dLat = parseFloat(dRes.data[0].lat); dLng = parseFloat(dRes.data[0].lon); setDestCoords({ lat: dLat, lng: dLng }); }
-      } catch {}
+      const [pCoords, dCoords] = await Promise.all([
+        resolveCoordinates(pickup),
+        resolveCoordinates(destination)
+      ]);
 
-      try {
-        const osrmRes = await axios.get(`https://router.project-osrm.org/route/v1/driving/${pLng},${pLat};${dLng},${dLat}?overview=full`, { timeout: 4000 });
-        if (osrmRes.data?.routes?.[0]) {
-          const r = osrmRes.data.routes[0];
-          setDistanceKm(Math.max(Math.round((r.distance / 1000) * 10) / 10, 1.0));
-          setEstimatedTimeMins(Math.max(Math.round(r.duration / 60), 3));
+      const pLat = pCoords ? pCoords.lat : pickupCoords.lat;
+      const pLng = pCoords ? pCoords.lng : pickupCoords.lng;
+      const dLat = dCoords ? dCoords.lat : destCoords.lat;
+      const dLng = dCoords ? dCoords.lng : destCoords.lng;
+
+      if (pCoords) setPickupCoords(pCoords);
+      if (dCoords) setDestCoords(dCoords);
+
+      let finalDist = 5.0;
+      let finalDuration = 15;
+
+      const coordDist = (pLat && pLng && dLat && dLng) ? calculateHaversineDistanceKm(pLat, pLng, dLat, dLng) : 0;
+
+      // Try OSRM Real Road Route Calculation
+      let osrmSuccess = false;
+      if (coordDist > 0.05) {
+        try {
+          const osrmRes = await axios.get(
+            `https://router.project-osrm.org/route/v1/driving/${pLng},${pLat};${dLng},${dLat}?overview=false`,
+            { timeout: 3500 }
+          );
+          if (osrmRes.data?.routes?.[0]?.distance) {
+            const r = osrmRes.data.routes[0];
+            finalDist = Math.max(Math.round((r.distance / 1000) * 10) / 10, 1.0);
+            finalDuration = Math.max(Math.round(r.duration / 60), 3);
+            osrmSuccess = true;
+          }
+        } catch {}
+
+        if (!osrmSuccess) {
+          // Fallback: Haversine distance with 1.28x road winding factor
+          finalDist = Math.max(Math.round(coordDist * 1.28 * 10) / 10, 1.2);
+          finalDuration = Math.max(Math.round((finalDist / 32) * 60), 4);
         }
-      } catch {
-        const haverDist = estimateDistanceBetweenLocations(pickup, destination);
-        setDistanceKm(haverDist);
-        setEstimatedTimeMins(Math.round((haverDist / 35) * 60));
+      } else {
+        finalDist = estimateDistanceBetweenLocations(pickup, destination);
+        finalDuration = Math.max(Math.round((finalDist / 32) * 60), 4);
       }
 
+      setDistanceKm(finalDist);
+      setEstimatedTimeMins(finalDuration);
+
+      // Fetch or calculate fare with the exact fresh finalDist
       try {
-        const res = await api.post('/vehicles/estimate-fare', { category: selectedCategory, distanceKm });
+        const res = await api.post('/vehicles/estimate-fare', { category: selectedCategory, distanceKm: finalDist });
         if (res.data) setFareEstimate(res.data?.data || res.data);
       } catch {
         const rates = { scooter: 10, hatchback: 14, sedan: 18, suv: 24, van: 20, luxury: 45 };
         const perKm = rates[selectedCategory] || 18;
         const base = selectedCategory === 'luxury' ? 250 : 80;
-        const distCharge = Math.round(distanceKm * perKm);
-        setFareEstimate({ baseFare: base, perKmRate: perKm, distanceCharge: distCharge, taxesFees: 40, estimatedFare: Math.round(base + distCharge + 40) });
+        const distCharge = Math.round(finalDist * perKm);
+        setFareEstimate({
+          baseFare: base,
+          perKmRate: perKm,
+          distanceCharge: distCharge,
+          taxesFees: Math.round((base + distCharge) * 0.12),
+          estimatedFare: Math.round(base + distCharge + Math.round((base + distCharge) * 0.12))
+        });
       }
-    } finally { setIsRouting(false); }
+    } finally {
+      setIsRouting(false);
+    }
   };
 
   useEffect(() => {
-    const timer = setTimeout(calculateRouteAndFare, 500);
+    const timer = setTimeout(calculateRouteAndFare, 350);
     return () => clearTimeout(timer);
   }, [selectedCategory, pickup, destination]);
+
+  const handleUseCurrentLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setPickupCoords({ lat, lng });
+        setPickup(`Current Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`);
+      }, () => {
+        alert('Could not retrieve GPS location. Please check browser permissions.');
+      });
+    } else {
+      alert('Geolocation is not supported by your browser.');
+    }
+  };
+
+  const handleSwapLocations = () => {
+    const tempP = pickup;
+    const tempCoords = pickupCoords;
+    setPickup(destination);
+    setPickupCoords(destCoords);
+    setDestination(tempP);
+    setDestCoords(tempCoords);
+  };
 
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
@@ -385,31 +609,110 @@ const VehicleBooking = ({ darkMode }) => {
             <h2 className="text-xs font-extrabold uppercase tracking-wider text-[#0D47A1] m-0 pt-2">2. Route & Trip Details</h2>
 
             <form onSubmit={handleBookingSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Pickup Location</label>
-                  <div className="relative">
-                    <MapPin className="w-4 h-4 text-emerald-600 absolute left-3 top-3" />
-                    <input type="text" value={pickup} onChange={e => setPickup(e.target.value)} required
-                      className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-xs font-semibold focus:ring-2 focus:outline-none ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}/>
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 relative">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-700">Pickup Location</label>
+                      <button
+                        type="button"
+                        onClick={handleUseCurrentLocation}
+                        className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer bg-blue-50 px-2 py-0.5 rounded-md hover:bg-blue-100 transition-colors">
+                        <LocateFixed className="w-3 h-3 text-blue-600" />
+                        <span>Use GPS</span>
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <MapPin className="w-4 h-4 text-emerald-600 absolute left-3 top-3" />
+                      <input
+                        type="text"
+                        value={pickup}
+                        placeholder="e.g. Coimbatore Railway Station"
+                        onChange={e => setPickup(e.target.value)}
+                        required
+                        className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-xs font-semibold focus:ring-2 focus:outline-none ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-700">Destination</label>
+                      <button
+                        type="button"
+                        onClick={handleSwapLocations}
+                        className="text-[11px] font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer bg-slate-100 px-2 py-0.5 rounded-md hover:bg-slate-200 transition-colors">
+                        <ArrowUpDown className="w-3 h-3" />
+                        <span>Swap</span>
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <MapPin className="w-4 h-4 text-red-500 absolute left-3 top-3" />
+                      <input
+                        type="text"
+                        value={destination}
+                        placeholder="e.g. Marudamalai Temple, Coimbatore"
+                        onChange={e => setDestination(e.target.value)}
+                        required
+                        className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-xs font-semibold focus:ring-2 focus:outline-none ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
+                      />
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Destination</label>
-                  <div className="relative">
-                    <MapPin className="w-4 h-4 text-red-500 absolute left-3 top-3" />
-                    <input type="text" value={destination} onChange={e => setDestination(e.target.value)} required
-                      className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-xs font-semibold focus:ring-2 focus:outline-none ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}/>
-                  </div>
+
+                {/* Popular 1-Click Route Selection */}
+                <div className="flex flex-wrap gap-1.5 items-center pt-0.5">
+                  <span className="text-[11px] font-extrabold text-slate-400 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-amber-500" /> Popular:
+                  </span>
+                  {[
+                    { label: 'Delhi: CP → Red Fort', p: 'Connaught Place, New Delhi', d: 'Red Fort, Delhi' },
+                    { label: 'Coimbatore: Stn → Marudamalai', p: 'Coimbatore Railway Station', d: 'Marudamalai Temple, Coimbatore' },
+                    { label: 'Bangalore: Airport → Indiranagar', p: 'Bengaluru Airport', d: 'Indiranagar, Bangalore' },
+                    { label: 'Mumbai: Airport → Marine Drive', p: 'Mumbai Airport', d: 'Gateway of India, Mumbai' },
+                    { label: 'Agra: Station → Taj Mahal', p: 'Agra Railway Station', d: 'Taj Mahal, Agra' }
+                  ].map((rt, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setPickup(rt.p);
+                        setDestination(rt.d);
+                      }}
+                      className={`text-[10.5px] font-bold px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
+                        darkMode
+                          ? 'bg-slate-800 border-slate-700 text-blue-300 hover:bg-slate-700'
+                          : 'bg-blue-50/80 border-blue-200 text-[#0D47A1] hover:bg-blue-100'
+                      }`}>
+                      {rt.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-blue-50 border border-blue-200 text-xs font-bold flex items-center justify-between">
+              {/* Live Auto-Calculated Banner */}
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-xs font-bold flex items-center justify-between shadow-xs">
                 <div className="flex items-center gap-2 text-[#0D47A1]">
-                  <Route className="w-4 h-4 text-blue-600"/>
-                  <span>Auto-Calculated Route: <strong>{distanceKm} km</strong></span>
+                  <Route className={`w-4 h-4 ${isRouting ? 'animate-spin text-blue-500' : 'text-blue-600'}`} />
+                  <span>
+                    Auto-Calculated Route:{' '}
+                    <strong className="text-blue-900 text-sm">
+                      {isRouting ? 'Calculating...' : `${distanceKm} km`}
+                    </strong>
+                  </span>
                 </div>
-                <span className="text-slate-600">Est. Time: <strong>~{estimatedTimeMins} mins</strong></span>
+                <div className="flex items-center gap-3">
+                  <span className="text-slate-600 font-medium">
+                    Est. Time: <strong className="text-slate-900">~{estimatedTimeMins} mins</strong>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={calculateRouteAndFare}
+                    title="Recalculate route & fare"
+                    className="p-1 rounded-lg hover:bg-blue-100 text-blue-700 transition-colors cursor-pointer">
+                    <RefreshCw className={`w-3.5 h-3.5 ${isRouting ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">

@@ -9,15 +9,53 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-// Security HTTP headers
-app.use(helmet());
+// Security HTTP headers with cross-origin asset support
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
-// Enable Cross-Origin Resource Sharing
+// Dynamic CORS origin resolver supporting Tourist & Admin deployments
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://localhost:5000',
+  'http://localhost:5005',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5000',
+  'http://127.0.0.1:5005'
+];
+
+if (process.env.CLIENT_URL) allowedOrigins.push(process.env.CLIENT_URL.trim().replace(/\/+$/, ''));
+if (process.env.ADMIN_URL) allowedOrigins.push(process.env.ADMIN_URL.trim().replace(/\/+$/, ''));
+if (process.env.ALLOWED_ORIGINS) {
+  process.env.ALLOWED_ORIGINS.split(',').forEach(o => {
+    if (o.trim()) allowedOrigins.push(o.trim().replace(/\/+$/, ''));
+  });
+}
+
+const isOriginAllowed = (origin) => {
+  if (!origin) return true; // Allow non-browser requests (e.g. mobile apps, curl, server-to-server)
+  const normalized = origin.replace(/\/+$/, '');
+  if (allowedOrigins.includes(normalized)) return true;
+  // Allow all Vercel and Render deployments
+  if (normalized.endsWith('.vercel.app') || normalized.endsWith('.onrender.com')) return true;
+  if (process.env.NODE_ENV !== 'production') return true;
+  return false;
+};
+
 app.use(
   cors({
-    origin: '*',
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS policy blocked access from origin: ${origin}`));
+      }
+    },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
   })
 );
 

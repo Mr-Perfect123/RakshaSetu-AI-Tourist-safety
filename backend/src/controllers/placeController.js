@@ -3,6 +3,7 @@ const ApiResponse = require('../utils/response');
 const ApiError = require('../utils/apiError');
 const axios = require('axios');
 const { executeQuery } = require('../config/database');
+const GooglePlacesService = require('../services/googlePlacesService');
 
 // ─── Phonetic & Misspelling Aliases ───────────────────────────────────────────
 const SPELLING_ALIASES = {
@@ -44,7 +45,7 @@ const DESTINATIONS = [
     address: 'Udhagamandalam, The Nilgiris, Tamil Nadu 643001, India',
     latitude: 11.4102, longitude: 76.6950,
     description: 'The "Queen of Hill Stations" in the Nilgiri Mountains. Famous for its emerald-green tea gardens, Botanical Garden, Ooty Lake, and the UNESCO heritage Nilgiri Mountain Railway toy train.',
-    photos: ['https://images.unsplash.com/photo-1589182373726-e4f658ab50f0?auto=format&fit=crop&w=800&q=80'],
+    photos: ['https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&w=800&q=80'],
     openingHours: 'Open 24 Hours (Lake: 09:00 AM – 06:00 PM)', rating: 4.8, safetyScore: 94, riskLevel: 'Safe (Green)'
   },
   {
@@ -55,7 +56,7 @@ const DESTINATIONS = [
     address: 'Kodaikanal, Dindigul District, Tamil Nadu 624101, India',
     latitude: 10.2381, longitude: 77.4892,
     description: 'A serene hill station in the Palani Hills, famous for Kodai Lake, Coaker\'s Walk, Pine Forest, Silver Cascade Falls, and the spectacular star-shaped lake.',
-    photos: ['https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80'],
+    photos: ['https://images.unsplash.com/photo-1511884642898-4c92249e20b6?auto=format&fit=crop&w=800&q=80'],
     openingHours: 'Open 24 Hours', rating: 4.7, safetyScore: 93, riskLevel: 'Safe (Green)'
   },
   {
@@ -88,7 +89,7 @@ const DESTINATIONS = [
     address: 'Brihadeeswara Temple, Thanjavur, Tamil Nadu 613001, India',
     latitude: 10.7828, longitude: 79.1317,
     description: 'A UNESCO World Heritage Site and masterpiece of Chola architecture. The 66-metre granite vimana (tower) is one of the tallest temple towers in the world.',
-    photos: ['https://images.unsplash.com/photo-1609766857041-ed402ea8069a?auto=format&fit=crop&w=800&q=80'],
+    photos: ['https://images.unsplash.com/photo-1600100397608-f010f444f4ab?auto=format&fit=crop&w=800&q=80'],
     openingHours: '06:00 AM – 12:30 PM, 04:00 PM – 08:30 PM', rating: 4.8, safetyScore: 95, riskLevel: 'Safe (Green)'
   },
   {
@@ -110,7 +111,7 @@ const DESTINATIONS = [
     address: 'Shore Temple, Mamallapuram (Mahabalipuram), Chengalpattu, Tamil Nadu 603104, India',
     latitude: 12.6269, longitude: 80.1927,
     description: 'UNESCO World Heritage Site featuring 7th–8th century Pallava rock-cut monuments and temples. The Shore Temple overlooking the Bay of Bengal is an iconic sight.',
-    photos: ['https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&w=800&q=80'],
+    photos: ['https://images.unsplash.com/photo-1600100397608-f010f444f4ab?auto=format&fit=crop&w=800&q=80'],
     openingHours: '06:00 AM – 06:00 PM', rating: 4.7, safetyScore: 91, riskLevel: 'Safe (Green)'
   },
 
@@ -123,7 +124,7 @@ const DESTINATIONS = [
     address: 'Munnar, Idukki District, Kerala 685612, India',
     latitude: 10.0889, longitude: 77.0595,
     description: 'Breathtaking hill station in Kerala famous for its vast rolling tea plantations, misty valleys, and Eravikulam National Park — home to the Nilgiri Tahr.',
-    photos: ['https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&w=800&q=80'],
+    photos: ['https://images.unsplash.com/photo-1588714477688-cf28a50e94f7?auto=format&fit=crop&w=800&q=80'],
     openingHours: '06:00 AM – 06:00 PM', rating: 4.9, safetyScore: 93, riskLevel: 'Safe (Green)'
   },
   {
@@ -145,7 +146,7 @@ const DESTINATIONS = [
     address: 'Fort Kochi, Ernakulam, Kerala 682001, India',
     latitude: 9.9658, longitude: 76.2421,
     description: 'Historic port city neighbourhood showcasing Portuguese, Dutch, and British colonial heritage. Famous for iconic cantilevered Chinese fishing nets silhouetted against the Arabian Sea.',
-    photos: ['https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?auto=format&fit=crop&w=800&q=80'],
+    photos: ['https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=800&q=80'],
     openingHours: 'Open 24 Hours', rating: 4.7, safetyScore: 90, riskLevel: 'Safe (Green)'
   },
   {
@@ -178,7 +179,7 @@ const DESTINATIONS = [
     address: 'Wayanad District, Kerala 673121, India',
     latitude: 11.6854, longitude: 76.1320,
     description: 'Lush green district in the Western Ghats known for prehistoric Edakkal Caves, Chembra Peak trek, Banasura Sagar Dam, and coffee/spice plantations.',
-    photos: ['https://images.unsplash.com/photo-1571536802807-30451e3955d8?auto=format&fit=crop&w=800&q=80'],
+    photos: ['https://images.unsplash.com/photo-1516690561799-46d8f74f9abf?auto=format&fit=crop&w=800&q=80'],
     openingHours: 'Open 24 Hours', rating: 4.7, safetyScore: 92, riskLevel: 'Safe (Green)'
   },
 
@@ -430,7 +431,7 @@ const DESTINATIONS = [
     address: 'Mehrauli, New Delhi, Delhi 110030, India',
     latitude: 28.5245, longitude: 77.1855,
     description: 'UNESCO World Heritage Site — a 73-metre tall minaret built in 1193, the world\'s tallest brick minaret. Surrounded by the ruins of the first mosque built in India.',
-    photos: ['https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&w=800&q=80'],
+    photos: ['https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=800&q=80'],
     openingHours: 'Sunrise – Sunset', rating: 4.7, safetyScore: 88, riskLevel: 'Safe (Green)'
   },
   {
@@ -614,7 +615,7 @@ const DESTINATIONS = [
     address: 'Mysore Palace, Sayyaji Rao Rd, Mysuru, Karnataka 570001, India',
     latitude: 12.3052, longitude: 76.6552,
     description: 'Historical palace that was the residence of the Wadiyar dynasty. One of the most visited monuments in India, especially spectacular when illuminated with 97,000 light bulbs during Dasara.',
-    photos: ['https://images.unsplash.com/photo-1609766857041-ed402ea8069a?auto=format&fit=crop&w=800&q=80'],
+    photos: ['https://images.unsplash.com/photo-1600100397608-f010f444f4ab?auto=format&fit=crop&w=800&q=80'],
     openingHours: '10:00 AM – 05:30 PM', rating: 4.9, safetyScore: 93, riskLevel: 'Safe (Green)'
   },
   {
@@ -625,7 +626,7 @@ const DESTINATIONS = [
     address: 'Madikeri, Kodagu, Karnataka 571201, India',
     latitude: 12.4244, longitude: 75.7382,
     description: 'Lush hill district in the Western Ghats famous for coffee and spice plantations, misty forests, Abbey Falls, Talacauvery, Raja\'s Seat viewpoint, and the Namdroling Monastery.',
-    photos: ['https://images.unsplash.com/photo-1571536802807-30451e3955d8?auto=format&fit=crop&w=800&q=80'],
+    photos: ['https://images.unsplash.com/photo-1516690561799-46d8f74f9abf?auto=format&fit=crop&w=800&q=80'],
     openingHours: 'Open 24 Hours', rating: 4.7, safetyScore: 92, riskLevel: 'Safe (Green)'
   },
   {
@@ -1390,6 +1391,58 @@ class PlaceController {
       }, 'Weather retrieved.')
     );
   });
+
+  /** GET /places/autocomplete?input=...&lat=...&lng=...&radius=... */
+  static autocompletePlaces = asyncHandler(async (req, res) => {
+    const input = req.query.input || req.query.query || req.query.q || '';
+    const { lat, lng, radius } = req.query;
+
+    if (!input || typeof input !== 'string' || input.trim().length < 2) {
+      return res.status(200).json(new ApiResponse(200, [], 'Please enter at least 2 characters for suggestions.'));
+    }
+
+    const trimmedInput = input.trim().slice(0, 200);
+    const parsedLat = lat !== undefined && lat !== '' ? parseFloat(lat) : undefined;
+    const parsedLng = lng !== undefined && lng !== '' ? parseFloat(lng) : undefined;
+    const parsedRadius = radius ? parseFloat(radius) : undefined;
+
+    const suggestions = await GooglePlacesService.searchAutocomplete({
+      input: trimmedInput,
+      lat: parsedLat,
+      lng: parsedLng,
+      radius: parsedRadius,
+      curatedPool: DESTINATIONS
+    });
+
+    return res.status(200).json(
+      new ApiResponse(200, suggestions, `Retrieved ${suggestions.length} autocomplete suggestions.`)
+    );
+  });
+
+  /** GET /places/details?placeId=...&name=... */
+  static getGooglePlaceDetails = asyncHandler(async (req, res) => {
+    const placeId = req.query.placeId || req.query.id;
+    const name = req.query.name;
+
+    if (!placeId && !name) {
+      throw new ApiError(400, 'placeId or name parameter is required.');
+    }
+
+    const details = await GooglePlacesService.getPlaceDetails({
+      placeId: placeId ? String(placeId).trim() : undefined,
+      name: name ? String(name).trim() : undefined,
+      curatedPool: DESTINATIONS
+    });
+
+    if (!details) {
+      throw new ApiError(404, 'Destination coordinates/details could not be retrieved.');
+    }
+
+    return res.status(200).json(
+      new ApiResponse(200, details, 'Place details retrieved.')
+    );
+  });
 }
 
 module.exports = PlaceController;
+

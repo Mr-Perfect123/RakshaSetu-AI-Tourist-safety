@@ -83,7 +83,10 @@ class FoodController {
 
   static placeOrder = asyncHandler(async (req, res) => {
     const { restaurantId, items, deliveryAddress, subtotal, deliveryFee = 30, totalAmount } = req.body;
-    const userId = req.user ? req.user.id : 4;
+    if (!req.user || !req.user.id) {
+      throw new ApiError(401, 'Authentication required.');
+    }
+    const userId = parseInt(req.user.id, 10);
 
     if (!restaurantId || !items || items.length === 0) {
       throw new ApiError(400, 'Restaurant and cart items are required.');
@@ -136,7 +139,10 @@ class FoodController {
   });
 
   static getUserOrders = asyncHandler(async (req, res) => {
-    const userId = req.user ? req.user.id : 4;
+    if (!req.user || !req.user.id) {
+      throw new ApiError(401, 'Authentication required.');
+    }
+    const userId = parseInt(req.user.id, 10);
     const orders = await executeQuery(
       `SELECT fo.*, r.name as restaurant_name 
        FROM food_orders fo 

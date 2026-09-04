@@ -11,6 +11,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import api from '../services/api';
 import { useLanguage } from '../context/LanguageContext';
+import { getPlaceImage } from '../utils/placeImageHelper';
 
 // Fix Leaflet default icon issue in Vite/React
 delete L.Icon.Default.prototype._getIconUrl;
@@ -62,18 +63,6 @@ const NearbyCard = ({ place, darkMode }) => (
   </div>
 );
 
-const getPlaceFallbackImage = (p) => {
-  const cat = (p?.category || '').toLowerCase();
-  const name = (p?.name || '').toLowerCase();
-  if (cat.includes('beach') || name.includes('beach')) return 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=1200&q=80';
-  if (cat.includes('temple') || cat.includes('culture')) return 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=1200&q=80';
-  if (cat.includes('fort') || cat.includes('heritage')) return 'https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=1200&q=80';
-  if (cat.includes('wildlife') || cat.includes('safari')) return 'https://images.unsplash.com/photo-1561731216-c3a4d99437d5?auto=format&fit=crop&w=1200&q=80';
-  if (cat.includes('food') || cat.includes('street')) return 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80';
-  if (cat.includes('adventure')) return 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80';
-  return 'https://images.unsplash.com/photo-1589182373726-e4f658ab50f0?auto=format&fit=crop&w=1200&q=80';
-};
-
 const PlaceDetails = ({ darkMode }) => {
   const { id } = useParams();
   const { t } = useLanguage();
@@ -90,11 +79,10 @@ const PlaceDetails = ({ darkMode }) => {
   const [imgError, setImgError] = useState(false);
   const [directionsLoading, setDirectionsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
-  const [heroImgSrc, setHeroImgSrc] = useState(() => getPlaceFallbackImage(null));
+  const [heroImgSrc, setHeroImgSrc] = useState(() => getPlaceImage(null));
 
   useEffect(() => {
-    if (place?.photos?.[0]) setHeroImgSrc(place.photos[0]);
-    else if (place) setHeroImgSrc(getPlaceFallbackImage(place));
+    if (place) setHeroImgSrc(getPlaceImage(place));
   }, [place]);
 
   useEffect(() => {
@@ -269,7 +257,7 @@ const PlaceDetails = ({ darkMode }) => {
           crossOrigin="anonymous"
           alt={place.name}
           className="w-full h-full object-cover"
-          onError={() => setHeroImgSrc(getPlaceFallbackImage(place))}
+          onError={() => setHeroImgSrc(getPlaceImage(place))}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
 

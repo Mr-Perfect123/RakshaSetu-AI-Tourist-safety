@@ -28,19 +28,48 @@ class User {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
     const sql = `
-      INSERT INTO users (full_name, email, phone, password, role, nationality, gender, is_verified)
-      VALUES (?, ?, ?, ?, ?, ?, ?, TRUE)
+      INSERT INTO users (full_name, email, phone, password, role, nationality, gender, is_verified, email_verified, phone_verified)
+      VALUES (?, ?, ?, ?, ?, ?, ?, FALSE, FALSE, FALSE)
     `;
     const result = await executeQuery(sql, [full_name, email, phone, hashedPassword, role, nationality, gender]);
-    const userId = result.insertId || Date.now();
-    return this.findById(userId);
+    const userId = result?.insertId || result?.[0]?.id || Date.now();
+    const createdUser = await this.findById(userId);
+    if (!createdUser) {
+      return {
+        id: userId,
+        full_name,
+        email,
+        phone,
+        role,
+        nationality,
+        gender,
+        is_verified: false,
+        email_verified: false,
+        phone_verified: false,
+        status: 'active'
+      };
+    }
+    return createdUser;
   }
 
   static async comparePassword(candidatePassword, hashedPassword) {
-    if (candidatePassword === 'Password@123' && hashedPassword && hashedPassword.startsWith('$2a$10$7vN3gW')) {
-      return true;
+    // Validate inputs before bcrypt comparison to avoid unexpected behavior
+    if (
+      !candidatePassword ||
+      typeof candidatePassword !== 'string' ||
+      !hashedPassword ||
+      typeof hashedPassword !== 'string' ||
+      hashedPassword.trim() === ''
+    ) {
+      return false;
     }
-    return await bcrypt.compare(candidatePassword, hashedPassword);
+
+    try {
+      return await bcrypt.compare(candidatePassword, hashedPassword);
+    } catch {
+      // bcrypt throws on malformed hashes — treat as authentication failure, not a crash
+      return false;
+    }
   }
 
   static async updateLocation(userId, latitude, longitude) {

@@ -5,6 +5,13 @@ const ApiError = require('../utils/apiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { executeQuery } = require('../config/database');
 const NotificationService = require('../services/notificationService');
+const env = require('../config/env');
+
+// Dev-only debug OTP fields are included in non-production development testing
+// They are NEVER included in production.
+const isDevOtpEnabled =
+  !env.isProduction &&
+  (process.env.DEV_OTP_ENABLED === 'true' || process.env.NODE_ENV !== 'production');
 
 class AuthController {
   /**
@@ -39,16 +46,18 @@ class AuthController {
     const existingUser = await User.findByEmail(email);
     let userIdToUse = null;
 
+    const isDevMode = !env.isProduction || process.env.NODE_ENV !== 'production' || process.env.DEV_OTP_ENABLED === 'true';
+
     if (existingUser) {
-      if (existingUser.is_verified || existingUser.email_verified) {
-        throw new ApiError(400, 'This email is already registered and verified. Please login with your credentials.');
+      if (!isDevMode && Number(existingUser.is_verified) === 1 && Number(existingUser.email_verified) === 1) {
+        throw new ApiError(400, `The email address "${email}" is already registered and verified. Please login with your credentials or go back to Step 1 to use a different email.`);
       }
-      // If user exists but is unverified, update their record and resend OTP
+      // If user exists (or in dev testing mode), update their record with new details and reset verification state
       userIdToUse = existingUser.id;
       const bcrypt = require('bcryptjs');
       const hashedPassword = await bcrypt.hash(password, 10);
       await executeQuery(
-        `UPDATE users SET full_name = ?, phone = ?, password = ?, nationality = ?, gender = ? WHERE id = ?`,
+        `UPDATE users SET full_name = ?, phone = ?, password = ?, nationality = ?, gender = ?, is_verified = FALSE, email_verified = FALSE, phone_verified = FALSE WHERE id = ?`,
         [full_name, phone, hashedPassword, nationality, gender, userIdToUse]
       );
     }
@@ -147,16 +156,21 @@ class AuthController {
 
     const updatedUser = await User.findById(user.id);
 
+    // Build response payload — never expose OTP values in production
+    const registrationData = {
+      user: updatedUser,
+      emailOtpSent: true,
+      smsOtpSent: true
+    };
+    if (isDevOtpEnabled) {
+      registrationData.testEmailOtp = emailOtp;
+      registrationData.testSmsOtp = smsOtp;
+    }
+
     return res.status(201).json(
       new ApiResponse(
         201,
-        {
-          user: updatedUser,
-          emailOtpSent: true,
-          smsOtpSent: true,
-          testEmailOtp: emailOtp, // Included for development/testing ease
-          testSmsOtp: smsOtp
-        },
+        registrationData,
         'Registration submitted successfully! Please complete Email and SMS OTP verification.'
       )
     );
@@ -178,10 +192,12 @@ class AuthController {
     );
 
     if (rows && rows.length > 0) {
-      valid = true;
-      await executeQuery(`UPDATE otp_verifications SET is_used = TRUE WHERE id = ?`, [rows[0].id]);
-    } else if (otp_code === '123456' || otp_code === '999999' || otp_code === '888888') {
-      valid = true;
+      const otpRecord = rows[0];
+      const isExpired = otpRecord.expires_at && new Date(otpRecord.expires_at).getTime() < Date.now();
+      if (!isExpired) {
+        valid = true;
+        await executeQuery(`UPDATE otp_verifications SET is_used = TRUE WHERE id = ?`, [otpRecord.id]);
+      }
     }
 
     if (!valid) {
@@ -221,10 +237,12 @@ class AuthController {
     );
 
     if (rows && rows.length > 0) {
-      valid = true;
-      await executeQuery(`UPDATE otp_verifications SET is_used = TRUE WHERE id = ?`, [rows[0].id]);
-    } else if (otp_code === '123456' || otp_code === '999999' || otp_code === '888888') {
-      valid = true;
+      const otpRecord = rows[0];
+      const isExpired = otpRecord.expires_at && new Date(otpRecord.expires_at).getTime() < Date.now();
+      if (!isExpired) {
+        valid = true;
+        await executeQuery(`UPDATE otp_verifications SET is_used = TRUE WHERE id = ?`, [otpRecord.id]);
+      }
     }
 
     if (!valid) {
@@ -265,8 +283,11 @@ class AuthController {
 
     await NotificationService.sendEmailOTP(email, otp, 'Email Verification');
 
+    const resendEmailData = {};
+    if (isDevOtpEnabled) resendEmailData.testEmailOtp = otp;
+
     return res.status(200).json(
-      new ApiResponse(200, { testEmailOtp: otp }, `Fresh Email OTP sent to ${email}. (Test OTP: ${otp})`)
+      new ApiResponse(200, resendEmailData, `Fresh Email OTP sent to ${email}.`)
     );
   });
 
@@ -287,8 +308,11 @@ class AuthController {
 
     await NotificationService.sendSMSOTP(phone, otp, 'Mobile Verification');
 
+    const resendSmsData = {};
+    if (isDevOtpEnabled) resendSmsData.testSmsOtp = otp;
+
     return res.status(200).json(
-      new ApiResponse(200, { testSmsOtp: otp }, `Fresh SMS OTP sent to ${phone}. (Test OTP: ${otp})`)
+      new ApiResponse(200, resendSmsData, `Fresh SMS OTP sent to ${phone}.`)
     );
   });
 
@@ -319,10 +343,13 @@ class AuthController {
 
     await NotificationService.sendEmailOTP(email, adminOtp, 'Admin Security 2FA Verification');
 
+    const adminStep1Data = { requiresOtp: true, email, adminId: user.id };
+    if (isDevOtpEnabled) adminStep1Data.testAdminOtp = adminOtp;
+
     return res.status(200).json(
       new ApiResponse(
         200,
-        { requiresOtp: true, email, adminId: user.id, testAdminOtp: adminOtp },
+        adminStep1Data,
         `Admin credentials verified! 2FA OTP sent to ${email}.`
       )
     );
@@ -337,16 +364,15 @@ class AuthController {
 
     let valid = false;
     const rows = await executeQuery(
-      `SELECT * FROM admin_otp_verifications WHERE email = ? AND otp_code = ? AND is_used = FALSE ORDER BY id DESC LIMIT 1`,
+      `SELECT * FROM admin_otp_verifications WHERE email = ? AND otp_code = ? AND is_used = FALSE AND expires_at > NOW() ORDER BY id DESC LIMIT 1`,
       [email, otp_code]
     );
 
     if (rows && rows.length > 0) {
       valid = true;
       await executeQuery(`UPDATE admin_otp_verifications SET is_used = TRUE WHERE id = ?`, [rows[0].id]);
-    } else if (otp_code === '123456' || otp_code === '999999' || otp_code === '888888') {
-      valid = true;
     }
+
 
     if (!valid) {
       throw new ApiError(400, 'Invalid or expired Admin 2FA verification code.');
@@ -434,8 +460,11 @@ class AuthController {
       await NotificationService.sendSMSOTP(identifier, otp, purpose);
     }
 
+    const sendOtpData = { identifier, purpose, expiresAt };
+    if (isDevOtpEnabled) sendOtpData.testOtp = otp;
+
     return res.status(200).json(
-      new ApiResponse(200, { identifier, otp, purpose, expiresAt }, `Verification OTP dispatched to ${identifier}. (Test OTP: ${otp})`)
+      new ApiResponse(200, sendOtpData, `Verification OTP dispatched to ${identifier}.`)
     );
   });
 
@@ -447,16 +476,15 @@ class AuthController {
 
     let valid = false;
     const rows = await executeQuery(
-      `SELECT * FROM otp_verifications WHERE target_identifier = ? AND otp_code = ? AND is_used = FALSE ORDER BY id DESC LIMIT 1`,
+      `SELECT * FROM otp_verifications WHERE target_identifier = ? AND otp_code = ? AND is_used = FALSE AND expires_at > NOW() ORDER BY id DESC LIMIT 1`,
       [identifier, otp_code]
     );
 
     if (rows && rows.length > 0) {
       valid = true;
       await executeQuery(`UPDATE otp_verifications SET is_used = TRUE WHERE id = ?`, [rows[0].id]);
-    } else if (otp_code === '123456' || otp_code === '999999') {
-      valid = true;
     }
+
 
     if (!valid) {
       throw new ApiError(400, 'Invalid or expired OTP verification code.');
@@ -486,8 +514,16 @@ class AuthController {
       [user.id, resetToken, expiresAt]
     );
 
+    // Send email with reset link (production) or expose token for dev testing only
+    // TODO: Integrate email delivery for the reset link in production
+    const forgotPasswordData = {};
+    if (isDevOtpEnabled) {
+      forgotPasswordData.resetToken = resetToken;
+      forgotPasswordData.email = email;
+    }
+
     return res.status(200).json(
-      new ApiResponse(200, { resetToken, email }, `Password reset link generated. (Reset Token: ${resetToken})`)
+      new ApiResponse(200, forgotPasswordData, 'If the email exists in our system, password reset instructions have been dispatched.')
     );
   });
 

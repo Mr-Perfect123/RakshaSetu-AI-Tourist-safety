@@ -10,11 +10,46 @@ const PORT = process.env.PORT || 5000;
 
 const server = http.createServer(app);
 
-// Initialize Socket.io WebSockets
+// Initialize Socket.io WebSockets with dynamic origin support
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://localhost:5000',
+  'http://localhost:5005',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5000',
+  'http://127.0.0.1:5005'
+];
+
+if (process.env.CLIENT_URL) allowedOrigins.push(process.env.CLIENT_URL.trim().replace(/\/+$/, ''));
+if (process.env.ADMIN_URL) allowedOrigins.push(process.env.ADMIN_URL.trim().replace(/\/+$/, ''));
+if (process.env.ALLOWED_ORIGINS) {
+  process.env.ALLOWED_ORIGINS.split(',').forEach(o => {
+    if (o.trim()) allowedOrigins.push(o.trim().replace(/\/+$/, ''));
+  });
+}
+
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  const normalized = origin.replace(/\/+$/, '');
+  if (allowedOrigins.includes(normalized)) return true;
+  if (normalized.endsWith('.vercel.app') || normalized.endsWith('.onrender.com')) return true;
+  if (process.env.NODE_ENV !== 'production') return true;
+  return false;
+};
+
 const io = new Server(server, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Socket CORS policy blocked access from origin: ${origin}`));
+      }
+    },
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 

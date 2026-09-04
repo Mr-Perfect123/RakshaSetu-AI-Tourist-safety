@@ -8,7 +8,7 @@ import api from '../services/api';
 const Login = () => {
   const [role, setRole] = useState('Admin');
   const [email, setEmail] = useState('admin@rakshasetu.com');
-  const [password, setPassword] = useState('Admin@123');
+  const [password, setPassword] = useState('');
   const [step, setStep] = useState(1); // 1 = Password, 2 = 2FA OTP
   const [otpCode, setOtpCode] = useState('');
   const [testOtp, setTestOtp] = useState('');
@@ -19,10 +19,10 @@ const Login = () => {
   const navigate = useNavigate();
 
   const rolePresets = {
-    Admin: { email: 'admin@rakshasetu.com', password: 'Admin@123', label: 'Admin Command' },
-    Police: { email: 'police@rakshasetu.gov.in', password: 'Password@123', label: 'Police Dispatch' },
-    Hospital: { email: 'hospital@rakshasetu.gov.in', password: 'Password@123', label: 'Hospital Emergency' },
-    Tourist: { email: 'john.tourist@example.com', password: 'Password@123', label: 'Tourist Portal' }
+    Admin: { email: 'admin@rakshasetu.com', password: '', label: 'Admin Command' },
+    Police: { email: 'police@rakshasetu.gov.in', password: '', label: 'Police Dispatch' },
+    Hospital: { email: 'hospital@rakshasetu.gov.in', password: '', label: 'Hospital Emergency' },
+    Tourist: { email: 'john.tourist@example.com', password: '', label: 'Tourist Portal' }
   };
 
   const handleRoleSelect = (selectedRole) => {
@@ -42,7 +42,7 @@ const Login = () => {
       if (role === 'Admin') {
         const res = await api.post('/auth/admin/login-step1', { email, password });
         if (res.data && res.data.requiresOtp) {
-          setTestOtp(res.data.testAdminOtp || '123456');
+          setTestOtp(res.data.testAdminOtp || '');
           setStep(2);
         } else {
           // Direct login fallback
@@ -80,15 +80,11 @@ const Login = () => {
         window.location.href = '/';
       }
     } catch (err) {
-      if (otpCode === '123456' || otpCode === '999999') {
-        const result = await dispatch(loginUser({ email, password }));
-        if (loginUser.fulfilled.match(result)) navigate('/');
-      } else {
-        setLocalError(err.response?.data?.message || err.message || 'Invalid 2FA OTP verification code.');
-      }
+      setLocalError(err.response?.data?.message || err.message || 'Invalid 2FA OTP verification code.');
     } finally {
       setLoading(false);
     }
+
   };
 
   return (
@@ -178,7 +174,7 @@ const Login = () => {
         ) : (
           <form onSubmit={handleVerifyAdminOtp} className="space-y-4">
             <div className="p-3 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-[11px] font-bold text-center">
-              🔐 2FA OTP Dispatched to {email} {testOtp && `(Test OTP: ${testOtp})`}
+              🔐 2FA OTP Dispatched to {email}
             </div>
 
             <div>

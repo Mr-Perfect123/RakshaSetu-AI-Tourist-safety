@@ -1,4 +1,5 @@
 const logger = require('../utils/logger');
+const LocationPermissionService = require('../services/locationPermissionService');
 
 let ioInstance = null;
 
@@ -12,55 +13,83 @@ const initializeSocket = (io) => {
     logger.info(`[WebSocket] Client connected: ${socket.id}`);
 
     // Join room based on user role or custom channel
-    socket.on('join_room', (data) => {
+    socket.on('join_room', async (data = {}) => {
       const room = data.room || 'general';
+      const requestingAdminId = data.adminId || socket.userId || data.userId || null;
       socket.join(room);
-      logger.info(`[WebSocket] Client ${socket.id} joined room '${room}'`);
+      logger.info(`[WebSocket] Client ${socket.id} (user #${requestingAdminId || 'guest'}) joined room '${room}'`);
 
-      // When admin joins, send them current live tourist locations
-      if (room === 'admin_dispatch') {
+      // When admin joins dispatch room, send ONLY authorized live tourist locations
+      if (room === 'admin_dispatch' || room === 'police_dispatch') {
         const allLocations = Array.from(liveTouristLocations.values());
-        socket.emit('all_tourist_locations', allLocations);
+        const authorizedLocations = [];
+
+        if (requestingAdminId) {
+          for (const loc of allLocations) {
+            const canView = await LocationPermissionService.canAdminViewTouristLocation(requestingAdminId, loc.userId);
+            if (canView) {
+              authorizedLocations.push(loc);
+            }
+          }
+        }
+        socket.emit('all_tourist_locations', authorizedLocations);
       }
     });
 
-    // Real-time GPS Breadcrumb Tracking from Tourist App (Privacy-Controlled)
-    socket.on('tourist_location_update', (data) => {
+    // Real-time GPS Breadcrumb Tracking from Tourist App (Strict Location Consent Enforced)
+    socket.on('tourist_location_update', async (data) => {
       const { userId, latitude, longitude, speed, heading, touristName, locationSharingEnabled = true, isSosActive = false } = data;
+      if (!userId) return;
+
+      const numericUserId = parseInt(userId, 10);
+
+      // Verify global sharing and SOS status from backend
+      const isGlobalOn = await LocationPermissionService.isGlobalSharingActive(numericUserId);
+      const isSosActiveBackend = await LocationPermissionService.hasActiveSosEmergency(numericUserId);
+
+      const effectiveSharing = (locationSharingEnabled && isGlobalOn) || isSosActive || isSosActiveBackend;
 
       // DO NOT broadcast or track if tourist disabled location sharing AND no active SOS emergency
-      if (!locationSharingEnabled && !isSosActive) {
-        liveTouristLocations.delete(userId);
-        io.to('admin_dispatch').emit('tourist_location_sharing_stopped', { userId, touristName });
+      if (!effectiveSharing) {
+        liveTouristLocations.delete(numericUserId);
+        io.emit('tourist_location_revoked', { userId: numericUserId, touristName });
+        io.emit('tourist_location_sharing_stopped', { userId: numericUserId, touristName });
         return;
       }
 
-      // Store latest position in-memory
-      liveTouristLocations.set(userId, {
-        userId,
-        latitude,
-        longitude,
-        speed: speed || 0,
-        heading: heading || 0,
-        touristName: touristName || `Tourist #${userId}`,
+      const locationPayload = {
+        userId: numericUserId,
+        latitude: parseFloat(latitude),
+        longitude: parseFloat(longitude),
+        speed: parseFloat(speed) || 0,
+        heading: parseFloat(heading) || 0,
+        touristName: touristName || `Tourist #${numericUserId}`,
         socketId: socket.id,
-        locationSharingEnabled,
-        isSosActive,
+        locationSharingEnabled: true,
+        isSosActive: Boolean(isSosActive || isSosActiveBackend),
         timestamp: new Date().toISOString()
-      });
+      };
 
-      // Broadcast location update to Admin & Police Dispatch rooms
-      io.to('admin_dispatch').to('police_dispatch').emit('live_tourist_location', {
-        userId,
-        latitude,
-        longitude,
-        speed: speed || 0,
-        heading: heading || 0,
-        touristName: touristName || `Tourist #${userId}`,
-        locationSharingEnabled,
-        isSosActive,
-        timestamp: new Date().toISOString()
-      });
+      // Store latest position in-memory
+      liveTouristLocations.set(numericUserId, locationPayload);
+
+      // Targeted broadcast to connected sockets based on individual admin authorization
+      const sockets = await io.fetchSockets();
+      for (const s of sockets) {
+        const sAdminId = s.userId || s.handshake?.auth?.userId;
+        if (sAdminId) {
+          const canView = await LocationPermissionService.canAdminViewTouristLocation(sAdminId, numericUserId);
+          if (canView) {
+            s.emit('live_tourist_location', locationPayload);
+          } else {
+            s.emit('tourist_location_revoked', { userId: numericUserId });
+          }
+        } else {
+          // Fallback to room emit for authorized room listeners
+          io.to('admin_dispatch').emit('live_tourist_location', locationPayload);
+          break;
+        }
+      }
     });
 
     // Real-time SOS Trigger Event
@@ -69,7 +98,7 @@ const initializeSocket = (io) => {
       // High-priority broadcast to all emergency rooms
       io.to('admin_dispatch').to('police_dispatch').to('hospital_dispatch').emit('new_sos_alert', sosPayload);
 
-      // Also emit a human-readable notification for admin toast/banners
+      // Also emit notification for admin toast/banners
       io.to('admin_dispatch').emit('sos_notification', {
         type: 'SOS_TRIGGERED',
         title: '🚨 EMERGENCY SOS ALERT',
@@ -97,7 +126,6 @@ const initializeSocket = (io) => {
     // Admin-to-Tourist chat message reply
     socket.on('admin_chat_reply', (data) => {
       const { message, targetUserId, adminName } = data;
-      // Broadcast to all tourist clients (they filter by userId)
       io.emit('receive_chat_message', {
         message,
         user: adminName || 'Admin Dispatcher',
@@ -108,11 +136,10 @@ const initializeSocket = (io) => {
 
     socket.on('disconnect', () => {
       logger.info(`[WebSocket] Client disconnected: ${socket.id}`);
-      // Remove tourist from live tracking on disconnect
-      for (const [userId, data] of liveTouristLocations.entries()) {
+      for (const [uId, data] of liveTouristLocations.entries()) {
         if (data.socketId === socket.id) {
-          liveTouristLocations.delete(userId);
-          io.to('admin_dispatch').emit('tourist_disconnected', { userId });
+          liveTouristLocations.delete(uId);
+          io.to('admin_dispatch').emit('tourist_disconnected', { userId: uId });
           break;
         }
       }
@@ -120,12 +147,20 @@ const initializeSocket = (io) => {
   });
 };
 
+const emitSocketLocationRevoked = (userId) => {
+  const numericUserId = parseInt(userId, 10);
+  liveTouristLocations.delete(numericUserId);
+  if (ioInstance) {
+    ioInstance.emit('tourist_location_revoked', { userId: numericUserId });
+    ioInstance.emit('tourist_location_sharing_stopped', { userId: numericUserId });
+  }
+};
+
 const broadcastSosAlert = (sosData) => {
   if (ioInstance) {
     logger.emergency(`[Broadcasting SOS Alert via Socket] Code: ${sosData.sos_code || sosData.id}`);
     ioInstance.to('admin_dispatch').to('police_dispatch').to('hospital_dispatch').emit('new_sos_alert', sosData);
 
-    // Also emit notification event for admin UI
     ioInstance.to('admin_dispatch').emit('sos_notification', {
       type: 'SOS_TRIGGERED',
       title: '🚨 EMERGENCY SOS ALERT',
@@ -146,7 +181,7 @@ const broadcastTouristActivity = (activity) => {
   if (ioInstance) {
     const payload = {
       id: activity.id || Date.now(),
-      type: activity.type || 'general', // 'vehicle_booking', 'food_booking', 'travel_booking', 'sos_alert', 'incident_report'
+      type: activity.type || 'general',
       title: activity.title || 'Tourist Activity',
       description: activity.description || '',
       touristName: activity.touristName || 'Tourist',
@@ -157,10 +192,8 @@ const broadcastTouristActivity = (activity) => {
 
     logger.info(`[WebSocket] Broadcasting tourist activity: ${payload.type} - ${payload.title}`);
     
-    // Broadcast to all admin and dispatch rooms
     ioInstance.to('admin_dispatch').to('police_dispatch').emit('tourist_activity', payload);
 
-    // Specific event broadcasts for admin sub-dashboards
     if (activity.type === 'vehicle_booking') {
       ioInstance.to('admin_dispatch').emit('new_vehicle_booking', payload);
     } else if (activity.type === 'food_booking') {
@@ -175,6 +208,7 @@ const broadcastTouristActivity = (activity) => {
 
 module.exports = {
   initializeSocket,
+  emitSocketLocationRevoked,
   broadcastSosAlert,
   broadcastSosStatusChange,
   broadcastTouristActivity

@@ -238,6 +238,19 @@ const Dashboard = () => {
       });
     });
 
+    // Socket: tourist location revoked or sharing stopped
+    socket.on('tourist_location_revoked', (data) => {
+      if (data && data.userId) {
+        setLiveTourists((prev) => prev.filter((t) => t.userId !== data.userId));
+      }
+    });
+
+    socket.on('tourist_location_sharing_stopped', (data) => {
+      if (data && data.userId) {
+        setLiveTourists((prev) => prev.filter((t) => t.userId !== data.userId));
+      }
+    });
+
     // Socket: initial batch of all tourist locations
     socket.on('all_tourist_locations', (allLocations) => {
       if (Array.isArray(allLocations)) {
@@ -268,6 +281,9 @@ const Dashboard = () => {
       socket.off('tourist_activity');
       socket.off('new_vehicle_booking');
       socket.off('new_food_order');
+      socket.off('live_tourist_location');
+      socket.off('tourist_location_revoked');
+      socket.off('tourist_location_sharing_stopped');
       socket.off('new_travel_booking');
       socket.off('live_tourist_location');
       socket.off('all_tourist_locations');

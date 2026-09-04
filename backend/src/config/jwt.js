@@ -1,10 +1,7 @@
 const jwt = require('jsonwebtoken');
-require('dotenv').config();
+const env = require('./env');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'rakshasetu_super_secret_jwt_access_key_2026';
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'rakshasetu_super_secret_jwt_refresh_key_2026';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1d';
-const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+const { secret: JWT_SECRET, refreshSecret: JWT_REFRESH_SECRET, expiresIn: JWT_EXPIRES_IN, refreshExpiresIn: JWT_REFRESH_EXPIRES_IN } = env.jwt;
 
 const generateAccessToken = (user) => {
   return jwt.sign(

@@ -11,7 +11,10 @@ class PaymentController {
       throw new ApiError(400, 'Valid payment amount is required.');
     }
 
-    const userId = req.user ? req.user.id : 4;
+    if (!req.user || !req.user.id) {
+      throw new ApiError(401, 'Authentication required.');
+    }
+    const userId = parseInt(req.user.id, 10);
     const txnId = `TXN-RS-${Date.now().toString().slice(-8)}`;
 
     const payment = await Payment.create({

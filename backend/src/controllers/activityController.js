@@ -1,5 +1,6 @@
 const asyncHandler = require('../utils/asyncHandler');
 const ApiResponse = require('../utils/response');
+const ApiError = require('../utils/apiError');
 const { executeQuery } = require('../config/database');
 const { broadcastTouristActivity } = require('../socket/sosSocket');
 
@@ -9,9 +10,12 @@ class ActivityController {
    */
   static logActivity = asyncHandler(async (req, res) => {
     const { activityType, description, latitude = 11.0168, longitude = 76.9558, address = 'Coimbatore, India', metadata = {} } = req.body;
-    const userId = req.user ? req.user.id : 4;
-    const touristName = req.user?.full_name || 'Tourist User';
-    const touristPhone = req.user?.phone || '+919876543210';
+    if (!req.user || !req.user.id) {
+      throw new ApiError(401, 'Authentication required.');
+    }
+    const userId = parseInt(req.user.id, 10);
+    const touristName = req.user.full_name || 'Unknown Tourist';
+    const touristPhone = req.user.phone || '';
 
     const sql = `INSERT INTO tourist_activities (user_id, tourist_name, activity_type, description, latitude, longitude, address, metadata_json, created_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`;

@@ -4,7 +4,7 @@ import {
   ToggleLeft, ToggleRight, Trash2, Edit3, X, Save, RefreshCw,
   Radio, Eye, AlertOctagon, Info
 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, Polygon, Polyline, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import api from '../services/api';
@@ -42,6 +42,8 @@ const DangerZonesMgmt = () => {
 
   // Form State for Creating / Editing
   const [editingZoneId, setEditingZoneId] = useState(null);
+  const [geometryType, setGeometryType] = useState('circle');
+  const [polygonPoints, setPolygonPoints] = useState([]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [latitude, setLatitude] = useState('28.6420');
@@ -95,12 +97,39 @@ const DangerZonesMgmt = () => {
   }, []);
 
   const handleMapLocationSelect = (lat, lng) => {
-    setLatitude(lat.toFixed(6));
-    setLongitude(lng.toFixed(6));
+    const roundedLat = parseFloat(lat.toFixed(6));
+    const roundedLng = parseFloat(lng.toFixed(6));
+
+    if (geometryType === 'polygon') {
+      const newPoints = [...polygonPoints, [roundedLat, roundedLng]];
+      setPolygonPoints(newPoints);
+      // Auto update center to centroid
+      let sumLat = 0, sumLng = 0;
+      newPoints.forEach(pt => { sumLat += pt[0]; sumLng += pt[1]; });
+      setLatitude((sumLat / newPoints.length).toFixed(6));
+      setLongitude((sumLng / newPoints.length).toFixed(6));
+    } else {
+      setLatitude(roundedLat.toString());
+      setLongitude(roundedLng.toString());
+    }
   };
 
   const handleEditClick = (zone) => {
     setEditingZoneId(zone.id);
+    const geom = (zone.geometry_type || 'circle').toLowerCase();
+    setGeometryType(geom);
+
+    let parsedPoly = [];
+    if (geom === 'polygon' && zone.polygon_coordinates) {
+      try {
+        const raw = typeof zone.polygon_coordinates === 'string' ? JSON.parse(zone.polygon_coordinates) : zone.polygon_coordinates;
+        if (Array.isArray(raw)) {
+          parsedPoly = raw.map(pt => Array.isArray(pt) ? [parseFloat(pt[0]), parseFloat(pt[1])] : [parseFloat(pt.lat ?? pt.latitude), parseFloat(pt.lng ?? pt.longitude)]);
+        }
+      } catch {}
+    }
+    setPolygonPoints(parsedPoly);
+
     setName(zone.name || '');
     setDescription(zone.description || '');
     setLatitude(String(zone.latitude || 28.6420));
@@ -116,6 +145,8 @@ const DangerZonesMgmt = () => {
 
   const handleCancelEdit = () => {
     setEditingZoneId(null);
+    setGeometryType('circle');
+    setPolygonPoints([]);
     setName('');
     setDescription('');
     setLatitude('28.6420');
@@ -131,11 +162,19 @@ const DangerZonesMgmt = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (geometryType === 'polygon' && polygonPoints.length < 3) {
+      alert('Polygon geometry requires at least 3 vertex points. Click on the map to add vertices.');
+      return;
+    }
+
     setSubmitting(true);
 
     const payload = {
       name,
       description,
+      geometry_type: geometryType,
+      polygon_coordinates: geometryType === 'polygon' ? polygonPoints : null,
       latitude: parseFloat(latitude),
       longitude: parseFloat(longitude),
       radiusMeters: parseInt(radiusMeters, 10),
@@ -237,6 +276,71 @@ const DangerZonesMgmt = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3">
+            {/* Geometry Type Toggle */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+              <label className="text-xs font-black text-slate-800 uppercase tracking-wider block">Geometry Type *</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setGeometryType('circle')}
+                  className={`py-1.5 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                    geometryType === 'circle'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  🔵 Circle (Center + Radius)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGeometryType('polygon')}
+                  className={`py-1.5 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                    geometryType === 'polygon'
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  🔷 Polygon (Multi-Vertex)
+                </button>
+              </div>
+
+              {geometryType === 'polygon' && (
+                <div className="mt-2 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-purple-900">
+                    <span>Vertices Added: {polygonPoints.length}</span>
+                    {polygonPoints.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setPolygonPoints([])}
+                        className="text-red-600 hover:underline cursor-pointer text-[10px]"
+                      >
+                        Clear Vertices
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-slate-500 m-0">
+                    💡 Click multiple positions on map below to place polygon boundary vertices (min 3 points).
+                  </p>
+                  {polygonPoints.length > 0 && (
+                    <div className="max-h-20 overflow-y-auto font-mono text-[9px] bg-white p-1.5 rounded-lg border border-slate-200 divide-y divide-slate-100">
+                      {polygonPoints.map((pt, idx) => (
+                        <div key={idx} className="flex justify-between py-0.5">
+                          <span>P{idx + 1}: [{pt[0].toFixed(5)}, {pt[1].toFixed(5)}]</span>
+                          <button
+                            type="button"
+                            onClick={() => setPolygonPoints(polygonPoints.filter((_, i) => i !== idx))}
+                            className="text-red-500 hover:text-red-700 font-bold ml-2"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">Zone Name *</label>
               <input
@@ -413,18 +517,64 @@ const DangerZonesMgmt = () => {
                 />
                 <MapClickPicker onLocationSelected={handleMapLocationSelect} />
 
-                {/* Current Active Form Preview Circle */}
-                <Circle
-                  center={[curLat, curLng]}
-                  radius={curRadius}
-                  pathOptions={{ color: '#DC2626', fillColor: '#EF4444', fillOpacity: 0.35, weight: 3 }}
-                />
+                {/* Current Active Form Preview Circle or Polygon */}
+                {geometryType === 'polygon' && polygonPoints.length >= 2 ? (
+                  <>
+                    <Polyline positions={polygonPoints} pathOptions={{ color: '#7C3AED', weight: 3, dashArray: '4, 4' }} />
+                    {polygonPoints.length >= 3 && (
+                      <Polygon positions={polygonPoints} pathOptions={{ color: '#7C3AED', fillColor: '#A78BFA', fillOpacity: 0.35, weight: 3 }} />
+                    )}
+                  </>
+                ) : (
+                  <Circle
+                    center={[curLat, curLng]}
+                    radius={curRadius}
+                    pathOptions={{ color: '#DC2626', fillColor: '#EF4444', fillOpacity: 0.35, weight: 3 }}
+                  />
+                )}
 
-                {/* All Existing Registered Zones */}
+                {/* All Existing Registered Zones (Circle & Polygon) */}
                 {zones.map((z) => {
                   const lat = parseFloat(z.latitude);
                   const lng = parseFloat(z.longitude);
                   if (isNaN(lat) || isNaN(lng)) return null;
+
+                  let zPoly = null;
+                  if (z.geometry_type === 'polygon' && z.polygon_coordinates) {
+                    try {
+                      const raw = typeof z.polygon_coordinates === 'string' ? JSON.parse(z.polygon_coordinates) : z.polygon_coordinates;
+                      if (Array.isArray(raw) && raw.length >= 3) {
+                        zPoly = raw.map(pt => Array.isArray(pt) ? [parseFloat(pt[0]), parseFloat(pt[1])] : [parseFloat(pt.lat ?? pt.latitude), parseFloat(pt.lng ?? pt.longitude)]);
+                      }
+                    } catch {}
+                  }
+
+                  const popupContent = (
+                    <Popup>
+                      <div className="p-1 text-xs space-y-1">
+                        <strong className="block text-slate-900">{z.name}</strong>
+                        <span className="text-[10px] font-bold text-slate-500">{z.geometry_type === 'polygon' ? '🔷 Polygon' : '🔵 Circle'} • {z.danger_type || 'THEFT'}</span>
+                      </div>
+                    </Popup>
+                  );
+
+                  if (zPoly) {
+                    return (
+                      <Polygon
+                        key={`preview-zone-${z.id}`}
+                        positions={zPoly}
+                        pathOptions={{
+                          color: z.is_active ? '#7C3AED' : '#94A3B8',
+                          fillColor: z.is_active ? '#8B5CF6' : '#CBD5E1',
+                          fillOpacity: 0.25,
+                          weight: 2
+                        }}
+                      >
+                        {popupContent}
+                      </Polygon>
+                    );
+                  }
+
                   return (
                     <Circle
                       key={`preview-zone-${z.id}`}
@@ -438,12 +588,7 @@ const DangerZonesMgmt = () => {
                         dashArray: z.is_active ? null : '4, 6'
                       }}
                     >
-                      <Popup>
-                        <div className="p-1 text-xs space-y-1">
-                          <strong className="block text-slate-900">{z.name}</strong>
-                          <span className="text-[10px] font-bold text-slate-500">{z.danger_type || 'THEFT'} • {z.radius_meters}m</span>
-                        </div>
-                      </Popup>
+                      {popupContent}
                     </Circle>
                   );
                 })}
@@ -500,6 +645,26 @@ const DangerZonesMgmt = () => {
                             <span className="text-[10px] font-bold text-slate-600">
                               {typeObj.label}
                             </span>
+                            {z.source && (
+                              <span className="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+                                Source: {z.source}
+                              </span>
+                            )}
+                            {z.confidence && (
+                              <span className="text-[9px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">
+                                Conf: {z.confidence}
+                              </span>
+                            )}
+                            {z.geometry_type === 'polygon' && (
+                              <span className="text-[9px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded">
+                                ⬡ Polygon
+                              </span>
+                            )}
+                            {z.incident_id && (
+                              <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                Report #{z.incident_id}
+                              </span>
+                            )}
                             {z.is_sample_data ? (
                               <span className="text-[9px] font-bold text-slate-400 bg-slate-200 px-1.5 py-0.5 rounded">
                                 Sample Data
@@ -517,9 +682,19 @@ const DangerZonesMgmt = () => {
                             </p>
                           )}
 
-                          <p className="text-[10px] text-slate-400 font-mono m-0 pt-0.5">
-                            Coords: {parseFloat(z.latitude).toFixed(4)}, {parseFloat(z.longitude).toFixed(4)} • Radius: {z.radius_meters}m • Warning: {z.warning_distance_meters || 200}m
-                          </p>
+                          <div className="flex items-center gap-3 flex-wrap text-[10px] text-slate-400 font-mono pt-0.5">
+                            <span>Coords: {parseFloat(z.latitude).toFixed(4)}, {parseFloat(z.longitude).toFixed(4)}</span>
+                            <span>Radius: {z.radius_meters}m</span>
+                            <span>Warning: {z.warning_distance_meters || 200}m</span>
+                            {z.expires_at && (
+                              <span className="text-amber-700 font-bold">Expires: {new Date(z.expires_at).toLocaleDateString()}</span>
+                            )}
+                            {z.source_url && (
+                              <a href={z.source_url} target="_blank" rel="noreferrer" className="text-blue-600 underline font-sans font-bold">
+                                View Official Feed ↗
+                              </a>
+                            )}
+                          </div>
                         </div>
 
                         {/* Action Buttons */}

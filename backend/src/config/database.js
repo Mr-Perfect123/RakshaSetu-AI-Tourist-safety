@@ -19,15 +19,15 @@ const pool = mysql.createPool(dbConfig);
 // In-memory fallback mock storage when MySQL connection is unavailable during development/testing
 const inMemoryStore = {
   users: [
-    { id: 1, full_name: 'Admin Controller', email: 'admin@rakshasetu.gov.in', phone: '+919876543210', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Admin', status: 'active', is_verified: 1, latitude: 28.6139, longitude: 77.2090, nationality: 'Indian' },
-    { id: 2, full_name: 'Police HQ Dispatcher', email: 'police@rakshasetu.gov.in', phone: '+919876543211', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Police', status: 'active', is_verified: 1, latitude: 28.6145, longitude: 77.2085, nationality: 'Indian' },
-    { id: 3, full_name: 'City Hospital Emergency', email: 'hospital@rakshasetu.gov.in', phone: '+919876543212', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Hospital', status: 'active', is_verified: 1, latitude: 28.6160, longitude: 77.2110, nationality: 'Indian' },
-    { id: 4, full_name: 'John Doe Tourist', email: 'john.tourist@example.com', phone: '+919876543213', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Tourist', status: 'in_emergency', is_verified: 1, latitude: 28.6120, longitude: 77.2050, nationality: 'American', passport_number: 'US-98421034', gender: 'male', hotel_address: 'The Grand Heritage Hotel, Connaught Place, New Delhi', blood_group: 'O+', emergency_medical_info: 'Asthma - Carries inhaler' },
-    { id: 5, full_name: 'Marie Laurent', email: 'marie.laurent@example.com', phone: '+33612345678', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Tourist', status: 'active', is_verified: 1, latitude: 28.6562, longitude: 77.2410, nationality: 'French', passport_number: 'FR-77619204', gender: 'female', hotel_address: 'Taj Palace Hotel, Chanakyapuri, New Delhi', blood_group: 'A+', emergency_medical_info: 'Penicillin Allergy' },
-    { id: 6, full_name: 'Kenji Sato', email: 'kenji.sato@example.com', phone: '+819012345678', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Tourist', status: 'active', is_verified: 1, latitude: 28.6129, longitude: 77.2295, nationality: 'Japanese', passport_number: 'JP-44589123', gender: 'male', hotel_address: 'The Imperial, Janpath, New Delhi', blood_group: 'B+', emergency_medical_info: 'None' },
-    { id: 7, full_name: 'Sarah Jenkins', email: 'sarah.jenkins@example.com', phone: '+447700900077', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Tourist', status: 'active', is_verified: 1, latitude: 28.5244, longitude: 77.1855, nationality: 'British', passport_number: 'UK-88129031', gender: 'female', hotel_address: 'Hyatt Regency, RK Puram, New Delhi', blood_group: 'AB-', emergency_medical_info: 'Diabetic - Type 1' },
-    { id: 8, full_name: 'Alexander Mueller', email: 'alex.mueller@example.com', phone: '+4915123456789', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Tourist', status: 'active', is_verified: 1, latitude: 28.6328, longitude: 77.2197, nationality: 'German', passport_number: 'DE-30918274', gender: 'male', hotel_address: 'Le Meridien, Windsor Place, New Delhi', blood_group: 'O-', emergency_medical_info: 'None' },
-    { id: 9, full_name: 'Priya Sharma', email: 'priya.sharma@example.com', phone: '+919811223344', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Tourist', status: 'active', is_verified: 1, latitude: 28.5535, longitude: 77.2588, nationality: 'Indian', passport_number: 'IND-99182374', gender: 'female', hotel_address: 'Resident - Greater Kailash, New Delhi', blood_group: 'B+', emergency_medical_info: 'Lactose Intolerant' }
+    { id: 1, full_name: 'Admin Controller', email: 'admin@rakshasetu.gov.in', phone: '+919876543210', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Admin', status: 'active', is_verified: 1, email_verified: 1, phone_verified: 1, latitude: 28.6139, longitude: 77.2090, nationality: 'Indian' },
+    { id: 2, full_name: 'Police HQ Dispatcher', email: 'police@rakshasetu.gov.in', phone: '+919876543211', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Police', status: 'active', is_verified: 1, email_verified: 1, phone_verified: 1, latitude: 28.6145, longitude: 77.2085, nationality: 'Indian' },
+    { id: 3, full_name: 'City Hospital Emergency', email: 'hospital@rakshasetu.gov.in', phone: '+919876543212', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Hospital', status: 'active', is_verified: 1, email_verified: 1, phone_verified: 1, latitude: 28.6160, longitude: 77.2110, nationality: 'Indian' },
+    { id: 4, full_name: 'John Doe Tourist', email: 'john.tourist@example.com', phone: '+919876543213', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Tourist', status: 'in_emergency', is_verified: 0, email_verified: 0, phone_verified: 0, latitude: 28.6120, longitude: 77.2050, nationality: 'American', passport_number: 'US-98421034', gender: 'male', hotel_address: 'The Grand Heritage Hotel, Connaught Place, New Delhi', blood_group: 'O+', emergency_medical_info: 'Asthma - Carries inhaler' },
+    { id: 5, full_name: 'Marie Laurent', email: 'marie.laurent@example.com', phone: '+33612345678', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Tourist', status: 'active', is_verified: 0, email_verified: 0, phone_verified: 0, latitude: 28.6562, longitude: 77.2410, nationality: 'French', passport_number: 'FR-77619204', gender: 'female', hotel_address: 'Taj Palace Hotel, Chanakyapuri, New Delhi', blood_group: 'A+', emergency_medical_info: 'Penicillin Allergy' },
+    { id: 6, full_name: 'Kenji Sato', email: 'kenji.sato@example.com', phone: '+819012345678', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Tourist', status: 'active', is_verified: 0, email_verified: 0, phone_verified: 0, latitude: 28.6129, longitude: 77.2295, nationality: 'Japanese', passport_number: 'JP-44589123', gender: 'male', hotel_address: 'The Imperial, Janpath, New Delhi', blood_group: 'B+', emergency_medical_info: 'None' },
+    { id: 7, full_name: 'Sarah Jenkins', email: 'sarah.jenkins@example.com', phone: '+447700900077', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Tourist', status: 'active', is_verified: 0, email_verified: 0, phone_verified: 0, latitude: 28.5244, longitude: 77.1855, nationality: 'British', passport_number: 'UK-88129031', gender: 'female', hotel_address: 'Hyatt Regency, RK Puram, New Delhi', blood_group: 'AB-', emergency_medical_info: 'Diabetic - Type 1' },
+    { id: 8, full_name: 'Alexander Mueller', email: 'alex.mueller@example.com', phone: '+4915123456789', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Tourist', status: 'active', is_verified: 0, email_verified: 0, phone_verified: 0, latitude: 28.6328, longitude: 77.2197, nationality: 'German', passport_number: 'DE-30918274', gender: 'male', hotel_address: 'Le Meridien, Windsor Place, New Delhi', blood_group: 'O-', emergency_medical_info: 'None' },
+    { id: 9, full_name: 'Priya Sharma', email: 'priya.sharma@example.com', phone: '+919811223344', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Tourist', status: 'active', is_verified: 0, email_verified: 0, phone_verified: 0, latitude: 28.5535, longitude: 77.2588, nationality: 'Indian', passport_number: 'IND-99182374', gender: 'female', hotel_address: 'Resident - Greater Kailash, New Delhi', blood_group: 'B+', emergency_medical_info: 'Lactose Intolerant' }
   ],
   sos_requests: [
     { id: 1, sos_code: 'SOS-2026-98124', user_id: 4, tourist_name: 'John Doe Tourist', phone: '+919876543213', trigger_type: 'one_tap', latitude: 28.6120, longitude: 77.2050, address: 'Near India Gate Circle, New Delhi', status: 'active', created_at: new Date().toISOString() }
@@ -3528,7 +3528,10 @@ const testConnection = async () => {
       { name: 'country', type: 'VARCHAR(100) DEFAULT NULL' },
       { name: 'state', type: 'VARCHAR(100) DEFAULT NULL' },
       { name: 'city', type: 'VARCHAR(100) DEFAULT NULL' },
-      { name: 'expires_at', type: 'TIMESTAMP NULL DEFAULT NULL' }
+      { name: 'expires_at', type: 'TIMESTAMP NULL DEFAULT NULL' },
+      { name: 'incident_count', type: 'INT DEFAULT 1' },
+      { name: 'related_incident_ids', type: 'TEXT DEFAULT NULL' },
+      { name: 'last_incident_at', type: 'TIMESTAMP NULL DEFAULT NULL' }
     ];
 
     for (const col of columnsToAdd) {
@@ -3565,6 +3568,118 @@ const executeQuery = async (sql, params = []) => {
 
   // Resilient Fallback Simulator for development & offline testing
   const cleanSql = sql.trim().toLowerCase();
+
+  // ── Users Query Simulation ───────────────────────────────────────────
+  if (cleanSql.includes('from users')) {
+    if (cleanSql.includes('where u.email =') || cleanSql.includes('where email =')) {
+      const email = params[0];
+      const found = inMemoryStore.users.find(u => u.email?.toLowerCase() === email?.toLowerCase());
+      return found ? [{ ...found, preferred_language: 'en' }] : [];
+    }
+    if (cleanSql.includes('where u.id =') || cleanSql.includes('where id =')) {
+      const id = parseInt(params[0], 10);
+      const found = inMemoryStore.users.find(u => u.id === id);
+      return found ? [{ ...found, preferred_language: 'en' }] : [];
+    }
+    if (cleanSql.includes('where role =')) {
+      const role = params[0];
+      return inMemoryStore.users.filter(u => u.role === role);
+    }
+    return inMemoryStore.users;
+  }
+
+  if (cleanSql.includes('insert into users')) {
+    const newUser = {
+      id: inMemoryStore.users.length + 1,
+      full_name: params[0] || 'Tourist User',
+      email: params[1] || 'user@example.com',
+      phone: params[2] || '+919876543210',
+      password: params[3] || '',
+      role: params[4] || 'Tourist',
+      nationality: params[5] || 'Indian',
+      gender: params[6] || 'prefer_not_to_say',
+      is_verified: 0,
+      email_verified: 0,
+      phone_verified: 0,
+      status: 'active',
+      created_at: new Date().toISOString()
+    };
+    inMemoryStore.users.push(newUser);
+    return { insertId: newUser.id, affectedRows: 1 };
+  }
+
+  if (cleanSql.includes('update users')) {
+    const id = params[params.length - 1];
+    const user = inMemoryStore.users.find(u => u.id === parseInt(id, 10));
+    if (user) {
+      if (cleanSql.includes('dob =')) {
+        user.dob = params[0];
+        user.profile_image_path = params[1];
+        user.id_type = params[2];
+        user.id_number = params[3];
+        user.id_proof_url = params[4];
+      }
+      if (cleanSql.includes('full_name =')) {
+        user.full_name = params[0];
+        user.phone = params[1];
+        user.password = params[2];
+        user.nationality = params[3];
+        user.gender = params[4];
+      }
+      if (cleanSql.includes('email_verified = false') || cleanSql.includes('email_verified = 0')) user.email_verified = 0;
+      if (cleanSql.includes('phone_verified = false') || cleanSql.includes('phone_verified = 0')) user.phone_verified = 0;
+      if (cleanSql.includes('is_verified = false') || cleanSql.includes('is_verified = 0')) user.is_verified = 0;
+      if (cleanSql.includes('email_verified = true') || cleanSql.includes('email_verified = 1')) user.email_verified = 1;
+      if (cleanSql.includes('phone_verified = true') || cleanSql.includes('phone_verified = 1')) user.phone_verified = 1;
+      if (cleanSql.includes('is_verified = true') || cleanSql.includes('is_verified = 1')) user.is_verified = 1;
+    }
+    return { affectedRows: 1 };
+  }
+
+  // ── OTP Verifications Simulation ─────────────────────────────────────
+  if (cleanSql.includes('from otp_verifications')) {
+    if (cleanSql.includes('where target_identifier =')) {
+      const target = params[0];
+      const code = params[1];
+      const found = (inMemoryStore.otp_verifications || []).filter(o => 
+        o.target_identifier === target && (!code || o.otp_code === code) && !o.is_used
+      );
+      return found;
+    }
+    return inMemoryStore.otp_verifications || [];
+  }
+
+  if (cleanSql.includes('insert into otp_verifications')) {
+    if (!inMemoryStore.otp_verifications) inMemoryStore.otp_verifications = [];
+    const newOtp = {
+      id: inMemoryStore.otp_verifications.length + 1,
+      target_identifier: params[0],
+      otp_code: params[1],
+      purpose: params[2],
+      expires_at: params[3],
+      is_used: 0,
+      created_at: new Date().toISOString()
+    };
+    inMemoryStore.otp_verifications.push(newOtp);
+    return { insertId: newOtp.id, affectedRows: 1 };
+  }
+
+  if (cleanSql.includes('update otp_verifications')) {
+    const id = params[params.length - 1];
+    const otp = (inMemoryStore.otp_verifications || []).find(o => o.id === parseInt(id, 10));
+    if (otp) otp.is_used = 1;
+    return { affectedRows: 1 };
+  }
+
+  // Generic dummy insert/update for sub-tables in mock mode
+  if (
+    cleanSql.includes('insert into tourist_documents') ||
+    cleanSql.includes('insert into tourist_health') ||
+    cleanSql.includes('insert into emergency_contacts') ||
+    cleanSql.includes('insert into location_permissions')
+  ) {
+    return { insertId: Date.now(), affectedRows: 1 };
+  }
 
   if (cleanSql.includes('select * from tourist_activities')) {
     return [...inMemoryStore.tourist_activities];

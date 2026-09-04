@@ -5,7 +5,7 @@ import api from '../services/api';
 
 const Login = ({ onLoginSuccess, darkMode }) => {
   const [email, setEmail] = useState('john.tourist@example.com');
-  const [password, setPassword] = useState('Password@123');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -25,24 +25,7 @@ const Login = ({ onLoginSuccess, darkMode }) => {
         navigate('/');
       }
     } catch (err) {
-      // Fallback demo login for offline/dev test if server offline
-      const demoUser = {
-        id: 4,
-        full_name: email.split('@')[0] || 'John Tourist',
-        email: email,
-        phone: '+919876543213',
-        nationality: 'Indian Tourist',
-        passport_number: 'IND-98421034',
-        gender: 'male',
-        blood_group: 'O+',
-        emergency_medical_info: 'No known allergies',
-        hotel_address: 'Grand Residency, New Delhi'
-      };
-      localStorage.setItem('rakshasetu_tourist_token', 'demo-token-12345');
-      localStorage.setItem('rakshasetu_tourist_user', JSON.stringify(demoUser));
-      localStorage.setItem('rakshasetu_last_activity', String(Date.now()));
-      onLoginSuccess(demoUser);
-      navigate('/');
+      setError(err.response?.data?.message || 'Login failed. Please check your credentials and try again.');
     } finally {
       setLoading(false);
     }

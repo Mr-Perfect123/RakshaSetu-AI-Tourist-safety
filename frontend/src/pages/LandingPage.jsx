@@ -24,9 +24,11 @@ import {
   Clock
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
 
 const LandingPage = ({ tourist, onLogout, darkMode }) => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [contactSubmitted, setContactSubmitted] = useState(false);
   const [contactForm, setContactForm] = useState({ name: '', email: '', subject: '', message: '' });
 
@@ -51,14 +53,14 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
       darkMode ? 'bg-[#0f172a] text-slate-100' : 'bg-[#F8FAFC] text-slate-900'
     }`}>
       
-      {/* 1. Header Navigation Bar (Matches EduManage Screenshot Header Layout) */}
+      {/* 1. Header Navigation Bar */}
       <header className={`sticky top-0 z-50 backdrop-blur-md border-b px-4 md:px-12 py-3.5 flex items-center justify-between transition-colors ${
         darkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white/95 border-slate-200/80 shadow-xs'
       }`}>
         {/* Brand Logo & Name */}
         <Link to="/" className="flex items-center gap-3 decoration-none">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center text-white shadow-md shadow-purple-900/20">
-            <Shield className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center !text-white shadow-md shadow-purple-900/20" style={{ color: '#ffffff' }}>
+            <Shield className="w-5 h-5 text-white" />
           </div>
           <div>
             <h1 className={`text-xl font-extrabold tracking-tight flex items-center gap-1.5 m-0 leading-none ${
@@ -69,7 +71,7 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
             <p className={`text-[11px] font-medium m-0 mt-0.5 ${
               darkMode ? 'text-slate-400' : 'text-slate-600'
             }`}>
-              Tourist Safety & Emergency System
+              {t('landing.brandSubtitle', 'Tourist Safety & Emergency System')}
             </p>
           </div>
         </Link>
@@ -78,47 +80,48 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
         <nav className="hidden md:flex items-center gap-8 text-sm font-semibold">
           <button 
             onClick={() => scrollToSection('features')} 
-            className={`transition-colors cursor-pointer ${
+            className={`transition-colors cursor-pointer font-bold ${
               darkMode ? 'text-slate-300 hover:text-purple-400' : 'text-slate-700 hover:text-purple-700'
             }`}
           >
-            Features
+            {t('landing.navFeatures', 'Features')}
           </button>
           <button 
             onClick={() => scrollToSection('roles')} 
-            className={`transition-colors cursor-pointer ${
+            className={`transition-colors cursor-pointer font-bold ${
               darkMode ? 'text-slate-300 hover:text-purple-400' : 'text-slate-700 hover:text-purple-700'
             }`}
           >
-            Roles
+            {t('landing.navRoles', 'Roles')}
           </button>
           <button 
             onClick={() => scrollToSection('about')} 
-            className={`transition-colors cursor-pointer ${
+            className={`transition-colors cursor-pointer font-bold ${
               darkMode ? 'text-slate-300 hover:text-purple-400' : 'text-slate-700 hover:text-purple-700'
             }`}
           >
-            About
+            {t('landing.navAbout', 'About')}
           </button>
           <button 
             onClick={() => scrollToSection('contact')} 
-            className={`transition-colors cursor-pointer ${
+            className={`transition-colors cursor-pointer font-bold ${
               darkMode ? 'text-slate-300 hover:text-purple-400' : 'text-slate-700 hover:text-purple-700'
             }`}
           >
-            Contact Us
+            {t('landing.navContact', 'Contact Us')}
           </button>
         </nav>
 
-        {/* Right Action Button (Purple Pill Button from Screenshot) */}
+        {/* Right Action Button */}
         <div className="flex items-center gap-3">
           {tourist ? (
             <div className="flex items-center gap-3">
               <button
                 onClick={() => navigate('/')}
-                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-md transition-all cursor-pointer"
+                style={{ color: '#ffffff' }}
+                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 !text-white font-semibold text-xs shadow-md transition-all cursor-pointer"
               >
-                Go to Dashboard
+                {t('landing.navDashboard', 'Go to Dashboard')}
               </button>
               <button
                 onClick={onLogout}
@@ -126,15 +129,16 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
                   darkMode ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-300 text-slate-700 hover:bg-slate-100'
                 }`}
               >
-                Sign Out
+                {t('landing.navSignOut', 'Sign Out')}
               </button>
             </div>
           ) : (
             <Link
               to="/login"
-              className="px-6 py-2 rounded-xl bg-[#5b21b6] hover:bg-[#4c1d95] text-white font-semibold text-sm shadow-md shadow-purple-900/30 transition-all decoration-none flex items-center gap-1.5"
+              style={{ color: '#ffffff' }}
+              className="px-6 py-2 rounded-xl bg-[#5b21b6] hover:bg-[#4c1d95] !text-white font-bold text-sm shadow-md shadow-purple-900/30 transition-all decoration-none flex items-center justify-center gap-1.5"
             >
-              Login
+              {t('landing.navLogin', 'Login')}
             </Link>
           )}
         </div>
@@ -143,7 +147,7 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
       {/* Main Container */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-16">
         
-        {/* 2. Hero Banner Container (Exact replica of EduManage rounded hero container) */}
+        {/* 2. Hero Banner Container */}
         <section className="relative rounded-3xl overflow-hidden shadow-2xl border border-slate-800/30">
           {/* Background Image with Crisp Dark Gradient Overlay & Parallax Zoom */}
           <div className="absolute inset-0 z-0 overflow-hidden">
@@ -157,40 +161,42 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
 
           {/* Floating Decorative Badges in Hero */}
           <div className="hidden lg:block absolute top-8 left-8 z-10 animate-float">
-            <div className="px-3.5 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white flex items-center gap-2 shadow-xl">
+            <div className="px-3.5 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 !text-white flex items-center gap-2 shadow-xl" style={{ color: '#ffffff' }}>
               <Shield className="w-4 h-4 text-emerald-400" />
-              <span className="text-xs font-bold">100% Verified Guard</span>
+              <span className="text-xs font-bold">{t('landing.verifiedBadge', '100% Verified Guard')}</span>
             </div>
           </div>
 
           <div className="hidden lg:block absolute bottom-8 right-8 z-10 animate-float-delayed">
-            <div className="px-3.5 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white flex items-center gap-2 shadow-xl">
+            <div className="px-3.5 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 !text-white flex items-center gap-2 shadow-xl" style={{ color: '#ffffff' }}>
               <Sparkles className="w-4 h-4 text-amber-400" />
-              <span className="text-xs font-bold">24/7 AI Sentinel</span>
+              <span className="text-xs font-bold">{t('landing.sentinelBadge', '24/7 AI Sentinel')}</span>
             </div>
           </div>
 
-          {/* Hero Content Overlay (Strict High-Contrast White Text) */}
-          <div className="relative z-10 px-6 sm:px-12 py-20 sm:py-28 text-center text-white max-w-4xl mx-auto space-y-6">
-            <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight drop-shadow-md">
-              Comprehensive Student Management System
+          {/* Hero Content Overlay */}
+          <div className="relative z-10 px-6 sm:px-12 py-20 sm:py-28 text-center !text-white max-w-4xl mx-auto space-y-6" style={{ color: '#ffffff' }}>
+            <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight drop-shadow-md text-white">
+              {t('landing.heroTitle', 'AI-Powered Tourist Safety & Emergency Response Platform')}
             </h2>
             <p className="text-sm sm:text-lg text-slate-100 font-medium leading-relaxed max-w-2xl mx-auto drop-shadow-sm">
-              Streamlining administration and enhancing communication for modern educational institutions.
+              {t('landing.heroSubtitle', 'Streamlining emergency assistance, real-time tracking, danger zone alerts, and 24/7 multilingual support for tourists across India.')}
             </p>
-            <div className="pt-4 flex items-center justify-center gap-4">
+            <div className="pt-4 flex flex-wrap items-center justify-center gap-4">
               <button
                 onClick={() => scrollToSection('features')}
-                className="px-8 py-3.5 rounded-xl bg-[#5b21b6] hover:bg-[#4c1d95] text-white font-bold text-sm shadow-xl shadow-purple-900/50 transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                style={{ color: '#ffffff' }}
+                className="px-8 py-3.5 rounded-xl bg-[#5b21b6] hover:bg-[#4c1d95] !text-white font-bold text-sm shadow-xl shadow-purple-900/50 transition-all transform hover:-translate-y-0.5 cursor-pointer"
               >
-                Explore Features
+                {t('landing.exploreFeatures', 'Explore Features')}
               </button>
               {!tourist && (
                 <button
                   onClick={() => navigate('/login')}
-                  className="px-6 py-3.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-semibold text-sm backdrop-blur-md border border-white/30 transition-all cursor-pointer flex items-center gap-2"
+                  style={{ color: '#ffffff' }}
+                  className="px-6 py-3.5 rounded-xl bg-white/20 hover:bg-white/30 !text-white font-semibold text-sm backdrop-blur-md border border-white/40 shadow-lg transition-all cursor-pointer flex items-center gap-2"
                 >
-                  Quick Sign In <ArrowRight className="w-4 h-4" />
+                  {t('landing.quickSignIn', 'Quick Sign In')} <ArrowRight className="w-4 h-4 text-white" />
                 </button>
               )}
             </div>
@@ -206,8 +212,12 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
               <PhoneCall className="w-5 h-5" />
             </div>
             <div>
-              <p className={`text-xs font-extrabold m-0 ${darkMode ? 'text-white' : 'text-slate-900'}`}>112 Helpline</p>
-              <p className={`text-[11px] font-medium m-0 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>Direct Police Dispatch</p>
+              <p className={`text-xs font-extrabold m-0 ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                {t('landing.helpline112', '112 Helpline')}
+              </p>
+              <p className={`text-[11px] font-medium m-0 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                {t('landing.directPolice', 'Direct Police Dispatch')}
+              </p>
             </div>
           </div>
 
@@ -218,8 +228,12 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
               <Lock className="w-5 h-5" />
             </div>
             <div>
-              <p className={`text-xs font-extrabold m-0 ${darkMode ? 'text-white' : 'text-slate-900'}`}>100% Geo-Private</p>
-              <p className={`text-[11px] font-medium m-0 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>Encrypted Location</p>
+              <p className={`text-xs font-extrabold m-0 ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                {t('landing.geoPrivate', '100% Geo-Private')}
+              </p>
+              <p className={`text-[11px] font-medium m-0 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                {t('landing.encryptedLoc', 'Encrypted Location')}
+              </p>
             </div>
           </div>
 
@@ -230,8 +244,12 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
               <Globe className="w-5 h-5" />
             </div>
             <div>
-              <p className={`text-xs font-extrabold m-0 ${darkMode ? 'text-white' : 'text-slate-900'}`}>50,000+ Safe</p>
-              <p className={`text-[11px] font-medium m-0 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>Protected Journeys</p>
+              <p className={`text-xs font-extrabold m-0 ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                {t('landing.safeJourneys', '50,000+ Safe')}
+              </p>
+              <p className={`text-[11px] font-medium m-0 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                {t('landing.protectedJourneys', 'Protected Journeys')}
+              </p>
             </div>
           </div>
 
@@ -242,31 +260,35 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
               <Clock className="w-5 h-5" />
             </div>
             <div>
-              <p className={`text-xs font-extrabold m-0 ${darkMode ? 'text-white' : 'text-slate-900'}`}>24/7 AI Sentinel</p>
-              <p className={`text-[11px] font-medium m-0 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>Multilingual Guard</p>
+              <p className={`text-xs font-extrabold m-0 ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                {t('landing.aiSentinel', '24/7 AI Sentinel')}
+              </p>
+              <p className={`text-[11px] font-medium m-0 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                {t('landing.multilingualGuard', 'Multilingual Guard')}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* 3. Core Features Section (Exact replica of EduManage Core Features Grid with Crisp Text) */}
+        {/* 3. Core Features Section */}
         <section id="features" className="scroll-mt-24 space-y-10 text-center">
           <div className="space-y-2">
             <h2 className={`text-2xl sm:text-4xl font-black tracking-tight ${
               darkMode ? 'text-white' : 'text-slate-950'
             }`}>
-              Core Features Built for Modern Education
+              {t('landing.featuresHeading', 'Core Features Built for Tourist Safety')}
             </h2>
             <p className={`text-sm sm:text-base font-medium max-w-2xl mx-auto ${
               darkMode ? 'text-slate-300' : 'text-slate-700'
             }`}>
-              Equipped with real-time tracking, 24/7 SOS response, AI intelligence, and verified emergency contacts.
+              {t('landing.featuresSubheading', 'Equipped with real-time tracking, 24/7 SOS response, AI intelligence, and verified emergency contacts.')}
             </p>
           </div>
 
-          {/* Feature Cards Grid (Row of 4 Cards with Distinct Colored Icons and Crisp Contrast) */}
+          {/* Feature Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
             
-            {/* Card 1: Blue Icon (Emergency SOS) */}
+            {/* Card 1: Emergency SOS */}
             <div className={`p-6 rounded-2xl border transition-all duration-300 card-hover-lift ${
               darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-slate-200 shadow-md shadow-slate-200/50'
             }`}>
@@ -276,16 +298,16 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
               <h3 className={`text-lg font-extrabold mb-2 ${
                 darkMode ? 'text-white' : 'text-slate-950'
               }`}>
-                Instant SOS & Emergency Alert
+                {t('landing.card1Title', 'Instant SOS & Emergency Alert')}
               </h3>
               <p className={`text-xs sm:text-sm font-medium leading-relaxed ${
                 darkMode ? 'text-slate-300' : 'text-slate-700'
               }`}>
-                One-tap emergency panic button dispatches live coordinates and alerts to nearby police patrol & emergency services.
+                {t('landing.card1Desc', 'One-tap emergency panic button dispatches live coordinates and alerts to nearby police patrol & emergency services.')}
               </p>
             </div>
 
-            {/* Card 2: Green Icon (Real-Time GPS Tracking) */}
+            {/* Card 2: Real-Time GPS Tracking */}
             <div className={`p-6 rounded-2xl border transition-all duration-300 card-hover-lift ${
               darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-slate-200 shadow-md shadow-slate-200/50'
             }`}>
@@ -295,16 +317,16 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
               <h3 className={`text-lg font-extrabold mb-2 ${
                 darkMode ? 'text-white' : 'text-slate-950'
               }`}>
-                Geo-Fenced GPS Tracking
+                {t('landing.card2Title', 'Geo-Fenced GPS Tracking')}
               </h3>
               <p className={`text-xs sm:text-sm font-medium leading-relaxed ${
                 darkMode ? 'text-slate-300' : 'text-slate-700'
               }`}>
-                Automated safe-zone monitoring alerts tourists when entering high-risk areas or straying from guided paths.
+                {t('landing.card2Desc', 'Automated safe-zone monitoring alerts tourists when entering high-risk areas or straying from guided paths.')}
               </p>
             </div>
 
-            {/* Card 3: Yellow/Amber Icon (AI Safety Assistant) */}
+            {/* Card 3: AI Safety Assistant */}
             <div className={`p-6 rounded-2xl border transition-all duration-300 card-hover-lift ${
               darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-slate-200 shadow-md shadow-slate-200/50'
             }`}>
@@ -314,16 +336,16 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
               <h3 className={`text-lg font-extrabold mb-2 ${
                 darkMode ? 'text-white' : 'text-slate-950'
               }`}>
-                AI Sentinel Assistant
+                {t('landing.card3Title', 'AI Sentinel Assistant')}
               </h3>
               <p className={`text-xs sm:text-sm font-medium leading-relaxed ${
                 darkMode ? 'text-slate-300' : 'text-slate-700'
               }`}>
-                Multilingual AI chatbot providing instant local advisory, weather updates, travel booking guidance, and safety tips.
+                {t('landing.card3Desc', 'Multilingual AI chatbot providing instant local advisory, weather updates, travel booking guidance, and safety tips.')}
               </p>
             </div>
 
-            {/* Card 4: Red Icon (Verified Help & Incident Management) */}
+            {/* Card 4: Verified Incident Portal */}
             <div className={`p-6 rounded-2xl border transition-all duration-300 card-hover-lift ${
               darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-slate-200 shadow-md shadow-slate-200/50'
             }`}>
@@ -333,12 +355,12 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
               <h3 className={`text-lg font-extrabold mb-2 ${
                 darkMode ? 'text-white' : 'text-slate-950'
               }`}>
-                Verified Incident Portal
+                {t('landing.card4Title', 'Verified Incident Portal')}
               </h3>
               <p className={`text-xs sm:text-sm font-medium leading-relaxed ${
                 darkMode ? 'text-slate-300' : 'text-slate-700'
               }`}>
-                Report incidents, request medical assistance, find nearby police stations, hospitals, and embassy contacts instantly.
+                {t('landing.card4Desc', 'Report incidents, request medical assistance, find nearby police stations, hospitals, and embassy contacts instantly.')}
               </p>
             </div>
 
@@ -351,12 +373,12 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
             <h2 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${
               darkMode ? 'text-white' : 'text-slate-950'
             }`}>
-              Roles & User Access Levels
+              {t('landing.rolesHeading', 'Roles & User Access Levels')}
             </h2>
             <p className={`text-sm font-medium max-w-xl mx-auto ${
               darkMode ? 'text-slate-300' : 'text-slate-700'
             }`}>
-              Tailored dashboards and tools for tourists, security officials, emergency responders, and administrators.
+              {t('landing.rolesSubheading', 'Tailored dashboards and tools for tourists, security officials, emergency responders, and administrators.')}
             </p>
           </div>
 
@@ -367,9 +389,11 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
               <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-400 flex items-center justify-center font-extrabold text-sm">
                 01
               </div>
-              <h3 className={`text-lg font-extrabold ${darkMode ? 'text-white' : 'text-slate-950'}`}>Tourists & Travelers</h3>
+              <h3 className={`text-lg font-extrabold ${darkMode ? 'text-white' : 'text-slate-950'}`}>
+                {t('landing.role1Title', 'Tourists & Travelers')}
+              </h3>
               <p className={`text-xs sm:text-sm font-medium leading-relaxed ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                Access live safety maps, 1-tap SOS signal dispatch, verified travel/rides/food services, and AI voice assistance.
+                {t('landing.role1Desc', 'Access live safety maps, 1-tap SOS signal dispatch, verified travel/rides/food services, and AI voice assistance.')}
               </p>
             </div>
 
@@ -379,9 +403,11 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
               <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-400 flex items-center justify-center font-extrabold text-sm">
                 02
               </div>
-              <h3 className={`text-lg font-extrabold ${darkMode ? 'text-white' : 'text-slate-950'}`}>Emergency Services & Police</h3>
+              <h3 className={`text-lg font-extrabold ${darkMode ? 'text-white' : 'text-slate-950'}`}>
+                {t('landing.role2Title', 'Emergency Services & Police')}
+              </h3>
               <p className={`text-xs sm:text-sm font-medium leading-relaxed ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                Real-time alert dispatch console, GPS victim locator, active tracking during emergencies, and dispatch log.
+                {t('landing.role2Desc', 'Real-time alert dispatch console, GPS victim locator, active tracking during emergencies, and dispatch log.')}
               </p>
             </div>
 
@@ -391,9 +417,11 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
               <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 flex items-center justify-center font-extrabold text-sm">
                 03
               </div>
-              <h3 className={`text-lg font-extrabold ${darkMode ? 'text-white' : 'text-slate-950'}`}>Tourism Board & Admins</h3>
+              <h3 className={`text-lg font-extrabold ${darkMode ? 'text-white' : 'text-slate-950'}`}>
+                {t('landing.role3Title', 'Tourism Board & Admins')}
+              </h3>
               <p className={`text-xs sm:text-sm font-medium leading-relaxed ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                Central management dashboard for tourist statistics, safe-zone configuration, verified vendor approvals, and audit logs.
+                {t('landing.role3Desc', 'Central management dashboard for tourist statistics, safe-zone configuration, verified vendor approvals, and audit logs.')}
               </p>
             </div>
           </div>
@@ -406,23 +434,23 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
             <div className="space-y-4">
               <span className="px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                About RakshaSetu AI
+                {t('landing.aboutBadge', 'About RakshaSetu AI')}
               </span>
               <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-                Empowering Safe & Frictionless Tourism Across India
+                {t('landing.aboutHeading', 'Empowering Safe & Frictionless Tourism Across India')}
               </h2>
               <p className="text-sm text-slate-200 font-medium leading-relaxed">
-                RakshaSetu AI combines cutting-edge location telemetry, predictive danger zoning, and automated emergency alert dispatching to ensure international and domestic tourists explore destinations with peace of mind.
+                {t('landing.aboutDesc', 'RakshaSetu AI combines cutting-edge location telemetry, predictive danger zoning, and automated emergency alert dispatching to ensure international and domestic tourists explore destinations with peace of mind.')}
               </p>
               <ul className="space-y-2 text-xs sm:text-sm text-slate-200 font-medium">
                 <li className="flex items-center gap-2">
-                  <CheckCircle className="w-4.5 h-4.5 text-emerald-400" /> Integrated directly with National Emergency Helpline 112
+                  <CheckCircle className="w-4.5 h-4.5 text-emerald-400 shrink-0" /> {t('landing.aboutCheck1', 'Integrated directly with National Emergency Helpline 112')}
                 </li>
                 <li className="flex items-center gap-2">
-                  <CheckCircle className="w-4.5 h-4.5 text-emerald-400" /> End-to-end encryption & location privacy controls
+                  <CheckCircle className="w-4.5 h-4.5 text-emerald-400 shrink-0" /> {t('landing.aboutCheck2', 'End-to-end encryption & location privacy controls')}
                 </li>
                 <li className="flex items-center gap-2">
-                  <CheckCircle className="w-4.5 h-4.5 text-emerald-400" /> 24/7 AI-driven assistance in over 12 languages
+                  <CheckCircle className="w-4.5 h-4.5 text-emerald-400 shrink-0" /> {t('landing.aboutCheck3', '24/7 AI-driven assistance in over 12 languages')}
                 </li>
               </ul>
             </div>
@@ -442,12 +470,12 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
             <h2 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${
               darkMode ? 'text-white' : 'text-slate-950'
             }`}>
-              Get in Touch with Our Safety Team
+              {t('landing.contactHeading', 'Get in Touch with Our Safety Team')}
             </h2>
             <p className={`text-sm font-medium max-w-xl mx-auto ${
               darkMode ? 'text-slate-300' : 'text-slate-700'
             }`}>
-              Have questions or need assistance? Send us a message or reach out to our emergency support line.
+              {t('landing.contactSubheading', 'Have questions or need assistance? Send us a message or reach out to our emergency support line.')}
             </p>
           </div>
 
@@ -455,7 +483,9 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
             <div className={`lg:col-span-1 p-6 rounded-2xl border space-y-6 ${
               darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-slate-200 shadow-md'
             }`}>
-              <h3 className={`text-lg font-extrabold ${darkMode ? 'text-white' : 'text-slate-950'}`}>Emergency Contacts</h3>
+              <h3 className={`text-lg font-extrabold ${darkMode ? 'text-white' : 'text-slate-950'}`}>
+                {t('landing.emergencyContactsHeading', 'Emergency Contacts')}
+              </h3>
               
               <div className="space-y-5 text-xs sm:text-sm">
                 <div className="flex items-start gap-3">
@@ -463,8 +493,12 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
                     <Phone className="w-5 h-5" />
                   </div>
                   <div>
-                    <p className={`font-extrabold m-0 ${darkMode ? 'text-white' : 'text-slate-950'}`}>National Police & Emergency</p>
-                    <p className={`font-semibold m-0 mt-0.5 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>Dial 112 (Toll Free 24/7)</p>
+                    <p className={`font-extrabold m-0 ${darkMode ? 'text-white' : 'text-slate-950'}`}>
+                      {t('landing.nationalPoliceTitle', 'National Police & Emergency')}
+                    </p>
+                    <p className={`font-semibold m-0 mt-0.5 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                      {t('landing.dial112Text', 'Dial 112 (Toll Free 24/7)')}
+                    </p>
                   </div>
                 </div>
 
@@ -473,8 +507,12 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
                     <Mail className="w-5 h-5" />
                   </div>
                   <div>
-                    <p className={`font-extrabold m-0 ${darkMode ? 'text-white' : 'text-slate-950'}`}>Tourist Support Desk</p>
-                    <p className={`font-semibold m-0 mt-0.5 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>support@rakshasetu.gov.in</p>
+                    <p className={`font-extrabold m-0 ${darkMode ? 'text-white' : 'text-slate-950'}`}>
+                      {t('landing.touristSupportTitle', 'Tourist Support Desk')}
+                    </p>
+                    <p className={`font-semibold m-0 mt-0.5 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                      {t('landing.supportEmail', 'support@rakshasetu.gov.in')}
+                    </p>
                   </div>
                 </div>
 
@@ -483,8 +521,12 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
                     <Building className="w-5 h-5" />
                   </div>
                   <div>
-                    <p className={`font-extrabold m-0 ${darkMode ? 'text-white' : 'text-slate-950'}`}>Ministry of Tourism HQ</p>
-                    <p className={`font-semibold m-0 mt-0.5 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>Sansad Marg, New Delhi</p>
+                    <p className={`font-extrabold m-0 ${darkMode ? 'text-white' : 'text-slate-950'}`}>
+                      {t('landing.ministryHQTitle', 'Ministry of Tourism HQ')}
+                    </p>
+                    <p className={`font-semibold m-0 mt-0.5 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                      {t('landing.ministryAddress', 'Sansad Marg, New Delhi')}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -498,35 +540,41 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
                   <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
                     <CheckCircle className="w-6 h-6" />
                   </div>
-                  <h4 className={`text-lg font-extrabold ${darkMode ? 'text-white' : 'text-slate-950'}`}>Message Sent Successfully</h4>
+                  <h4 className={`text-lg font-extrabold ${darkMode ? 'text-white' : 'text-slate-950'}`}>
+                    {t('landing.messageSuccessTitle', 'Message Sent Successfully')}
+                  </h4>
                   <p className={`text-sm font-medium ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                    Our safety support representative will reply to your email within 24 hours.
+                    {t('landing.messageSuccessDesc', 'Our safety support representative will reply to your email within 24 hours.')}
                   </p>
                 </div>
               ) : (
                 <form onSubmit={handleContactSubmit} className="space-y-4 text-xs sm:text-sm">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className={`block font-bold mb-1 ${darkMode ? 'text-slate-200' : 'text-slate-900'}`}>Your Name</label>
+                      <label className={`block font-bold mb-1 ${darkMode ? 'text-slate-200' : 'text-slate-900'}`}>
+                        {t('landing.labelName', 'Your Name')}
+                      </label>
                       <input 
                         type="text" 
                         required
                         value={contactForm.name}
                         onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
-                        placeholder="John Doe"
+                        placeholder={t('landing.placeholderName', 'John Doe')}
                         className={`w-full px-4 py-3 rounded-xl border text-xs sm:text-sm font-medium focus:ring-2 focus:ring-purple-600 focus:outline-none ${
                           darkMode ? 'bg-slate-900 border-slate-700 text-white placeholder:text-slate-500' : 'bg-slate-50 border-slate-300 text-slate-950 placeholder:text-slate-400'
                         }`}
                       />
                     </div>
                     <div>
-                      <label className={`block font-bold mb-1 ${darkMode ? 'text-slate-200' : 'text-slate-900'}`}>Email Address</label>
+                      <label className={`block font-bold mb-1 ${darkMode ? 'text-slate-200' : 'text-slate-900'}`}>
+                        {t('landing.labelEmail', 'Email Address')}
+                      </label>
                       <input 
                         type="email" 
                         required
                         value={contactForm.email}
                         onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
-                        placeholder="john@example.com"
+                        placeholder={t('landing.placeholderEmail', 'john@example.com')}
                         className={`w-full px-4 py-3 rounded-xl border text-xs sm:text-sm font-medium focus:ring-2 focus:ring-purple-600 focus:outline-none ${
                           darkMode ? 'bg-slate-900 border-slate-700 text-white placeholder:text-slate-500' : 'bg-slate-50 border-slate-300 text-slate-950 placeholder:text-slate-400'
                         }`}
@@ -534,26 +582,30 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
                     </div>
                   </div>
                   <div>
-                    <label className={`block font-bold mb-1 ${darkMode ? 'text-slate-200' : 'text-slate-900'}`}>Subject</label>
+                    <label className={`block font-bold mb-1 ${darkMode ? 'text-slate-200' : 'text-slate-900'}`}>
+                      {t('landing.labelSubject', 'Subject')}
+                    </label>
                     <input 
                       type="text" 
                       required
                       value={contactForm.subject}
                       onChange={(e) => setContactForm({ ...contactForm, subject: e.target.value })}
-                      placeholder="Safety Inquiry / Feedback"
+                      placeholder={t('landing.placeholderSubject', 'Safety Inquiry / Feedback')}
                       className={`w-full px-4 py-3 rounded-xl border text-xs sm:text-sm font-medium focus:ring-2 focus:ring-purple-600 focus:outline-none ${
                         darkMode ? 'bg-slate-900 border-slate-700 text-white placeholder:text-slate-500' : 'bg-slate-50 border-slate-300 text-slate-950 placeholder:text-slate-400'
                       }`}
                     />
                   </div>
                   <div>
-                    <label className={`block font-bold mb-1 ${darkMode ? 'text-slate-200' : 'text-slate-900'}`}>Message</label>
+                    <label className={`block font-bold mb-1 ${darkMode ? 'text-slate-200' : 'text-slate-900'}`}>
+                      {t('landing.labelMessage', 'Message')}
+                    </label>
                     <textarea 
                       rows="4"
                       required
                       value={contactForm.message}
                       onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
-                      placeholder="Describe your inquiry here..."
+                      placeholder={t('landing.placeholderMessage', 'Describe your inquiry here...')}
                       className={`w-full px-4 py-3 rounded-xl border text-xs sm:text-sm font-medium focus:ring-2 focus:ring-purple-600 focus:outline-none ${
                         darkMode ? 'bg-slate-900 border-slate-700 text-white placeholder:text-slate-500' : 'bg-slate-50 border-slate-300 text-slate-950 placeholder:text-slate-400'
                       }`}
@@ -561,9 +613,10 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
                   </div>
                   <button 
                     type="submit"
-                    className="px-7 py-3 rounded-xl bg-[#5b21b6] hover:bg-[#4c1d95] text-white font-bold text-xs sm:text-sm shadow-md shadow-purple-900/30 transition-all cursor-pointer"
+                    style={{ color: '#ffffff' }}
+                    className="px-7 py-3 rounded-xl bg-[#5b21b6] hover:bg-[#4c1d95] !text-white font-bold text-xs sm:text-sm shadow-md shadow-purple-900/30 transition-all cursor-pointer"
                   >
-                    Send Message
+                    {t('landing.btnSendMessage', 'Send Message')}
                   </button>
                 </form>
               )}
@@ -578,12 +631,22 @@ const LandingPage = ({ tourist, onLogout, darkMode }) => {
         darkMode ? 'bg-slate-950 border-slate-800 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-700 font-medium'
       }`}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="m-0">© 2026 RakshaSetu AI Tourist Safety & Emergency System. All rights reserved.</p>
+          <p className="m-0">
+            {t('landing.footerCopyright', '© 2026 RakshaSetu AI Tourist Safety & Emergency System. All rights reserved.')}
+          </p>
           <div className="flex items-center gap-6 font-semibold">
-            <button onClick={() => scrollToSection('features')} className="hover:underline cursor-pointer">Features</button>
-            <button onClick={() => scrollToSection('roles')} className="hover:underline cursor-pointer">Roles</button>
-            <button onClick={() => scrollToSection('about')} className="hover:underline cursor-pointer">About</button>
-            <button onClick={() => scrollToSection('contact')} className="hover:underline cursor-pointer">Contact</button>
+            <button onClick={() => scrollToSection('features')} className="hover:underline cursor-pointer">
+              {t('landing.navFeatures', 'Features')}
+            </button>
+            <button onClick={() => scrollToSection('roles')} className="hover:underline cursor-pointer">
+              {t('landing.navRoles', 'Roles')}
+            </button>
+            <button onClick={() => scrollToSection('about')} className="hover:underline cursor-pointer">
+              {t('landing.navAbout', 'About')}
+            </button>
+            <button onClick={() => scrollToSection('contact')} className="hover:underline cursor-pointer">
+              {t('landing.navContact', 'Contact Us')}
+            </button>
           </div>
         </div>
       </footer>

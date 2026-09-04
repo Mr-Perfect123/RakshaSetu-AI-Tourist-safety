@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { MapPin, Navigation, Heart, Star, Shield, ChevronRight, X, Loader2, AlertCircle, Globe, Flag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { getPlaceImage } from '../utils/placeImageHelper';
 
 // State emoji flags & representative images for quick recognition
 const STATE_META = {
@@ -29,25 +30,13 @@ const STATE_META = {
 const getStateMeta = (stateName) =>
   STATE_META[stateName] || { emoji: '📍', color: 'bg-slate-500/10 border-slate-500/20 text-slate-700 dark:text-slate-400' };
 
-const getPlaceFallbackImage = (place) => {
-  const cat = (place?.category || '').toLowerCase();
-  const name = (place?.name || '').toLowerCase();
-  if (cat.includes('beach') || name.includes('beach')) return 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=800&q=80';
-  if (cat.includes('temple') || cat.includes('culture')) return 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=800&q=80';
-  if (cat.includes('fort') || cat.includes('heritage')) return 'https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=800&q=80';
-  if (cat.includes('wildlife') || cat.includes('safari')) return 'https://images.unsplash.com/photo-1561731216-c3a4d99437d5?auto=format&fit=crop&w=800&q=80';
-  if (cat.includes('food') || cat.includes('street')) return 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80';
-  if (cat.includes('adventure')) return 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80';
-  return 'https://images.unsplash.com/photo-1589182373726-e4f658ab50f0?auto=format&fit=crop&w=800&q=80';
-};
-
 const DestinationCard = ({ dest, darkMode, savedIds, onToggleSave, onDirections }) => {
   const navigate = useNavigate();
   const isSaved = savedIds.includes(dest.id);
-  const [imgSrc, setImgSrc] = useState(() => dest.photos?.[0] || getPlaceFallbackImage(dest));
+  const [imgSrc, setImgSrc] = useState(() => getPlaceImage(dest));
 
   useEffect(() => {
-    if (dest.photos?.[0]) setImgSrc(dest.photos[0]);
+    setImgSrc(getPlaceImage(dest));
   }, [dest]);
 
   return (
@@ -60,7 +49,7 @@ const DestinationCard = ({ dest, darkMode, savedIds, onToggleSave, onDirections 
           crossOrigin="anonymous"
           alt={dest.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          onError={() => setImgSrc(getPlaceFallbackImage(dest))}
+          onError={() => setImgSrc(getPlaceImage(dest))}
           loading="lazy"
         />
 

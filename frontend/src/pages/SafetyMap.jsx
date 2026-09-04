@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Map, Navigation, Shield, Compass, Search, Layers, AlertCircle, RefreshCw, 
   Phone, Stethoscope, Building2, Utensils, Hotel, CheckSquare, Square, Eye,
-  AlertTriangle, AlertOctagon, X, CheckCircle2, Radio, BellRing, WifiOff, PhoneCall, Loader2
+  AlertTriangle, AlertOctagon, X, CheckCircle2, Radio, BellRing, WifiOff, PhoneCall, Loader2,
+  MapPin, Sparkles
 } from 'lucide-react';
-import TouristMap, { calculateDistanceMeters, formatDistance, isValidCoord, getDangerZoneTheme } from '../components/TouristMap';
+import TouristMap, { calculateDistanceMeters, formatDistance, isValidCoord, getDangerZoneTheme, isPointInPolygon } from '../components/TouristMap';
+import GeofenceEngine from '../utils/geofence';
 import api from '../services/api';
 import socket from '../services/socket';
 import axios from 'axios';
@@ -26,11 +28,35 @@ const SafetyMap = ({ darkMode }) => {
   const [dataLoading, setDataLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
-  // ── Search & Navigation States ────────────────────────────────────────────────
+  // ── Raw API Datasets ──────────────────────────────────────────────────────────
+  const [dangerZones, setDangerZones] = useState(() => {
+    try {
+      const cached = localStorage.getItem('rakshasetu_cached_danger_zones');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [safeLocations, setSafeLocations] = useState([]);
+  const [nearbyHospitals, setNearbyHospitals] = useState([]);
+  const [nearbyPolice, setNearbyPolice] = useState([]);
+  const [nearbyHotels, setNearbyHotels] = useState([]);
+  const [nearbyRestaurants, setNearbyRestaurants] = useState([]);
+  const [nearbyAttractions, setNearbyAttractions] = useState([]);
+
+  // ── Search & Navigation States (Google Places Autocomplete) ───────────────
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [searchedDestination, setSearchedDestination] = useState(null);
   const [routeInfo, setRouteInfo] = useState(null);
   const [routeSafety, setRouteSafety] = useState(null);
+  const [osrmRouteGeometry, setOsrmRouteGeometry] = useState(null); // GeoJSON LineString from OSRM
+  const routeRequestIdRef = useRef(0);
+  const searchAbortRef = useRef(null);
+  const searchContainerRef = useRef(null);
 
   // ── User Incident Reporting Form States ───────────────────────────────────────
   const [showIncidentModal, setShowIncidentModal] = useState(false);
@@ -105,15 +131,30 @@ const SafetyMap = ({ darkMode }) => {
       setSearchedDestination(dest);
       setMapCenter({ lat: dest.lat, lng: dest.lng });
       
+      const currentReqId = ++routeRequestIdRef.current;
+      setOsrmRouteGeometry(null);
+      setRouteInfo(null);
+      setRouteSafety(null);
+      
       // Request route from OSRM
       axios.get(`https://router.project-osrm.org/route/v1/driving/${gpsLocation.lng},${gpsLocation.lat};${dest.lng},${dest.lat}?overview=full&geometries=geojson`, { timeout: 3500 })
         .then(async (osrm) => {
+          if (currentReqId !== routeRequestIdRef.current) return; // Discard stale response
           if (osrm.data?.routes?.[0]) {
             const r = osrm.data.routes[0];
             setRouteInfo({
               distanceKm: Math.round((r.distance / 1000) * 10) / 10,
               durationMins: Math.round(r.duration / 60)
             });
+
+            // Store the actual OSRM geometry so TouristMap renders real roads
+            if (
+              r.geometry?.type === 'LineString' &&
+              Array.isArray(r.geometry.coordinates) &&
+              r.geometry.coordinates.length >= 2
+            ) {
+              setOsrmRouteGeometry(r.geometry);
+            }
 
             // Perform route safety analysis
             const routeCoords = r.geometry?.coordinates 
@@ -122,6 +163,7 @@ const SafetyMap = ({ darkMode }) => {
 
             try {
               const analysisRes = await api.post('/zones/route-analysis', { routeCoordinates: routeCoords });
+              if (currentReqId !== routeRequestIdRef.current) return;
               if (analysisRes.data?.data) {
                 setRouteSafety(analysisRes.data.data);
               }
@@ -134,21 +176,7 @@ const SafetyMap = ({ darkMode }) => {
     }
   }, [gpsLocation, safeLocations, nearbyHospitals, nearbyPolice]);
 
-  // ── Raw API Datasets ──────────────────────────────────────────────────────────
-  const [dangerZones, setDangerZones] = useState(() => {
-    try {
-      const cached = localStorage.getItem('rakshasetu_cached_danger_zones');
-      return cached ? JSON.parse(cached) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [safeLocations, setSafeLocations] = useState([]);
-  const [nearbyHospitals, setNearbyHospitals] = useState([]);
-  const [nearbyPolice, setNearbyPolice] = useState([]);
-  const [nearbyHotels, setNearbyHotels] = useState([]);
-  const [nearbyRestaurants, setNearbyRestaurants] = useState([]);
-  const [nearbyAttractions, setNearbyAttractions] = useState([]);
+
 
   // ── Geofence State Machine & Alerts ───────────────────────────────────────────
   const zoneStatesRef = useRef({}); // { [zoneId]: 'OUTSIDE' | 'APPROACHING' | 'INSIDE' }
@@ -199,21 +227,13 @@ const SafetyMap = ({ darkMode }) => {
       const zLng = parseFloat(zone.longitude);
       if (!isValidCoord(zLat, zLng)) return;
 
-      const dist = calculateDistanceMeters(curLat, curLng, zLat, zLng);
-      const radius = parseInt(zone.radius_meters || zone.radius || 500, 10);
-      const warningDist = parseInt(zone.warning_distance_meters || zone.warningDistance || 200, 10);
+      const zoneState = GeofenceEngine.getZoneState([curLat, curLng], zone);
+      const newState = zoneState.state;
+      const dist = zoneState.distanceMeters;
+      const distanceInside = zoneState.distanceInside || 50;
 
       const zoneId = zone.id || zone.zone_code || `${zLat}-${zLng}`;
       const prevState = zoneStatesRef.current[zoneId] || 'OUTSIDE';
-      let newState = 'OUTSIDE';
-
-      if (dist <= radius) {
-        newState = 'INSIDE';
-      } else if (dist <= radius + warningDist) {
-        newState = 'APPROACHING';
-      } else {
-        newState = 'OUTSIDE';
-      }
 
       // State Transition Logic
       if (newState !== prevState) {
@@ -221,7 +241,6 @@ const SafetyMap = ({ darkMode }) => {
 
         if (newState === 'INSIDE') {
           // ENTERED DANGER ZONE -> Trigger Big Emergency Popup
-          const distanceInside = Math.max(10, Math.round(radius - dist));
           setActiveEmergencyZone({ zone, dist, distanceInside });
           setMinimizedDangerBanner({ zone, dist, distanceInside });
           setApproachingAlert(null); // Clear approaching if jumped into inside
@@ -243,7 +262,7 @@ const SafetyMap = ({ darkMode }) => {
       }
 
       if (newState === 'INSIDE') {
-        currentlyInsideZone = { zone, dist, distanceInside: Math.max(10, Math.round(radius - dist)) };
+        currentlyInsideZone = { zone, dist, distanceInside };
       }
     });
 
@@ -413,11 +432,14 @@ const SafetyMap = ({ darkMode }) => {
 
   // ── Recenter Live GPS ─────────────────────────────────────────────────────────
   const handleRecenterMyLocation = (coordsOrMap) => {
+    routeRequestIdRef.current++;
+    setOsrmRouteGeometry(null);
     if (coordsOrMap && typeof coordsOrMap === 'object' && 'lat' in coordsOrMap && 'lng' in coordsOrMap) {
       setGpsLocation(coordsOrMap);
       setMapCenter(coordsOrMap);
       setSearchedDestination(null);
       setRouteInfo(null);
+      setRouteSafety(null);
       return;
     }
 
@@ -431,6 +453,7 @@ const SafetyMap = ({ darkMode }) => {
           setGpsAccuracy(pos.coords.accuracy || 10);
           setSearchedDestination(null);
           setRouteInfo(null);
+          setRouteSafety(null);
           setLocLoading(false);
         },
         () => setLocLoading(false),
@@ -524,31 +547,98 @@ const SafetyMap = ({ darkMode }) => {
     }
   };
 
-  // ── Search Destination ────────────────────────────────────────────────────────
-  const handleSearchLocation = async (e) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-    setLocLoading(true);
-    try {
-      const res = await axios.get(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&limit=1`, {
-        headers: { 'User-Agent': 'RakshaSetu/2.0' },
-        timeout: 3500
-      });
+  // ── Close Autocomplete Dropdown on Outside Click ─────────────────────────
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-      if (res.data?.[0]) {
-        const item = res.data[0];
+  // ── Debounced Google Places Autocomplete (300ms) with AbortController ───────
+  useEffect(() => {
+    if (!searchQuery.trim() || searchQuery.trim().length < 2) {
+      setSearchSuggestions([]);
+      setIsSearching(false);
+      setIsDropdownOpen(false);
+      setHasSearched(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      if (searchAbortRef.current) searchAbortRef.current.abort();
+      searchAbortRef.current = new AbortController();
+
+      setIsSearching(true);
+      setIsDropdownOpen(true);
+      setHasSearched(true);
+      try {
+        const res = await api.get(
+          `/places/autocomplete?input=${encodeURIComponent(searchQuery)}&lat=${gpsLocation.lat}&lng=${gpsLocation.lng}`,
+          { signal: searchAbortRef.current.signal }
+        );
+        const list = res.data?.data || res.data || [];
+        if (Array.isArray(list)) setSearchSuggestions(list);
+      } catch (err) {
+        if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+          setSearchSuggestions([]);
+        }
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, gpsLocation]);
+
+  // ── Handle Place Selection (Exact Coordinates + Route + Safety) ───────────
+  const handleSelectPlace = async (place) => {
+    setIsDropdownOpen(false);
+    setSearchQuery(place.name);
+    setLocLoading(true);
+
+    try {
+      let destLat = null;
+      let destLng = null;
+      let destName = place.name;
+      let destAddress = place.formattedAddress || place.fullDescription;
+
+      const detailsRes = await api.get(
+        `/places/details?placeId=${encodeURIComponent(place.placeId)}&name=${encodeURIComponent(place.name)}`
+      );
+      const details = detailsRes.data?.data || detailsRes.data;
+      if (details && isValidCoord(details.latitude, details.longitude)) {
+        destLat = parseFloat(details.latitude);
+        destLng = parseFloat(details.longitude);
+        destName = details.name || destName;
+        destAddress = details.formattedAddress || destAddress;
+      }
+
+      if (destLat !== null && destLng !== null) {
         const dest = {
-          lat: parseFloat(item.lat),
-          lng: parseFloat(item.lon),
-          name: item.display_name.split(',')[0],
-          address: item.display_name
+          lat: destLat,
+          lng: destLng,
+          name: destName,
+          address: destAddress,
+          placeId: place.placeId
         };
+        const currentReqId = ++routeRequestIdRef.current;
         setSearchedDestination(dest);
-        setMapCenter({ lat: dest.lat, lng: dest.lng });
+        setMapCenter({ lat: destLat, lng: destLng });
+        setOsrmRouteGeometry(null);
+        setRouteInfo(null);
+        setRouteSafety(null);
 
         // OSRM Driving Route with geometries=geojson for detailed path tracking
         try {
-          const osrm = await axios.get(`https://router.project-osrm.org/route/v1/driving/${gpsLocation.lng},${gpsLocation.lat};${dest.lng},${dest.lat}?overview=full&geometries=geojson`, { timeout: 3500 });
+          const osrm = await axios.get(
+            `https://router.project-osrm.org/route/v1/driving/${gpsLocation.lng},${gpsLocation.lat};${dest.lng},${dest.lat}?overview=full&geometries=geojson`,
+            { timeout: 3500 }
+          );
+          if (currentReqId !== routeRequestIdRef.current) return; // Stale check
           if (osrm.data?.routes?.[0]) {
             const r = osrm.data.routes[0];
             setRouteInfo({
@@ -556,13 +646,23 @@ const SafetyMap = ({ darkMode }) => {
               durationMins: Math.round(r.duration / 60)
             });
 
+            // Store the actual OSRM geometry so TouristMap renders real roads
+            if (
+              r.geometry?.type === 'LineString' &&
+              Array.isArray(r.geometry.coordinates) &&
+              r.geometry.coordinates.length >= 2
+            ) {
+              setOsrmRouteGeometry(r.geometry);
+            }
+
             // Perform Backend Route Safety Score & Intersecting Danger Zones Analysis
             try {
-              const routeCoords = r.geometry?.coordinates 
-                ? r.geometry.coordinates.map(pt => [pt[1], pt[0]]) 
+              const routeCoords = r.geometry?.coordinates
+                ? r.geometry.coordinates.map(pt => [pt[1], pt[0]])
                 : [[gpsLocation.lat, gpsLocation.lng], [dest.lat, dest.lng]];
 
               const analysisRes = await api.post('/zones/route-analysis', { routeCoordinates: routeCoords });
+              if (currentReqId !== routeRequestIdRef.current) return; // Stale check
               if (analysisRes.data?.data) {
                 setRouteSafety(analysisRes.data.data);
               }
@@ -575,11 +675,38 @@ const SafetyMap = ({ darkMode }) => {
         }
       }
     } catch (err) {
-      console.warn('Geocoding query failed', err);
+      console.warn('Place selection failed', err);
     } finally {
       setLocLoading(false);
     }
   };
+
+  // ── Handle Manual Search Form Submission ───────────────────────────────────
+  const handleSearchLocation = async (e) => {
+    e?.preventDefault();
+    if (!searchQuery.trim()) return;
+
+    if (searchSuggestions.length > 0) {
+      handleSelectPlace(searchSuggestions[0]);
+      return;
+    }
+
+    setLocLoading(true);
+    try {
+      const res = await api.get(
+        `/places/details?name=${encodeURIComponent(searchQuery)}`
+      );
+      const details = res.data?.data || res.data;
+      if (details && isValidCoord(details.latitude, details.longitude)) {
+        handleSelectPlace(details);
+      }
+    } catch (err) {
+      console.warn('Direct place search failed', err);
+    } finally {
+      setLocLoading(false);
+    }
+  };
+
 
   const toggleLayer = (key) => {
     setLayers((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -593,10 +720,18 @@ const SafetyMap = ({ darkMode }) => {
   if (layers.restaurants) activeNearbyPlaces.push(...nearbyRestaurants);
   if (layers.attractions) activeNearbyPlaces.push(...nearbyAttractions);
 
+  // Safe helper to extract lowercase severity string
+  const getSev = (z) => {
+    if (!z || !z.severity) return 'high';
+    if (typeof z.severity === 'string') return z.severity.toLowerCase();
+    if (typeof z.severity === 'object') return (z.severity.level || z.severity.severity || 'high').toLowerCase();
+    return String(z.severity).toLowerCase();
+  };
+
   // Filter Danger & Safety Zones
   const filteredDangerZones = dangerZones.filter((z) => {
     if (!layers.safetyZones) return false;
-    const sev = (z.severity || '').toLowerCase();
+    const sev = getSev(z);
     if ((sev === 'critical' || sev === 'danger') && !layers.dangerZones) return false;
     if (sev === 'high' && !layers.highRiskZones) return false;
     if ((sev === 'low' || sev === 'safe') && !layers.safeZones) return false;
@@ -607,9 +742,9 @@ const SafetyMap = ({ darkMode }) => {
 
   const layerCounts = {
     safetyZones: dangerZones.length + safeLocations.length,
-    dangerZones: dangerZones.filter(z => (z.severity || '').toLowerCase() === 'critical' || (z.severity || '').toLowerCase() === 'danger').length,
-    highRiskZones: dangerZones.filter(z => (z.severity || '').toLowerCase() === 'high').length,
-    safeZones: safeLocations.length + dangerZones.filter(z => (z.severity || '').toLowerCase() === 'safe' || (z.severity || '').toLowerCase() === 'low').length,
+    dangerZones: dangerZones.filter(z => getSev(z) === 'critical' || getSev(z) === 'danger').length,
+    highRiskZones: dangerZones.filter(z => getSev(z) === 'high').length,
+    safeZones: safeLocations.length + dangerZones.filter(z => getSev(z) === 'safe' || getSev(z) === 'low').length,
     hospitals: nearbyHospitals.length,
     police: nearbyPolice.length,
     restaurants: nearbyRestaurants.length,
@@ -640,27 +775,96 @@ const SafetyMap = ({ darkMode }) => {
           </p>
         </div>
 
-        {/* Search Input Bar */}
-        <form onSubmit={handleSearchLocation} className="w-full md:w-auto flex items-center gap-2">
-          <div className="relative flex-1 md:w-80">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search location, monument, or city..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-400"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={locLoading}
-            className="px-5 py-2.5 rounded-2xl bg-[#0D47A1] hover:bg-blue-900 text-white font-black text-xs shadow-md cursor-pointer whitespace-nowrap transition-all"
-          >
-            {locLoading ? 'Searching...' : 'Search'}
-          </button>
-        </form>
+        {/* Google Places Autocomplete Search Input Bar */}
+        <div ref={searchContainerRef} className="relative w-full md:w-96">
+          <form onSubmit={handleSearchLocation} className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setIsDropdownOpen(true);
+                }}
+                onFocus={() => {
+                  if (searchQuery.trim().length >= 2) setIsDropdownOpen(true);
+                }}
+                placeholder="Search worldwide places (e.g. Ooty, Paris, Dubai, Tokyo)..."
+                className="w-full pl-10 pr-9 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-400"
+                autoComplete="off"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSearchSuggestions([]);
+                    setIsDropdownOpen(false);
+                  }}
+                  className="absolute right-3 top-2.5 p-0.5 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <button
+              type="submit"
+              disabled={locLoading}
+              className="px-4 py-2.5 rounded-2xl bg-[#0D47A1] hover:bg-blue-900 text-white font-black text-xs shadow-md cursor-pointer whitespace-nowrap transition-all flex items-center gap-1.5"
+            >
+              {locLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+              <span>{locLoading ? 'Locating...' : 'Search'}</span>
+            </button>
+          </form>
+
+          {/* Autocomplete Dropdown Menu */}
+          {isDropdownOpen && searchQuery.trim().length >= 2 && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-[999] max-h-72 overflow-y-auto divide-y divide-slate-100">
+              {isSearching ? (
+                <div className="p-4 text-center text-slate-500 flex items-center justify-center gap-2 font-bold text-xs">
+                  <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
+                  <span>Searching Google Places...</span>
+                </div>
+              ) : searchSuggestions.length === 0 && hasSearched ? (
+                <div className="p-4 text-center text-slate-500 text-xs">
+                  <p className="font-bold text-slate-700 m-0">No places found for "{searchQuery}"</p>
+                  <p className="text-[11px] text-slate-400 m-0 mt-0.5">Try searching for a city, landmark, hotel, or attraction.</p>
+                </div>
+              ) : (
+                searchSuggestions.map((place, idx) => (
+                  <button
+                    key={place.placeId || idx}
+                    type="button"
+                    onClick={() => handleSelectPlace(place)}
+                    className="w-full text-left px-4 py-3 hover:bg-blue-50/80 transition-colors flex items-start gap-3 cursor-pointer group"
+                  >
+                    <div className="w-7 h-7 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                      <MapPin className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-black text-slate-900 truncate group-hover:text-blue-900">
+                          {place.name}
+                        </span>
+                        {place.source === 'google' && (
+                          <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md shrink-0">
+                            Google
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 truncate m-0 mt-0.5 font-medium">
+                        {place.formattedAddress || place.fullDescription}
+                      </p>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
       </div>
+
 
       {/* ── Permission Denied Warning Banner ───────────────────────────────── */}
       {locationPermissionStatus === 'denied' && (
@@ -769,7 +973,13 @@ const SafetyMap = ({ darkMode }) => {
               </div>
             </div>
             <button
-              onClick={() => { setSearchedDestination(null); setRouteInfo(null); setRouteSafety(null); }}
+              onClick={() => {
+                routeRequestIdRef.current++;
+                setSearchedDestination(null);
+                setRouteInfo(null);
+                setRouteSafety(null);
+                setOsrmRouteGeometry(null);
+              }}
               className="px-3.5 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-xs font-black text-white cursor-pointer transition-all"
             >
               Clear Route
@@ -935,8 +1145,15 @@ const SafetyMap = ({ darkMode }) => {
             </div>
             <div className="flex items-center justify-between font-bold">
               <span>Active Hazard Zones:</span>
-              <span className="font-mono text-red-700">{dangerZones.length} monitored</span>
+              <span className={`font-mono ${dangerZones.length > 0 ? 'text-red-700' : 'text-slate-500'}`}>
+                {dangerZones.length > 0 ? `${dangerZones.length} monitored` : 'None in viewport'}
+              </span>
             </div>
+            {dangerZones.length === 0 && !dataLoading && (
+              <div className="p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-[10px] text-slate-600 font-semibold leading-tight">
+                ℹ️ <em>No verified safety data available for this viewport area. (Absence of data does not guarantee absence of hazards.)</em>
+              </div>
+            )}
           </div>
 
           {/* Safety Assistance Disclaimer (Requirement 43) */}
@@ -962,6 +1179,7 @@ const SafetyMap = ({ darkMode }) => {
             safeLocations={filteredSafeLocations}
             nearbyPlaces={activeNearbyPlaces}
             showRoute={Boolean(searchedDestination)}
+            routeGeometry={osrmRouteGeometry}
             gpsAccuracy={gpsAccuracy}
             isLiveTracking={isLiveTracking}
             isOffline={isOffline}
@@ -971,6 +1189,7 @@ const SafetyMap = ({ darkMode }) => {
             onSelectDestination={(dest) => {
               setSearchedDestination(dest);
               setMapCenter({ lat: dest.lat, lng: dest.lng });
+              setOsrmRouteGeometry(null); // clear stale geometry while new route loads
             }}
           />
         </div>

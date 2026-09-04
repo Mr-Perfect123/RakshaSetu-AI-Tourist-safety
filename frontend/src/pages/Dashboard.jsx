@@ -11,6 +11,7 @@ import StateExplorer from '../components/StateExplorer';
 import api from '../services/api';
 import axios from 'axios';
 import { useLanguage } from '../context/LanguageContext';
+import { getPlaceImage } from '../utils/placeImageHelper';
 
 const Dashboard = ({ tourist, darkMode }) => {
   const { t } = useLanguage();
@@ -140,9 +141,9 @@ const Dashboard = ({ tourist, darkMode }) => {
       .finally(() => setNearbyLoading(false));
   }, [currentGpsLocation, nearbyCategory]);
 
-  // ── Debounced Search (300ms) with AbortController ────────────────────────────
+  // ── Debounced Google Places Autocomplete Search (300ms) with AbortController ────────────
   useEffect(() => {
-    if (!searchQuery.trim()) {
+    if (!searchQuery.trim() || searchQuery.trim().length < 2) {
       setSearchSuggestions([]);
       setIsSearching(false);
       setHasSearched(false);
@@ -158,11 +159,26 @@ const Dashboard = ({ tourist, darkMode }) => {
       setHasSearched(true);
       try {
         const res = await api.get(
-          `/places/search?query=${encodeURIComponent(searchQuery)}&lat=${currentGpsLocation.lat}&lng=${currentGpsLocation.lng}`,
+          `/places/autocomplete?input=${encodeURIComponent(searchQuery)}&lat=${currentGpsLocation.lat}&lng=${currentGpsLocation.lng}`,
           { signal: abortRef.current.signal }
         );
         const list = res.data?.data || res.data || [];
-        if (Array.isArray(list)) setSearchSuggestions(list);
+        if (Array.isArray(list)) {
+          const formatted = list.map(item => ({
+            id: item.placeId || item.id || (item.name ? item.name.toLowerCase().replace(/\s+/g, '-') : 'place'),
+            placeId: item.placeId,
+            name: item.name,
+            address: item.formattedAddress || item.fullDescription || item.address,
+            city: item.city || item.formattedAddress?.split(',')[0] || 'Worldwide',
+            state: item.state || '',
+            country: item.country || '',
+            category: item.types?.[0] ? item.types[0].replace(/_/g, ' ') : (item.source === 'google' ? 'Google Place' : 'Destination'),
+            photos: item.photos || [],
+            safetyScore: item.safetyScore || 88,
+            source: item.source
+          }));
+          setSearchSuggestions(formatted);
+        }
       } catch (e) {
         if (e.name !== 'AbortError' && e.name !== 'CanceledError') setSearchSuggestions([]);
       } finally {
@@ -172,6 +188,7 @@ const Dashboard = ({ tourist, darkMode }) => {
 
     return () => clearTimeout(timer);
   }, [searchQuery, currentGpsLocation]);
+
 
   // ── Category Modal Handler ───────────────────────────────────────────────────
   const handleOpenCategory = useCallback(async (catName) => {
@@ -323,7 +340,8 @@ const Dashboard = ({ tourist, darkMode }) => {
               {isSearching ? (
                 <div className="p-6 text-center text-slate-500 flex items-center justify-center gap-2 font-bold text-xs">
                   <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
-                  Searching worldwide databases (Nominatim + OpenStreetMap)...
+                  Searching Google Places worldwide...
+
                 </div>
               ) : searchSuggestions.length === 0 && hasSearched ? (
                 <div className="p-6 text-center text-slate-500 space-y-1">
@@ -706,24 +724,12 @@ const Dashboard = ({ tourist, darkMode }) => {
 
 // ── Sub-components & Fallback Image Helper ───────────────────────────────────
 
-const getPlaceFallbackImage = (place) => {
-  const cat = (place?.category || '').toLowerCase();
-  const name = (place?.name || '').toLowerCase();
-  if (cat.includes('beach') || name.includes('beach')) return 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=800&q=80';
-  if (cat.includes('temple') || cat.includes('culture')) return 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=800&q=80';
-  if (cat.includes('fort') || cat.includes('heritage')) return 'https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=800&q=80';
-  if (cat.includes('wildlife') || cat.includes('safari')) return 'https://images.unsplash.com/photo-1561731216-c3a4d99437d5?auto=format&fit=crop&w=800&q=80';
-  if (cat.includes('food') || cat.includes('street')) return 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80';
-  if (cat.includes('adventure')) return 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80';
-  return 'https://images.unsplash.com/photo-1589182373726-e4f658ab50f0?auto=format&fit=crop&w=800&q=80';
-};
-
 const FeaturedDestinationCard = ({ dest, darkMode, isSaved, onSave, onDirections }) => {
   const navigate = useNavigate();
-  const [imgSrc, setImgSrc] = useState(() => dest.photos?.[0] || getPlaceFallbackImage(dest));
+  const [imgSrc, setImgSrc] = useState(() => getPlaceImage(dest));
 
   useEffect(() => {
-    if (dest.photos?.[0]) setImgSrc(dest.photos[0]);
+    setImgSrc(getPlaceImage(dest));
   }, [dest]);
 
   return (
@@ -738,7 +744,7 @@ const FeaturedDestinationCard = ({ dest, darkMode, isSaved, onSave, onDirections
             crossOrigin="anonymous"
             alt={dest.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            onError={() => setImgSrc(getPlaceFallbackImage(dest))}
+            onError={() => setImgSrc(getPlaceImage(dest))}
             loading="lazy"
           />
           <button
@@ -802,10 +808,10 @@ const FeaturedDestinationCard = ({ dest, darkMode, isSaved, onSave, onDirections
 };
 
 const CategoryModalCard = ({ item, darkMode, isSaved, onSave, onDirections, onView }) => {
-  const [imgSrc, setImgSrc] = useState(() => item.photos?.[0] || getPlaceFallbackImage(item));
+  const [imgSrc, setImgSrc] = useState(() => getPlaceImage(item));
 
   useEffect(() => {
-    if (item.photos?.[0]) setImgSrc(item.photos[0]);
+    setImgSrc(getPlaceImage(item));
   }, [item]);
 
   return (
@@ -820,7 +826,7 @@ const CategoryModalCard = ({ item, darkMode, isSaved, onSave, onDirections, onVi
             crossOrigin="anonymous"
             alt={item.name}
             className="w-full h-full object-cover"
-            onError={() => setImgSrc(getPlaceFallbackImage(item))}
+            onError={() => setImgSrc(getPlaceImage(item))}
             loading="lazy"
           />
           {item.safetyScore && (
@@ -875,10 +881,10 @@ const CategoryModalCard = ({ item, darkMode, isSaved, onSave, onDirections, onVi
 
 // Compact search result row
 const SearchResultRow = ({ place, darkMode, onSelect, onDirections, onSave, isSaved }) => {
-  const [imgSrc, setImgSrc] = useState(() => place.photos?.[0] || getPlaceFallbackImage(place));
+  const [imgSrc, setImgSrc] = useState(() => getPlaceImage(place));
 
   useEffect(() => {
-    if (place.photos?.[0]) setImgSrc(place.photos[0]);
+    setImgSrc(getPlaceImage(place));
   }, [place]);
 
   return (
@@ -894,7 +900,7 @@ const SearchResultRow = ({ place, darkMode, onSelect, onDirections, onSave, isSa
             crossOrigin="anonymous"
             alt={place.name}
             className="w-full h-full object-cover"
-            onError={() => setImgSrc(getPlaceFallbackImage(place))}
+            onError={() => setImgSrc(getPlaceImage(place))}
           />
         </div>
 

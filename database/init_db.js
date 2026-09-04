@@ -9,9 +9,10 @@ const initDatabase = async () => {
     const connection = await mysql.createConnection({
       host: process.env.DB_HOST || 'localhost',
       user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || 'Karan@skcet23',
+      password: process.env.DB_PASSWORD || '',
       multipleStatements: true
     });
+
 
     console.log('[MySQL Init] Connected successfully! Executing database DDL script rakshasetu_db.sql...');
     const sqlScriptPath = path.join(__dirname, 'rakshasetu_db.sql');

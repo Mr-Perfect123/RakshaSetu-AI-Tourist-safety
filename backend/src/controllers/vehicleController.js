@@ -61,7 +61,10 @@ class VehicleController {
       passengers = 1
     } = req.body;
 
-    const userId = req.user ? req.user.id : 4;
+    if (!req.user || !req.user.id) {
+      throw new ApiError(401, 'Authentication required.');
+    }
+    const userId = parseInt(req.user.id, 10);
     const dist = parseFloat(distanceKm || 5.5);
 
     // Fetch matching vehicle category configuration
@@ -295,7 +298,10 @@ class VehicleController {
   });
 
   static getUserBookings = asyncHandler(async (req, res) => {
-    const userId = req.user ? req.user.id : 4;
+    if (!req.user || !req.user.id) {
+      throw new ApiError(401, 'Authentication required.');
+    }
+    const userId = parseInt(req.user.id, 10);
     const bookings = await executeQuery(
       `SELECT * FROM vehicle_bookings WHERE user_id = ? ORDER BY id DESC`,
       [userId]

@@ -174,7 +174,10 @@ class TravelController {
       fare = 1500.00
     } = req.body;
 
-    const userId = req.user ? req.user.id : 4;
+    if (!req.user || !req.user.id) {
+      throw new ApiError(401, 'Authentication required.');
+    }
+    const userId = parseInt(req.user.id, 10);
     const bookingCode = `TRV-RS-${Date.now().toString().slice(-6)}`;
     const dateToUse = travelDate || new Date().toISOString().split('T')[0];
 
@@ -266,7 +269,10 @@ class TravelController {
    * Get Authenticated Tourist Travel Bookings History
    */
   static getTouristTravelBookings = asyncHandler(async (req, res) => {
-    const userId = req.user ? req.user.id : 4;
+    if (!req.user || !req.user.id) {
+      throw new ApiError(401, 'Authentication required.');
+    }
+    const userId = parseInt(req.user.id, 10);
     const bookings = await executeQuery(
       `SELECT * FROM travel_bookings WHERE user_id = ? ORDER BY id DESC`,
       [userId]

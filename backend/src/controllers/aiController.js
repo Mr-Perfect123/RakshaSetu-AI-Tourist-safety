@@ -1,12 +1,16 @@
 const GeminiService = require('../services/geminiService');
 const ApiResponse = require('../utils/response');
+const ApiError = require('../utils/apiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { executeQuery } = require('../config/database');
 
 class AiController {
   static chatAssistant = asyncHandler(async (req, res) => {
     const { message, context = {}, isSosActive = false, language = 'English' } = req.body;
-    const userId = req.user ? req.user.id : 4;
+    if (!req.user || !req.user.id) {
+      throw new ApiError(401, 'Authentication required.');
+    }
+    const userId = parseInt(req.user.id, 10);
     const sessionId = req.body.sessionId || `session_${userId}`;
 
     // 1. Save user query to chat_history table
@@ -47,7 +51,10 @@ class AiController {
   });
 
   static getChatHistory = asyncHandler(async (req, res) => {
-    const userId = req.user ? req.user.id : 4;
+    if (!req.user || !req.user.id) {
+      throw new ApiError(401, 'Authentication required.');
+    }
+    const userId = parseInt(req.user.id, 10);
     const history = await executeQuery(
       `SELECT * FROM chat_history WHERE user_id = ? ORDER BY id ASC LIMIT 50`,
       [userId]

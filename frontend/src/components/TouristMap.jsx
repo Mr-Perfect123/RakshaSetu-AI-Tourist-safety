@@ -4,6 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Compass, Navigation, ExternalLink, Loader2, Shield, Radio, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import GeofenceEngine from '../utils/geofence';
 
 // Numeric Coordinate Validation
 export const isValidCoord = (lat, lng) => {
@@ -35,6 +36,26 @@ export const calculateDistanceMeters = (lat1, lon1, lat2, lon2) => {
 export const formatDistance = (meters) => {
   if (meters < 1000) return `${Math.round(meters)} m`;
   return `${(meters / 1000).toFixed(1)} km`;
+};
+
+// Ray-Casting Point-in-Polygon containment calculation
+export const isPointInPolygon = (point, polygon) => {
+  const ptLat = parseFloat(point.lat ?? point[0]);
+  const ptLng = parseFloat(point.lng ?? point[1]);
+
+  if (!Array.isArray(polygon) || polygon.length < 3) return false;
+
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = parseFloat(polygon[i][0] ?? polygon[i].lat);
+    const yi = parseFloat(polygon[i][1] ?? polygon[i].lng);
+    const xj = parseFloat(polygon[j][0] ?? polygon[j].lat);
+    const yj = parseFloat(polygon[j][1] ?? polygon[j].lng);
+
+    const intersect = yi > ptLng !== yj > ptLng && ptLat < ((xj - xi) * (ptLng - yi)) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
 };
 
 // Custom Standard Leaflet Icons
@@ -80,8 +101,21 @@ const liveGpsDivIcon = new L.DivIcon({
 
 // Danger Zone Color & Style Resolver
 export const getDangerZoneTheme = (zone) => {
-  const type = (zone.danger_type || zone.dangerType || zone.crime_type || '').toUpperCase();
-  const sev = (zone.severity || 'high').toLowerCase();
+  if (!zone || typeof zone !== 'object') {
+    return { color: '#64748B', fillColor: '#94A3B8', label: 'Safety Warning Info', icon: '🛡️', bgBadge: 'bg-slate-100 text-slate-700 border-slate-300' };
+  }
+
+  const extractTypeStr = (val) => {
+    if (!val) return '';
+    if (typeof val === 'string') return val;
+    if (typeof val === 'object') return val.type || val.name || val.danger_type || val.crime_type || '';
+    return String(val);
+  };
+
+  const rawType = extractTypeStr(zone.danger_type) || extractTypeStr(zone.dangerType) || extractTypeStr(zone.crime_type) || extractTypeStr(zone.category) || extractTypeStr(zone.type);
+  const type = rawType.toUpperCase();
+  const rawSev = typeof zone.severity === 'string' ? zone.severity : (zone.severity ? String(zone.severity) : 'high');
+  const sev = rawSev.toLowerCase();
 
   // All 20 Extensible Categories
   if (type === 'HIGH_CRIME') {
@@ -423,7 +457,7 @@ const clusterZones = (zones, zoomLevel) => {
       cluster.forEach(z => {
         sumLat += parseFloat(z.latitude);
         sumLng += parseFloat(z.longitude);
-        const s = (z.severity || 'high').toLowerCase();
+        const s = (typeof z.severity === 'string' ? z.severity : (z.severity ? String(z.severity) : 'high')).toLowerCase();
         if (severities.indexOf(s) > severities.indexOf(maxSeverity)) {
           maxSeverity = s;
         }
@@ -462,6 +496,7 @@ const TouristMap = ({
   incidents = [],
   nearbyPlaces = [],
   showRoute = false,
+  routeGeometry = null,  // GeoJSON LineString from OSRM { type: 'LineString', coordinates: [[lon,lat], ...] }
   gpsAccuracy = null,
   isLiveTracking = true,
   onMyLocationClick = null,
@@ -483,15 +518,43 @@ const TouristMap = ({
   const destLng = destination ? parseFloat(destination.longitude || destination.lng) : null;
   const destPos = (destLat && destLng && isValidCoord(destLat, destLng)) ? [destLat, destLng] : null;
 
-  // Active points for initial bounds
+  /**
+   * Convert GeoJSON [lon, lat] coordinates to Leaflet [lat, lon].
+   * Returns null when geometry is absent, malformed, or has fewer than 2 valid points.
+   */
+  const osrmRoutePositions = useMemo(() => {
+    if (
+      !routeGeometry ||
+      routeGeometry.type !== 'LineString' ||
+      !Array.isArray(routeGeometry.coordinates) ||
+      routeGeometry.coordinates.length < 2
+    ) {
+      return null;
+    }
+    const converted = routeGeometry.coordinates
+      .map(([lon, lat]) => {
+        const numLat = parseFloat(lat);
+        const numLon = parseFloat(lon);
+        if (!isFinite(numLat) || !isFinite(numLon)) return null;
+        if (numLat < -90 || numLat > 90 || numLon < -180 || numLon > 180) return null;
+        return [numLat, numLon]; // Leaflet expects [lat, lon]
+      })
+      .filter(Boolean);
+    return converted.length >= 2 ? converted : null;
+  }, [routeGeometry]);
+
+  // Active points for initial bounds (includes full road route when available)
   const activePoints = useMemo(() => {
     const pts = [position];
     if (destPos) pts.push(destPos);
+    if (osrmRoutePositions && osrmRoutePositions.length > 0) {
+      pts.push(...osrmRoutePositions);
+    }
     (dangerZones || []).forEach(z => {
       if (isValidCoord(z.latitude, z.longitude)) pts.push([parseFloat(z.latitude), parseFloat(z.longitude)]);
     });
     return pts;
-  }, [position, destPos, dangerZones]);
+  }, [position, destPos, osrmRoutePositions, dangerZones]);
 
   const { clusters, individuals } = useMemo(() => {
     return clusterZones(dangerZones || [], currentZoom);
@@ -595,10 +658,18 @@ const TouristMap = ({
           </Marker>
         )}
 
-        {showRoute && destPos && (
+        {/* 4. Real OSRM Road Route Visualization */}
+        {showRoute && destPos && osrmRoutePositions && (
           <Polyline
-            positions={[position, destPos]}
-            pathOptions={{ color: '#0D47A1', weight: 4, dashArray: '8, 8', opacity: 0.85 }}
+            key="osrm-road-route"
+            positions={osrmRoutePositions}
+            pathOptions={{
+              color: '#0D47A1',
+              weight: 5,
+              opacity: 0.88,
+              lineCap: 'round',
+              lineJoin: 'round'
+            }}
           />
         )}
 
@@ -614,21 +685,15 @@ const TouristMap = ({
 
           const theme = getDangerZoneTheme(zone);
           const radius = parseInt(zone.radius_meters || zone.radius || 500, 10);
-          const distToCenter = calculateDistanceMeters(touristLat, touristLng, lat, lng);
-          const isInside = distToCenter <= radius;
-          const warningDist = parseInt(zone.warning_distance_meters || zone.warningDistance || 200, 10);
-          const isApproaching = distToCenter > radius && distToCenter <= radius + warningDist;
+
+          const zoneState = GeofenceEngine.getZoneState([touristLat, touristLng], zone);
+          const isInside = zoneState.state === 'INSIDE';
+          const isApproaching = zoneState.state === 'APPROACHING';
+          const distToCenter = zoneState.distanceMeters;
 
           let polyCoords = null;
-          if (zone.polygon_coordinates) {
-            try {
-              const parsed = typeof zone.polygon_coordinates === 'string' ? JSON.parse(zone.polygon_coordinates) : zone.polygon_coordinates;
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                polyCoords = parsed.map(pt => [parseFloat(pt[0]), parseFloat(pt[1])]);
-              }
-            } catch (err) {
-              console.warn('Failed to parse polygon coordinates', err);
-            }
+          if (zone.geometry_type === 'polygon' && zone.polygon_coordinates) {
+            polyCoords = GeofenceEngine.normalizePolygonCoordinates(zone.polygon_coordinates);
           }
 
           const pathOptions = {
@@ -648,11 +713,11 @@ const TouristMap = ({
                     <span>{theme.label}</span>
                   </span>
                   <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
-                    (zone.severity || '').toLowerCase() === 'critical' ? 'bg-red-600 text-white' :
-                    (zone.severity || '').toLowerCase() === 'high' ? 'bg-red-500 text-white' :
+                    (typeof zone.severity === 'string' ? zone.severity.toLowerCase() : '') === 'critical' ? 'bg-red-600 text-white' :
+                    (typeof zone.severity === 'string' ? zone.severity.toLowerCase() : '') === 'high' ? 'bg-red-500 text-white' :
                     'bg-amber-500 text-white'
                   }`}>
-                    {zone.severity || 'High'} Risk
+                    {typeof zone.severity === 'string' ? zone.severity : (zone.severity ? String(zone.severity) : 'High')} Risk
                   </span>
                 </div>
 

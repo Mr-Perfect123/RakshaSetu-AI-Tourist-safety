@@ -2,6 +2,7 @@ const IncidentReport = require('../models/IncidentReport');
 const ApiResponse = require('../utils/response');
 const ApiError = require('../utils/apiError');
 const asyncHandler = require('../utils/asyncHandler');
+const CommunitySafetyService = require('../services/safety/communitySafetyService');
 
 class IncidentController {
   static createReport = asyncHandler(async (req, res) => {
@@ -74,7 +75,23 @@ class IncidentController {
 
     const updated = await IncidentReport.updateStatus(id, status, req.user.id);
 
-    // Check clustering if verified
+    // Automatic Verified Incident -> Danger Zone conversion processor
+    const IncidentZoneService = require('../services/incidentZoneService');
+    let conversionResult = null;
+
+    if (status === 'verified') {
+      try {
+        conversionResult = await IncidentZoneService.processVerifiedIncident(updated, req.user.id);
+      } catch (zoneErr) {
+        console.warn('[IncidentController] Warning: Could not process automatic danger zone conversion:', zoneErr.message);
+      }
+    } else if (status === 'rejected' || status === 'dismissed') {
+      try {
+        await IncidentZoneService.deactivateZoneForIncident(id);
+      } catch (err) {}
+    }
+
+    // Check clustering recommendation
     let clusterRecommendation = null;
     if (status === 'verified') {
       const cLat = parseFloat(updated.latitude);
@@ -108,7 +125,20 @@ class IncidentController {
       }
     }
 
-    return res.status(200).json(new ApiResponse(200, { report: updated, clusterRecommendation }, `Incident status updated to ${status}.`));
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          report: updated,
+          zoneCreated: conversionResult?.zoneCreated || false,
+          zoneUpdated: conversionResult?.zoneUpdated || false,
+          safetyZone: conversionResult?.zone || null,
+          conversionReason: conversionResult?.reason || `Incident status updated to ${status}.`,
+          clusterRecommendation
+        },
+        `Incident status updated to ${status}.`
+      )
+    );
   });
 
   static getClusterRecommendation = asyncHandler(async (req, res) => {

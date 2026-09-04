@@ -66,8 +66,15 @@ const Register = ({ onLoginSuccess, darkMode }) => {
     e.preventDefault();
     setError('');
 
+    if (!formData.password || !formData.confirm_password) {
+      setError('Password is required. Please return to Step 1.');
+      setStep(1);
+      return;
+    }
+
     if (formData.password !== formData.confirm_password) {
-      setError('Passwords do not match.');
+      setError('Passwords do not match. Returning to Step 1 to correct password.');
+      setStep(1);
       return;
     }
 
@@ -90,17 +97,26 @@ const Register = ({ onLoginSuccess, darkMode }) => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      if (res.data) {
+      const responsePayload = res?.data || res || {};
+      const payloadData = responsePayload.data || responsePayload;
+
+      const emailOtpVal = payloadData.testEmailOtp || payloadData.emailOtp;
+      const smsOtpVal = payloadData.testSmsOtp || payloadData.smsOtp;
+
+      if (emailOtpVal || smsOtpVal) {
         setTestOtps({
-          emailOtp: res.data.testEmailOtp,
-          smsOtp: res.data.testSmsOtp
+          emailOtp: emailOtpVal,
+          smsOtp: smsOtpVal
         });
-        if (res.data.user) {
-          setRegisteredUserObj(res.data.user);
-        }
-        setSuccessMsg(`Registration data saved! OTPs sent to ${formData.email} and ${formData.phone}.`);
-        setStep(6); // Move to OTP verification
+        if (emailOtpVal) setEmailOtp(String(emailOtpVal));
+        if (smsOtpVal) setSmsOtp(String(smsOtpVal));
       }
+
+      if (payloadData.user) {
+        setRegisteredUserObj(payloadData.user);
+      }
+      setSuccessMsg(`Registration data saved! OTPs sent to ${formData.email} and ${formData.phone}.`);
+      setStep(6); // Move to OTP verification
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'This email is already registered.');
     } finally {
@@ -153,6 +169,96 @@ const Register = ({ onLoginSuccess, darkMode }) => {
       }
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Invalid SMS OTP.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend Email OTP
+  const handleResendEmailOtp = async () => {
+    setError('');
+    setSuccessMsg('');
+    setLoading(true);
+    try {
+      const res = await api.post('/auth/resend-email-otp', { email: formData.email });
+      if (res.data?.testEmailOtp) {
+        setTestOtps(prev => ({ ...prev, emailOtp: res.data.testEmailOtp }));
+        setEmailOtp(res.data.testEmailOtp);
+      }
+      setSuccessMsg(`Fresh Email OTP dispatched to ${formData.email}`);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to resend Email OTP.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend SMS OTP
+  const handleResendSmsOtp = async () => {
+    setError('');
+    setSuccessMsg('');
+    setLoading(true);
+    try {
+      const res = await api.post('/auth/resend-phone-otp', { phone: formData.phone });
+      if (res.data?.testSmsOtp) {
+        setTestOtps(prev => ({ ...prev, smsOtp: res.data.testSmsOtp }));
+        setSmsOtp(res.data.testSmsOtp);
+      }
+      setSuccessMsg(`Fresh SMS OTP dispatched to ${formData.phone}`);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to resend SMS OTP.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Verify Both OTPs Simultaneously
+  const handleVerifyBothOtps = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      let emailSuccess = emailVerified;
+      let smsSuccess = smsVerified;
+
+      if (!emailVerified && emailOtp) {
+        const resEmail = await api.post('/auth/verify-email-otp', {
+          email: formData.email,
+          otp_code: emailOtp
+        });
+        const d = resEmail?.data || resEmail;
+        if (d?.email_verified) {
+          setEmailVerified(true);
+          emailSuccess = true;
+          if (d.accessToken) localStorage.setItem('rakshasetu_tourist_token', d.accessToken);
+          if (d.user) setRegisteredUserObj(d.user);
+        }
+      }
+
+      if (!smsVerified && smsOtp) {
+        const resSms = await api.post('/auth/verify-phone-otp', {
+          phone: formData.phone,
+          otp_code: smsOtp
+        });
+        const d = resSms?.data || resSms;
+        if (d?.phone_verified) {
+          setSmsVerified(true);
+          smsSuccess = true;
+          if (d.accessToken) localStorage.setItem('rakshasetu_tourist_token', d.accessToken);
+          if (d.user) setRegisteredUserObj(d.user);
+        }
+      }
+
+      if (emailSuccess && smsSuccess) {
+        setStep(7); // Automatically advance to Step 7 on complete verification
+      } else if (!emailSuccess && !smsSuccess) {
+        setError('Please check both OTP codes and try again.');
+      } else if (!emailSuccess) {
+        setError('Email OTP verification pending. Please verify Email OTP.');
+      } else if (!smsSuccess) {
+        setError('SMS OTP verification pending. Please verify SMS OTP.');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'OTP verification failed.');
     } finally {
       setLoading(false);
     }
@@ -229,9 +335,20 @@ const Register = ({ onLoginSuccess, darkMode }) => {
 
         {/* Global Error Banner */}
         {error && (
-          <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-bold flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
+          <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-bold flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+            {step > 1 && (
+              <button
+                type="button"
+                onClick={() => { setError(''); setStep(1); }}
+                className="px-2.5 py-1 rounded-xl bg-red-600 text-white font-black text-[11px] hover:bg-red-700 transition-all shrink-0 cursor-pointer"
+              >
+                Edit Details in Step 1
+              </button>
+            )}
           </div>
         )}
 
@@ -308,8 +425,24 @@ const Register = ({ onLoginSuccess, darkMode }) => {
 
             <button
               onClick={() => {
-                if (!formData.full_name || !formData.email || !formData.phone || !formData.password) {
+                if (!formData.full_name || !formData.email || !formData.phone || !formData.password || !formData.confirm_password) {
                   setError('Please fill in all required fields.');
+                  return;
+                }
+                if (!formData.email.includes('@')) {
+                  setError('Please enter a valid email address.');
+                  return;
+                }
+                if (formData.phone.includes('@')) {
+                  setError('Please enter a valid mobile phone number in the Phone Number field, not an email address.');
+                  return;
+                }
+                if (formData.password.length < 6) {
+                  setError('Password must be at least 6 characters long.');
+                  return;
+                }
+                if (formData.password !== formData.confirm_password) {
+                  setError('Passwords do not match. Please ensure both passwords match.');
                   return;
                 }
                 setError('');
@@ -340,10 +473,10 @@ const Register = ({ onLoginSuccess, darkMode }) => {
             <input type="file" accept="image/*" onChange={handlePhotoChange} className="block mx-auto text-xs text-slate-500 font-semibold" />
 
             <div className="flex gap-3 pt-2">
-              <button onClick={() => setStep(1)} className="w-1/2 py-3 rounded-2xl border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold">
+              <button onClick={() => { setError(''); setStep(1); }} className="w-1/2 py-3 rounded-2xl border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold">
                 <ArrowLeft className="w-4 h-4 inline mr-1" /> Back
               </button>
-              <button onClick={() => setStep(3)} className="w-1/2 py-3 rounded-2xl bg-[#0D47A1] text-white font-black">
+              <button onClick={() => { setError(''); setStep(3); }} className="w-1/2 py-3 rounded-2xl bg-[#0D47A1] text-white font-black">
                 Continue to Step 3 <ArrowRight className="w-4 h-4 inline ml-1" />
               </button>
             </div>
@@ -386,10 +519,20 @@ const Register = ({ onLoginSuccess, darkMode }) => {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button onClick={() => setStep(2)} className="w-1/2 py-3 rounded-2xl border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold">
+              <button onClick={() => { setError(''); setStep(2); }} className="w-1/2 py-3 rounded-2xl border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold">
                 <ArrowLeft className="w-4 h-4 inline mr-1" /> Back
               </button>
-              <button onClick={() => setStep(4)} className="w-1/2 py-3 rounded-2xl bg-[#0D47A1] text-white font-black">
+              <button 
+                onClick={() => {
+                  if (!formData.id_number?.trim()) {
+                    setError('Document Number is required.');
+                    return;
+                  }
+                  setError('');
+                  setStep(4);
+                }} 
+                className="w-1/2 py-3 rounded-2xl bg-[#0D47A1] text-white font-black"
+              >
                 Continue to Step 4 <ArrowRight className="w-4 h-4 inline ml-1" />
               </button>
             </div>
@@ -430,10 +573,10 @@ const Register = ({ onLoginSuccess, darkMode }) => {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button onClick={() => setStep(3)} className="w-1/2 py-3 rounded-2xl border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold">
+              <button onClick={() => { setError(''); setStep(3); }} className="w-1/2 py-3 rounded-2xl border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold">
                 <ArrowLeft className="w-4 h-4 inline mr-1" /> Back
               </button>
-              <button onClick={() => setStep(5)} className="w-1/2 py-3 rounded-2xl bg-[#0D47A1] text-white font-black">
+              <button onClick={() => { setError(''); setStep(5); }} className="w-1/2 py-3 rounded-2xl bg-[#0D47A1] text-white font-black">
                 Continue to Step 5 <ArrowRight className="w-4 h-4 inline ml-1" />
               </button>
             </div>
@@ -474,7 +617,7 @@ const Register = ({ onLoginSuccess, darkMode }) => {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button type="button" onClick={() => setStep(4)} className="w-1/2 py-3 rounded-2xl border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold">
+              <button type="button" onClick={() => { setError(''); setStep(4); }} className="w-1/2 py-3 rounded-2xl border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold">
                 <ArrowLeft className="w-4 h-4 inline mr-1" /> Back
               </button>
               <button type="submit" disabled={loading} className="w-1/2 py-3.5 rounded-2xl bg-[#0D47A1] text-white font-black">
@@ -491,9 +634,29 @@ const Register = ({ onLoginSuccess, darkMode }) => {
               <Shield className="w-4 h-4 text-blue-600" /> Step 6: Dual OTP Security Verification
             </h2>
 
-            {testOtps && (
-              <div className="p-3 rounded-2xl bg-purple-500/10 border border-purple-500/30 text-purple-700 dark:text-purple-300 font-mono text-xs font-bold">
-                💡 Dev Test OTPs: Email OTP: <span className="underline">{testOtps.emailOtp}</span> | SMS OTP: <span className="underline">{testOtps.smsOtp}</span>
+            {/* Development Mode Generated OTPs Quick Helper */}
+            {testOtps && (testOtps.emailOtp || testOtps.smsOtp) && (
+              <div className="p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-blue-900 dark:text-blue-300 text-[11px] flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping"></span>
+                    Development Testing OTPs
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (testOtps.emailOtp) setEmailOtp(testOtps.emailOtp);
+                      if (testOtps.smsOtp) setSmsOtp(testOtps.smsOtp);
+                    }}
+                    className="px-2.5 py-1 rounded-xl bg-[#0D47A1] text-white font-black text-[10px] cursor-pointer shadow-sm hover:bg-blue-900 transition-all"
+                  >
+                    1-Click Auto-Fill Both
+                  </button>
+                </div>
+                <div className="font-mono text-xs text-blue-950 dark:text-blue-200 flex flex-wrap gap-4 pt-0.5">
+                  {testOtps.emailOtp && <span>Email OTP: <strong className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-800 text-blue-900 dark:text-white">{testOtps.emailOtp}</strong></span>}
+                  {testOtps.smsOtp && <span>SMS OTP: <strong className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-800 text-blue-900 dark:text-white">{testOtps.smsOtp}</strong></span>}
+                </div>
               </div>
             )}
 
@@ -504,7 +667,14 @@ const Register = ({ onLoginSuccess, darkMode }) => {
                 {emailVerified ? (
                   <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-black text-[10px]">✓ VERIFIED</span>
                 ) : (
-                  <span className="text-[10px] text-amber-500 font-bold">Pending</span>
+                  <button 
+                    type="button" 
+                    onClick={handleResendEmailOtp} 
+                    disabled={loading} 
+                    className="text-[10px] text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer"
+                  >
+                    Resend Code
+                  </button>
                 )}
               </div>
               {!emailVerified && (
@@ -531,7 +701,14 @@ const Register = ({ onLoginSuccess, darkMode }) => {
                 {smsVerified ? (
                   <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-black text-[10px]">✓ VERIFIED</span>
                 ) : (
-                  <span className="text-[10px] text-amber-500 font-bold">Pending</span>
+                  <button 
+                    type="button" 
+                    onClick={handleResendSmsOtp} 
+                    disabled={loading} 
+                    className="text-[10px] text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer"
+                  >
+                    Resend Code
+                  </button>
                 )}
               </div>
               {!smsVerified && (
@@ -551,17 +728,26 @@ const Register = ({ onLoginSuccess, darkMode }) => {
               )}
             </div>
 
-            <button
-              onClick={() => setStep(7)}
-              disabled={!emailVerified || !smsVerified}
-              className={`w-full py-3.5 rounded-2xl font-black text-xs shadow-md transition-all cursor-pointer ${
-                emailVerified && smsVerified
-                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                  : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
-              }`}
-            >
-              Proceed to Step 7: Location Permission <ArrowRight className="w-4 h-4 inline ml-1" />
-            </button>
+            {(!emailVerified || !smsVerified) && (
+              <button
+                type="button"
+                onClick={handleVerifyBothOtps}
+                disabled={loading || !emailOtp || !smsOtp}
+                className="w-full py-3.5 rounded-2xl bg-[#0D47A1] hover:bg-blue-900 text-white font-black text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {loading ? <><RefreshCw className="w-4 h-4 animate-spin" /> Verifying OTPs...</> : <>Verify Both OTPs & Continue <ArrowRight className="w-4 h-4" /></>}
+              </button>
+            )}
+
+            {(emailVerified && smsVerified) && (
+              <button
+                type="button"
+                onClick={() => setStep(7)}
+                className="w-full py-3.5 rounded-2xl font-black text-xs shadow-md transition-all cursor-pointer bg-emerald-600 text-white hover:bg-emerald-700 flex items-center justify-center gap-2"
+              >
+                Proceed to Step 7: Location Permission <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
           </div>
         )}
 

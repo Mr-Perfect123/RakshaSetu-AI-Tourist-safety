@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Bookmark, Heart, MapPin, Shield, Star, Trash2, ArrowRight, Sun } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
+import { getPlaceImage } from '../utils/placeImageHelper';
 
 const SavedPlaces = ({ darkMode }) => {
   const { t } = useLanguage();
@@ -99,7 +100,7 @@ const SavedPlaces = ({ darkMode }) => {
             >
               <div className="relative h-44 overflow-hidden">
                 <img
-                  src={item.image || 'https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=800&q=80'}
+                  src={getPlaceImage(item)}
                   alt={item.name}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />

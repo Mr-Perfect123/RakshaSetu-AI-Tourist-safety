@@ -35,35 +35,60 @@ class AdminController {
    * Get Real Tourist User Roster with Identity & Location Consent Badges
    */
   static getTouristsRoster = asyncHandler(async (req, res) => {
-    const { search, page = 1, limit = 50 } = req.query;
+    const LocationPermissionService = require('../services/locationPermissionService');
+    const adminId = req.user ? req.user.id : null;
+    const { search, page = 1, limit = 100 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
     let sql = `
       SELECT u.id, u.full_name, u.email, u.phone, u.gender, u.nationality, u.passport_number,
-             u.profile_image, u.profile_image_path, u.status, u.is_verified,
-             u.email_verified, u.phone_verified, u.id_type, u.id_number, u.id_proof_url,
-             u.id_verification_status, u.latitude, u.longitude, u.last_active_at, u.created_at,
+             COALESCE(u.profile_image_path, u.profile_image) AS profile_image_path,
+             COALESCE(u.profile_image, u.profile_image_path) AS profile_image,
+             u.status, u.is_verified,
+             u.email_verified, u.phone_verified, u.id_type, u.id_number,
+             COALESCE(u.id_proof_url, td.document_path) AS id_proof_url,
+             COALESCE(u.id_verification_status, td.verification_status, 'pending') AS id_verification_status,
+             u.latitude, u.longitude, u.last_active_at, u.created_at,
              lp.location_sharing_active,
-             th.blood_group, th.emergency_notes
+             th.blood_group, th.emergency_notes, th.medical_conditions
       FROM users u
       LEFT JOIN location_permissions lp ON u.id = lp.user_id
       LEFT JOIN tourist_health th ON u.id = th.user_id
-      WHERE u.role = 'Tourist'
+      LEFT JOIN tourist_documents td ON u.id = td.user_id
+      WHERE (u.role = 'Tourist' OR u.role = 'tourist' OR u.role IS NULL OR u.role != 'Admin')
     `;
     const params = [];
 
     if (search) {
-      sql += ` AND (u.full_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?)`;
+      sql += ` AND (u.full_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ? OR u.id_number LIKE ? OR u.passport_number LIKE ?)`;
       const s = `%${search}%`;
-      params.push(s, s, s);
+      params.push(s, s, s, s, s);
     }
 
-    sql += ` ORDER BY u.id DESC LIMIT ? OFFSET ?`;
+    sql += ` GROUP BY u.id ORDER BY u.id DESC LIMIT ? OFFSET ?`;
     params.push(parseInt(limit), offset);
 
-    const tourists = await executeQuery(sql, params);
+    let tourists = [];
+    try {
+      tourists = await executeQuery(sql, params);
+    } catch {
+      const { inMemoryStore } = require('../config/database');
+      tourists = (inMemoryStore.users || []).filter(u => u.role !== 'Admin');
+    }
 
-    return res.status(200).json(new ApiResponse(200, tourists, 'Tourist user roster fetched.'));
+    // Filter location visibility per tourist
+    const sanitizedTourists = [];
+    for (const t of (tourists || [])) {
+      const canViewLoc = await LocationPermissionService.canAdminViewTouristLocation(adminId, t.id);
+      sanitizedTourists.push({
+        ...t,
+        latitude: canViewLoc ? t.latitude : null,
+        longitude: canViewLoc ? t.longitude : null,
+        location_sharing_active: Boolean(t.location_sharing_active)
+      });
+    }
+
+    return res.status(200).json(new ApiResponse(200, sanitizedTourists, 'Tourist user roster fetched.'));
   });
 
   static getAllUsers = asyncHandler(async (req, res) => {
@@ -77,6 +102,8 @@ class AdminController {
    * Get Complete Tourist Profile (Identity, Health, Emergency Contacts, Location Privacy & SOS)
    */
   static getTouristDetails = asyncHandler(async (req, res) => {
+    const LocationPermissionService = require('../services/locationPermissionService');
+    const adminId = req.user ? req.user.id : null;
     const { id } = req.params;
     const user = await User.findById(id);
 
@@ -90,8 +117,12 @@ class AdminController {
     const permRows = await executeQuery(`SELECT * FROM location_permissions WHERE user_id = ? LIMIT 1`, [id]);
     const userSos = (await SosRequest.findAll()).filter(s => s.user_id === parseInt(id, 10));
 
+    const canViewLoc = await LocationPermissionService.canAdminViewTouristLocation(adminId, id);
+
     const fullProfile = {
       ...user,
+      latitude: canViewLoc ? user.latitude : null,
+      longitude: canViewLoc ? user.longitude : null,
       health: healthRows[0] || null,
       identity_documents: docRows || [],
       emergency_contacts: contacts,
@@ -140,16 +171,32 @@ class AdminController {
    */
   static requestLiveLocation = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const adminId = req.user.id;
+    const adminId = req.user ? req.user.id : null;
+    const targetUserId = parseInt(id, 10);
     const { message = 'RakshaSetu Admin is requesting your live location for safety monitoring.' } = req.body;
 
-    const result = await executeQuery(
-      `INSERT INTO location_requests (user_id, requested_by, message, status) VALUES (?, ?, ?, 'pending')`,
-      [id, adminId, message]
-    );
+    let insertId = Date.now();
+    try {
+      const result = await executeQuery(
+        `INSERT INTO location_requests (user_id, requested_by, message, status) VALUES (?, ?, ?, 'pending')`,
+        [targetUserId, adminId, message]
+      );
+      insertId = result.insertId || insertId;
+    } catch {}
+
+    if (!inMemoryStore.location_requests) inMemoryStore.location_requests = [];
+    const newReq = {
+      id: insertId,
+      user_id: targetUserId,
+      requested_by: adminId,
+      message,
+      status: 'pending',
+      requested_at: new Date().toISOString()
+    };
+    inMemoryStore.location_requests.push(newReq);
 
     return res.status(200).json(
-      new ApiResponse(200, { requestId: result.insertId, user_id: id, status: 'pending' }, 'Location sharing request transmitted to tourist.')
+      new ApiResponse(200, { requestId: insertId, user_id: targetUserId, status: 'pending' }, 'Location sharing request transmitted to tourist.')
     );
   });
 

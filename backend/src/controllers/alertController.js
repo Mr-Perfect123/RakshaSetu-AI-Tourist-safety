@@ -13,7 +13,10 @@ class AlertController {
 
   static createRedAlert = asyncHandler(async (req, res) => {
     const { title, description, latitude, longitude, radiusMeters = 1000, severity = 'critical' } = req.body;
-    const userId = req.user ? req.user.id : 1;
+    if (!req.user || !req.user.id) {
+      throw new ApiError(401, 'Authentication required.');
+    }
+    const userId = parseInt(req.user.id, 10);
     const alertCode = `RA-${Date.now().toString().slice(-6)}`;
 
     const sql = `INSERT INTO red_alerts (alert_code, title, description, latitude, longitude, radius_meters, severity, status, created_by)

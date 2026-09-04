@@ -1,15 +1,14 @@
 -- ============================================================================
 -- Migration: 002_seed_initial_data.sql
 -- Description: Auto-seed initial default admin, responders, tourists & safe sites
--- Default passwords:
--- admin@rakshasetu.com -> Admin@123
--- admin@rakshasetu.gov.in -> Password@123
+-- NOTE: Stored hashes below are bcrypt hashes of the initial setup passwords.
+-- For production, replace these seed users and reset passwords via the admin UI
+-- or via environment-configured seeding scripts. Do NOT rely on these seed entries.
 -- ============================================================================
 
 USE rakshasetu_db;
 
--- Hashed bcrypt password for 'Admin@123': $2a$10$3z2u5RzX1r8f9e0w1v2u3e4r5t6y7u8i9o0p1a2b3c4d5e6f7g8h9
--- Hashed bcrypt password for 'Password@123': $2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e
+
 
 INSERT IGNORE INTO users (id, full_name, email, phone, password, role, status, is_verified, latitude, longitude, nationality) VALUES
 (1, 'System Administrator', 'admin@rakshasetu.com', '+919999900000', '$2a$10$3z2u5RzX1r8f9e0w1v2u3e4r5t6y7u8i9o0p1a2b3c4d5e6f7g8h9', 'Admin', 'active', TRUE, 28.6139, 77.2090, 'Indian'),

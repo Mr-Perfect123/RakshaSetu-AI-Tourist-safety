@@ -24,10 +24,11 @@ try {
 const getDbConfig = () => ({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'Karan@skcet23',
+  password: process.env.DB_PASSWORD || '',
   port: parseInt(process.env.DB_PORT, 10) || 3306,
   database: process.env.DB_NAME || 'rakshasetu_db'
 });
+
 
 const runMigrations = async () => {
   if (!mysql) {

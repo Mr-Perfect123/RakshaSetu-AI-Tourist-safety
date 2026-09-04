@@ -10,5 +10,6 @@ router.post('/update-live', authenticateJWT, LocationController.updateLiveLocati
 router.post('/stop', authenticateJWT, LocationController.stopLocationSharing);
 router.get('/status', authenticateJWT, LocationController.getLocationStatus);
 router.post('/respond-request', authenticateJWT, LocationController.respondLocationRequest);
+router.get('/authorized-tourists', authenticateJWT, LocationController.getAuthorizedTouristLocations);
 
 module.exports = router;

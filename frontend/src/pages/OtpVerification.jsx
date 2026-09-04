@@ -102,7 +102,7 @@ const OtpVerification = ({ darkMode }) => {
                   type="text"
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value)}
-                  placeholder="e.g. 123456"
+                  placeholder="Enter 6-digit code"
                   maxLength={6}
                   required
                   className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm tracking-widest font-black focus:ring-2 focus:outline-none ${
@@ -110,8 +110,8 @@ const OtpVerification = ({ darkMode }) => {
                   }`}
                 />
               </div>
-              <p className="text-[11px] text-slate-500 mt-1">Default test OTP: <strong>123456</strong></p>
             </div>
+
 
             <button
               type="submit"
