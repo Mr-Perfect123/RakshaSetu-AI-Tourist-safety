@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { MapPin, ZoomIn, ZoomOut, Layers } from 'lucide-react';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || (typeof window !== 'undefined' && window.VITE_GOOGLE_MAPS_API_KEY) || 'AIzaSyRakshaSetuMapKey_GeneralAccess2026';
@@ -48,8 +49,8 @@ function loadDrawerGoogleSdk(apiKey) {
   return _drawerGoogleScriptPromise;
 }
 
-const GOOGLE_ROADMAP_TILES = 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
-const GOOGLE_SATELLITE_TILES = 'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+const GOOGLE_ROADMAP_TILES = 'https://mt{s}.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}';
+const GOOGLE_SATELLITE_TILES = 'https://mt{s}.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}';
 const SUBDOMAINS = ['0', '1', '2', '3'];
 
 export default function AdminGoogleMapDrawer({
@@ -62,7 +63,7 @@ export default function AdminGoogleMapDrawer({
   onAddPolygonPoint
 }) {
   const mapContainerRef = useRef(null);
-  const [engine, setEngine] = useState('detecting'); // 'google' | 'leaflet' | 'detecting'
+  const [engine, setEngine] = useState('leaflet'); // Default to reliable Google Maps tile engine
   const [mapType, setMapType] = useState('roadmap');
 
   // Google Maps Refs
@@ -84,9 +85,24 @@ export default function AdminGoogleMapDrawer({
   const latNum = parseFloat(centerLat) || 11.0168;
   const lngNum = parseFloat(centerLng) || 76.9558;
 
-  // 1. Engine Detection
+  // 1. Engine Detection & Optional Upgrade to Google SDK
   useEffect(() => {
     let cancelled = false;
+
+    const rawKey = GOOGLE_MAPS_API_KEY || '';
+    const isRealBilledKey = Boolean(
+      rawKey &&
+      rawKey.trim().startsWith('AIzaSy') &&
+      rawKey.trim().length >= 35 &&
+      !rawKey.includes('YOUR_GOOGLE_MAPS_API_KEY') &&
+      !rawKey.includes('RakshaSetu') &&
+      !rawKey.includes('GeneralAccess')
+    );
+
+    if (!isRealBilledKey) {
+      setEngine('leaflet');
+      return;
+    }
 
     const prevAuthFailure = window.gm_authFailure;
     window.gm_authFailure = () => {
@@ -100,12 +116,7 @@ export default function AdminGoogleMapDrawer({
       return;
     }
 
-    if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY.includes('YOUR_GOOGLE_MAPS_API_KEY')) {
-      setEngine('leaflet');
-      return;
-    }
-
-    loadDrawerGoogleSdk(GOOGLE_MAPS_API_KEY)
+    loadDrawerGoogleSdk(rawKey.trim())
       .then(() => {
         if (!cancelled) setEngine('google');
       })
@@ -245,9 +256,14 @@ export default function AdminGoogleMapDrawer({
   useEffect(() => {
     if (engine !== 'leaflet' || !mapContainerRef.current) return;
 
-    if (lMapRef.current) {
-      lMapRef.current.remove();
-      lMapRef.current = null;
+    if (mapContainerRef.current) {
+      if (lMapRef.current) {
+        try { lMapRef.current.remove(); } catch {}
+        lMapRef.current = null;
+      }
+      if (mapContainerRef.current._leaflet_id) {
+        delete mapContainerRef.current._leaflet_id;
+      }
     }
 
     const map = L.map(mapContainerRef.current, {
@@ -276,14 +292,19 @@ export default function AdminGoogleMapDrawer({
       }
     });
 
-    const timer = setTimeout(() => {
-      map.invalidateSize();
-    }, 200);
+    const timer1 = setTimeout(() => {
+      if (map) map.invalidateSize();
+    }, 60);
+
+    const timer2 = setTimeout(() => {
+      if (map) map.invalidateSize();
+    }, 350);
 
     return () => {
-      clearTimeout(timer);
+      clearTimeout(timer1);
+      clearTimeout(timer2);
       if (lMapRef.current) {
-        lMapRef.current.remove();
+        try { lMapRef.current.remove(); } catch {}
         lMapRef.current = null;
       }
     };
@@ -382,7 +403,7 @@ export default function AdminGoogleMapDrawer({
       )}
 
       {/* Map Canvas */}
-      <div ref={mapContainerRef} className="w-full h-full" />
+      <div ref={mapContainerRef} className="w-full h-full" style={{ width: '100%', height: '100%', minHeight: '340px' }} />
 
       {/* Layer Toggle (Map / Satellite) */}
       <div className="absolute top-3 right-3 z-[1000] flex items-center gap-1 bg-white/95 backdrop-blur-md p-1 rounded-xl shadow-md border border-slate-200 text-[11px] font-bold text-slate-700">

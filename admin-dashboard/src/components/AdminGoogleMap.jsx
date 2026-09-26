@@ -19,6 +19,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { MapPin, Layers } from 'lucide-react';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || (typeof window !== 'undefined' && window.VITE_GOOGLE_MAPS_API_KEY) || 'AIzaSyRakshaSetuMapKey_GeneralAccess2026';
@@ -69,8 +70,8 @@ function getLoaderPromise() {
   return _adminGoogleScriptPromise;
 }
 
-const GOOGLE_ROADMAP_TILES = 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
-const GOOGLE_SATELLITE_TILES = 'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+const GOOGLE_ROADMAP_TILES = 'https://mt{s}.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}';
+const GOOGLE_SATELLITE_TILES = 'https://mt{s}.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}';
 const SUBDOMAINS = ['0', '1', '2', '3'];
 
 const AdminGoogleMap = ({
@@ -85,7 +86,7 @@ const AdminGoogleMap = ({
   scrollWheel = true
 }) => {
   const containerRef = useRef(null);
-  const [engine, setEngine] = useState('detecting'); // 'google' | 'leaflet' | 'detecting'
+  const [engine, setEngine] = useState('leaflet'); // Default to reliable Google Maps tile engine
   const [mapType, setMapType] = useState('roadmap'); // 'roadmap' | 'satellite'
 
   // Google Maps Refs
@@ -98,9 +99,25 @@ const AdminGoogleMap = ({
   const lTileLayerRef = useRef(null);
   const lOverlaysRef = useRef({ markers: [], circles: [], polygons: [] });
 
-  // ── 1. Engine Detection & SDK Initialization ─────────────────────────────────
+  // ── 1. Engine Detection & Optional Upgrade to Google SDK if a verified paid key exists ─────────
   useEffect(() => {
     let cancelled = false;
+
+    const rawKey = GOOGLE_MAPS_API_KEY || '';
+    const isRealBilledKey = Boolean(
+      rawKey &&
+      rawKey.trim().startsWith('AIzaSy') &&
+      rawKey.trim().length >= 35 &&
+      !rawKey.includes('YOUR_GOOGLE_MAPS_API_KEY') &&
+      !rawKey.includes('RakshaSetu') &&
+      !rawKey.includes('GeneralAccess')
+    );
+
+    // If no real Google Cloud key, remain on the high-performance Google tile engine
+    if (!isRealBilledKey) {
+      setEngine('leaflet');
+      return;
+    }
 
     // Detect Google authentication failure callback
     const prevAuthFailure = window.gm_authFailure;
@@ -112,11 +129,6 @@ const AdminGoogleMap = ({
 
     if (window.google && window.google.maps) {
       setEngine('google');
-      return;
-    }
-
-    if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY.includes('YOUR_GOOGLE_MAPS_API_KEY')) {
-      setEngine('leaflet');
       return;
     }
 
@@ -286,9 +298,14 @@ const AdminGoogleMap = ({
     if (engine !== 'leaflet' || !containerRef.current) return;
 
     // Clean up any existing Leaflet map on this container
-    if (lMapRef.current) {
-      lMapRef.current.remove();
-      lMapRef.current = null;
+    if (containerRef.current) {
+      if (lMapRef.current) {
+        try { lMapRef.current.remove(); } catch {}
+        lMapRef.current = null;
+      }
+      if (containerRef.current._leaflet_id) {
+        delete containerRef.current._leaflet_id;
+      }
     }
 
     const latN = Number(center.lat) || 28.6139;
@@ -318,14 +335,19 @@ const AdminGoogleMap = ({
       }
     });
 
-    const timer = setTimeout(() => {
-      map.invalidateSize();
-    }, 250);
+    const timer1 = setTimeout(() => {
+      if (map) map.invalidateSize();
+    }, 60);
+
+    const timer2 = setTimeout(() => {
+      if (map) map.invalidateSize();
+    }, 350);
 
     return () => {
-      clearTimeout(timer);
+      clearTimeout(timer1);
+      clearTimeout(timer2);
       if (lMapRef.current) {
-        lMapRef.current.remove();
+        try { lMapRef.current.remove(); } catch {}
         lMapRef.current = null;
       }
     };
@@ -459,7 +481,7 @@ const AdminGoogleMap = ({
       <div
         ref={containerRef}
         className="w-full h-full rounded-2xl overflow-hidden shadow-inner"
-        style={{ minHeight: height }}
+        style={{ minHeight: typeof height === 'number' ? `${height}px` : (height && height !== '100%' ? height : '350px'), height: '100%', width: '100%' }}
       />
 
       {/* Map View Controls (Roadmap / Satellite Toggle) */}

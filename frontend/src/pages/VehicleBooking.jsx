@@ -117,8 +117,51 @@ const KNOWN_COORDINATES = {
   'amber fort': { lat: 26.9855, lng: 75.8513 },
   'mysore palace': { lat: 12.3052, lng: 76.6552 },
   'promenade beach': { lat: 11.9338, lng: 79.8359 },
-  'auroville': { lat: 12.0070, lng: 79.8106 }
+  'auroville': { lat: 12.0070, lng: 79.8106 },
+
+  // Major Indian States (centroid coords for state-level routing)
+  'kerala': { lat: 10.8505, lng: 76.2711 },
+  'tamil nadu': { lat: 11.1271, lng: 78.6569 },
+  'karnataka': { lat: 15.3173, lng: 75.7139 },
+  'andhra pradesh': { lat: 15.9129, lng: 79.7400 },
+  'telangana': { lat: 18.1124, lng: 79.0193 },
+  'goa state': { lat: 15.2993, lng: 74.1240 },
+  'rajasthan': { lat: 27.0238, lng: 74.2179 },
+  'gujarat': { lat: 22.2587, lng: 71.1924 },
+  'maharashtra': { lat: 19.7515, lng: 75.7139 },
+  'madhya pradesh': { lat: 22.9734, lng: 78.6569 },
+  'uttar pradesh': { lat: 26.8467, lng: 80.9462 },
+  'west bengal': { lat: 22.9868, lng: 87.8550 },
+  'odisha': { lat: 20.9517, lng: 85.0985 },
+  'bihar': { lat: 25.0961, lng: 85.3131 },
+  'assam': { lat: 26.2006, lng: 92.9376 },
+  'punjab': { lat: 31.1471, lng: 75.3412 },
+  'haryana': { lat: 29.0588, lng: 76.0856 },
+  'himachal pradesh': { lat: 31.1048, lng: 77.1734 },
+  'uttarakhand': { lat: 30.0668, lng: 79.0193 },
+  'jharkhand': { lat: 23.6102, lng: 85.2799 },
+  'chhattisgarh': { lat: 21.2787, lng: 81.8661 },
+
+  // Additional cities
+  'thiruvananthapuram': { lat: 8.5241, lng: 76.9366 },
+  'trivandrum': { lat: 8.5241, lng: 76.9366 },
+  'thrissur': { lat: 10.5276, lng: 76.2144 },
+  'calicut': { lat: 11.2588, lng: 75.7804 },
+  'kozhikode': { lat: 11.2588, lng: 75.7804 },
+  'kollam': { lat: 8.8932, lng: 76.6141 },
+  'palakkad': { lat: 10.7867, lng: 76.6548 },
+  'trissur': { lat: 10.5276, lng: 76.2144 },
+  'kannur': { lat: 11.8745, lng: 75.3704 },
+  'alappuzha': { lat: 9.4981, lng: 76.3388 },
+  'alleppey': { lat: 9.4981, lng: 76.3388 },
+  'munnar': { lat: 10.0889, lng: 77.0595 },
+  'varkala': { lat: 8.7359, lng: 76.7154 },
+  'kovalam': { lat: 8.4004, lng: 76.9786 },
+  'thekkady': { lat: 9.6003, lng: 77.1657 },
+  'periyar': { lat: 9.5753, lng: 77.1680 },
+  'wayanad': { lat: 11.6854, lng: 76.1320 }
 };
+
 
 const calculateHaversineDistanceKm = (lat1, lon1, lat2, lon2) => {
   const R = 6371;
@@ -146,6 +189,20 @@ const estimateDistanceBetweenLocations = (pickupText, destText) => {
   if (hasBoth('coimbatore', 'ooty')) return 85.5;
   if (hasBoth('coimbatore', 'madurai')) return 215.0;
   if (hasBoth('coimbatore', 'kochi') || hasBoth('coimbatore', 'ernakulam')) return 190.0;
+  if (hasBoth('coimbatore', 'kerala')) return 190.0;
+  if (hasBoth('coimbatore', 'trivandrum') || hasBoth('coimbatore', 'thiruvananthapuram')) return 350.0;
+  if (hasBoth('coimbatore', 'thrissur') || hasBoth('coimbatore', 'trissur')) return 165.0;
+  if (hasBoth('coimbatore', 'calicut') || hasBoth('coimbatore', 'kozhikode')) return 220.0;
+  if (hasBoth('coimbatore', 'munnar')) return 135.0;
+  if (hasBoth('coimbatore', 'wayanad')) return 175.0;
+  if (hasBoth('coimbatore', 'mysore') || hasBoth('coimbatore', 'mysuru')) return 200.0;
+  if (hasBoth('chennai', 'bangalore') || hasBoth('chennai', 'bengaluru')) return 350.0;
+  if (hasBoth('chennai', 'pondicherry') || hasBoth('chennai', 'puducherry')) return 155.0;
+  if (hasBoth('chennai', 'madurai')) return 460.0;
+  if (hasBoth('bangalore', 'mysore') || hasBoth('bengaluru', 'mysuru')) return 145.0;
+  if (hasBoth('bangalore', 'ooty') || hasBoth('bengaluru', 'ooty')) return 265.0;
+  if (hasBoth('bangalore', 'goa') || hasBoth('bengaluru', 'goa')) return 560.0;
+  if (hasBoth('mumbai', 'goa')) return 580.0;
   if (hasBoth('delhi', 'agra') || hasBoth('delhi', 'taj')) return 230.0;
   if (hasBoth('delhi', 'jaipur')) return 280.0;
   if (hasBoth('goa', 'mumbai')) return 580.0;
@@ -217,25 +274,33 @@ const VehicleBooking = ({ darkMode }) => {
       }
     }
 
-    // 1. Direct dictionary lookup prioritized by longest match key first
+    // 1. Direct dictionary lookup — only forward match (clean must contain the key)
     const sortedKeys = Object.keys(KNOWN_COORDINATES).sort((a, b) => b.length - a.length);
     for (const key of sortedKeys) {
-      if (clean.includes(key) || (clean.length >= 4 && key.includes(clean))) {
+      if (clean.includes(key)) {
         return KNOWN_COORDINATES[key];
       }
     }
 
-    // 2. Nominatim lookup with safe 2.5s timeout
+    // 2. Nominatim lookup — require at least 5 chars to avoid partial-input geocoding
+    //    (e.g. 'ke' -> Kenya, 'ker' -> Iran airport, 'keral' -> Rajasthan village)
+    if (clean.length < 5) return null;
+
     try {
+      // Bias results to India; also send countrycodes=in for most accurate results
       const res = await axios.get(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(text)}&format=json&limit=1`,
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(text)}&format=json&limit=3&countrycodes=in&addressdetails=1`,
         { headers: { 'User-Agent': 'RakshaSetu/2.0' }, timeout: 2500 }
       );
       if (res.data && res.data.length > 0) {
-        return {
-          lat: parseFloat(res.data[0].lat),
-          lng: parseFloat(res.data[0].lon)
-        };
+        // Prefer results that have 'India' or have a state/city classification
+        const indiaResult = res.data[0];
+        const lat = parseFloat(indiaResult.lat);
+        const lng = parseFloat(indiaResult.lon);
+        // Validate India bounding box: lat 6-37, lon 68-98
+        if (lat >= 6 && lat <= 37 && lng >= 68 && lng <= 98) {
+          return { lat, lng };
+        }
       }
     } catch {}
 
@@ -298,16 +363,18 @@ const VehicleBooking = ({ darkMode }) => {
         const res = await api.post('/vehicles/estimate-fare', { category: selectedCategory, distanceKm: finalDist });
         if (res.data) setFareEstimate(res.data?.data || res.data);
       } catch {
-        const rates = { scooter: 10, hatchback: 14, sedan: 18, suv: 24, van: 20, luxury: 45 };
+        const rates = { scooter: 8, hatchback: 12, sedan: 18, suv: 25, van: 32, luxury: 50 };
+        const bases = { scooter: 30, hatchback: 60, sedan: 100, suv: 180, van: 300, luxury: 500 };
         const perKm = rates[selectedCategory] || 18;
-        const base = selectedCategory === 'luxury' ? 250 : 80;
-        const distCharge = Math.round(finalDist * perKm);
+        const base = bases[selectedCategory] || 100;
+        const distCharge = Math.round(finalDist * perKm * 10) / 10;
+        const taxes = Math.round((base + distCharge) * 0.12 * 10) / 10;
         setFareEstimate({
           baseFare: base,
           perKmRate: perKm,
           distanceCharge: distCharge,
-          taxesFees: Math.round((base + distCharge) * 0.12),
-          estimatedFare: Math.round(base + distCharge + Math.round((base + distCharge) * 0.12))
+          taxesFees: taxes,
+          estimatedFare: Math.round(base + distCharge + taxes)
         });
       }
     } finally {
@@ -315,10 +382,22 @@ const VehicleBooking = ({ darkMode }) => {
     }
   };
 
+  // Immediate recalculation on vehicle category selection
   useEffect(() => {
-    const timer = setTimeout(calculateRouteAndFare, 350);
+    if (pickup.trim().length >= 3 && destination.trim().length >= 3) {
+      calculateRouteAndFare();
+    }
+  }, [selectedCategory]);
+
+  // Debounced recalculation on pickup/destination text input changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (pickup.trim().length >= 3 && destination.trim().length >= 3) {
+        calculateRouteAndFare();
+      }
+    }, 900);
     return () => clearTimeout(timer);
-  }, [selectedCategory, pickup, destination]);
+  }, [pickup, destination]);
 
   const handleUseCurrentLocation = () => {
     if (navigator.geolocation) {

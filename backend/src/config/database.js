@@ -3479,6 +3479,14 @@ const inMemoryStore = {
     { id: 1, user_id: 4, tourist_name: 'John Doe Tourist', activity_type: 'SEARCH_DESTINATION', description: 'Searched Coimbatore, Tamil Nadu', latitude: 11.0168, longitude: 76.9558, address: 'Coimbatore, Tamil Nadu', created_at: new Date().toISOString() },
     { id: 2, user_id: 4, tourist_name: 'John Doe Tourist', activity_type: 'VIEW_SAFETY_MAP', description: 'Viewed Live Tourist Safety Sentinel Map', latitude: 11.0168, longitude: 76.9558, address: 'Coimbatore, Tamil Nadu', created_at: new Date().toISOString() }
   ],
+  vehicle_types: [
+    { id: 1, type_key: 'scooter', name: 'Bike / Scooter', capacity: 1, base_fare: 30.00, per_km_rate: 8.00, is_active: 1 },
+    { id: 2, type_key: 'hatchback', name: 'Budget Hatchback', capacity: 4, base_fare: 60.00, per_km_rate: 12.00, is_active: 1 },
+    { id: 3, type_key: 'sedan', name: 'Comfort Sedan', capacity: 4, base_fare: 100.00, per_km_rate: 18.00, is_active: 1 },
+    { id: 4, type_key: 'suv', name: 'Executive SUV / XL', capacity: 6, base_fare: 180.00, per_km_rate: 25.00, is_active: 1 },
+    { id: 5, type_key: 'van', name: 'Group Van / Minibus', capacity: 12, base_fare: 300.00, per_km_rate: 32.00, is_active: 1 },
+    { id: 6, type_key: 'luxury', name: 'Premium Luxury Cab', capacity: 4, base_fare: 500.00, per_km_rate: 50.00, is_active: 1 }
+  ],
   vehicle_bookings: [
     {
       id: 1,
@@ -3753,6 +3761,15 @@ const executeQuery = async (sql, params = []) => {
     };
     inMemoryStore.tourist_activities.unshift(newAct);
     return { insertId: newAct.id, affectedRows: 1 };
+  }
+
+  if (cleanSql.includes('select * from vehicle_types')) {
+    let list = [...(inMemoryStore.vehicle_types || [])];
+    if (cleanSql.includes('type_key =')) {
+      const key = params[0];
+      return list.filter(v => v.type_key === key);
+    }
+    return list;
   }
 
   if (cleanSql.includes('select * from vehicle_bookings')) {

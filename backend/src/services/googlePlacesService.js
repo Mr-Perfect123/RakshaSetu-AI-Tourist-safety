@@ -222,14 +222,45 @@ class GooglePlacesService {
           const key = mainName.toLowerCase();
           if (!seen.has(key)) {
             seen.add(key);
-            results.push({
-              placeId: `osm-${item.place_id}`,
-              name: mainName,
-              formattedAddress: item.display_name,
-              fullDescription: item.display_name,
-              types: [item.type || 'establishment'],
-              source: 'fallback'
-            });
+
+            // Check if mainName matches any curated destination city or name
+            const curatedMatch = Array.isArray(curatedPool) ? curatedPool.find(p =>
+              p.name.toLowerCase().includes(key) ||
+              key.includes((p.city || '').toLowerCase()) ||
+              (p.city && p.city.toLowerCase() === key)
+            ) : null;
+
+            if (curatedMatch) {
+              const matchKey = curatedMatch.name.toLowerCase();
+              if (!seen.has(matchKey)) {
+                seen.add(matchKey);
+                results.push({
+                  placeId: curatedMatch.id,
+                  id: curatedMatch.id,
+                  name: curatedMatch.name,
+                  formattedAddress: curatedMatch.address || `${curatedMatch.city}, ${curatedMatch.state}, ${curatedMatch.country}`,
+                  fullDescription: `${curatedMatch.name}, ${curatedMatch.city}, ${curatedMatch.state}, ${curatedMatch.country}`,
+                  city: curatedMatch.city,
+                  state: curatedMatch.state,
+                  country: curatedMatch.country,
+                  category: curatedMatch.category,
+                  photos: curatedMatch.photos || [],
+                  safetyScore: curatedMatch.safetyScore || 88,
+                  types: ['tourist_attraction', 'point_of_interest'],
+                  source: 'curated'
+                });
+              }
+            } else {
+              const cleanSlug = mainName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+              results.push({
+                placeId: `osm-${cleanSlug}`,
+                name: mainName,
+                formattedAddress: item.display_name,
+                fullDescription: item.display_name,
+                types: [item.type || 'establishment'],
+                source: 'fallback'
+              });
+            }
           }
         });
       }

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { Compass, Navigation, ExternalLink, Loader2, Shield, Radio, AlertTriangle, Globe, MapPin, Layers } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import GeofenceEngine from '../utils/geofence';
@@ -194,8 +195,8 @@ const GOOGLE_MAPS_DARK_STYLE = [
   { featureType: 'water', elementType: 'labels.text.stroke', stylers: [{ color: '#0b2447' }] }
 ];
 
-const GOOGLE_ROADMAP_TILES = 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
-const GOOGLE_SATELLITE_TILES = 'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+const GOOGLE_ROADMAP_TILES = 'https://mt{s}.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}';
+const GOOGLE_SATELLITE_TILES = 'https://mt{s}.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}';
 const SUBDOMAINS = ['0', '1', '2', '3'];
 
 const TouristMap = ({
@@ -222,7 +223,7 @@ const TouristMap = ({
 }) => {
   const navigate = useNavigate();
   const mapContainerRef = useRef(null);
-  const [engine, setEngine] = useState('detecting'); // 'google' | 'leaflet' | 'detecting'
+  const [engine, setEngine] = useState('leaflet'); // Default to rock-solid Google Maps tile engine
   const [mapType, setMapType] = useState('roadmap'); // 'roadmap' | 'satellite'
 
   // Google Maps Instance Refs
@@ -248,12 +249,25 @@ const TouristMap = ({
   const destLng = destination ? parseFloat(destination.longitude || destination.lng) : null;
   const hasDest = destLat && destLng && isValidCoord(destLat, destLng);
 
-  // 1. Detect & Initialize Engine
+  // 1. Detect & Optional Upgrade to Google SDK if a verified paid Google Cloud key is provided
   useEffect(() => {
     let cancelled = false;
 
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || (typeof window !== 'undefined' && window.VITE_GOOGLE_MAPS_API_KEY) || 'AIzaSyRakshaSetuMapKey_GeneralAccess2026';
-    const hasKey = Boolean(apiKey && apiKey.trim() && !apiKey.includes('YOUR_GOOGLE_MAPS_API_KEY'));
+    const rawKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || (typeof window !== 'undefined' && window.VITE_GOOGLE_MAPS_API_KEY) || '';
+    const isRealBilledKey = Boolean(
+      rawKey &&
+      rawKey.trim().startsWith('AIzaSy') &&
+      rawKey.trim().length >= 35 &&
+      !rawKey.includes('YOUR_GOOGLE_MAPS_API_KEY') &&
+      !rawKey.includes('RakshaSetu') &&
+      !rawKey.includes('GeneralAccess')
+    );
+
+    // If no real Google Cloud key, remain on the high-performance Google tile engine
+    if (!isRealBilledKey) {
+      setEngine('leaflet');
+      return;
+    }
 
     // Handle Google Maps Authentication failure
     const prevAuthFailure = window.gm_authFailure;
@@ -268,13 +282,7 @@ const TouristMap = ({
       return;
     }
 
-    if (!hasKey) {
-      // Immediately activate interactive Leaflet Google tiles engine
-      setEngine('leaflet');
-      return;
-    }
-
-    loadGoogleMapsSdk(apiKey.trim())
+    loadGoogleMapsSdk(rawKey.trim())
       .then(() => {
         if (!cancelled) setEngine('google');
       })
@@ -572,9 +580,14 @@ const TouristMap = ({
   useEffect(() => {
     if (engine !== 'leaflet' || !mapContainerRef.current) return;
 
-    if (lMapRef.current) {
-      lMapRef.current.remove();
-      lMapRef.current = null;
+    if (mapContainerRef.current) {
+      if (lMapRef.current) {
+        try { lMapRef.current.remove(); } catch {}
+        lMapRef.current = null;
+      }
+      if (mapContainerRef.current._leaflet_id) {
+        delete mapContainerRef.current._leaflet_id;
+      }
     }
 
     const map = L.map(mapContainerRef.current, {
@@ -612,14 +625,19 @@ const TouristMap = ({
       });
     }
 
-    const timer = setTimeout(() => {
-      map.invalidateSize();
-    }, 250);
+    const timer1 = setTimeout(() => {
+      if (map) map.invalidateSize();
+    }, 60);
+
+    const timer2 = setTimeout(() => {
+      if (map) map.invalidateSize();
+    }, 350);
 
     return () => {
-      clearTimeout(timer);
+      clearTimeout(timer1);
+      clearTimeout(timer2);
       if (lMapRef.current) {
-        lMapRef.current.remove();
+        try { lMapRef.current.remove(); } catch {}
         lMapRef.current = null;
       }
     };
@@ -913,7 +931,7 @@ const TouristMap = ({
       )}
 
       {/* Map Canvas */}
-      <div ref={mapContainerRef} className="w-full h-full flex-1" style={{ minHeight: '300px' }} />
+      <div ref={mapContainerRef} className="w-full h-full flex-1" style={{ minHeight: '350px', height: '100%', width: '100%' }} />
 
       {/* Map Type Switcher (Map / Satellite) */}
       <div className="absolute top-4 right-4 z-[1000] flex items-center gap-1 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-1 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-300">

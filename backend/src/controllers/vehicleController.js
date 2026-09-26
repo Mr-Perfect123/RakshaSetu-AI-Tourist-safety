@@ -3,9 +3,27 @@ const ApiResponse = require('../utils/response');
 const ApiError = require('../utils/apiError');
 const { executeQuery } = require('../config/database');
 
+// Standardized distinct pricing configuration per vehicle category
+const VEHICLE_PRICING = {
+  scooter:   { name: 'Bike / Scooter',    base_fare: 30.00,  per_km_rate: 8.00,   capacity: 1 },
+  hatchback: { name: 'Budget Hatchback',  base_fare: 60.00,  per_km_rate: 12.00,  capacity: 4 },
+  sedan:     { name: 'Comfort Sedan',     base_fare: 100.00, per_km_rate: 18.00,  capacity: 4 },
+  suv:       { name: 'Executive SUV / XL',base_fare: 180.00, per_km_rate: 25.00,  capacity: 6 },
+  van:       { name: 'Group Van / Minibus',base_fare: 300.00,per_km_rate: 32.00,  capacity: 12 },
+  luxury:    { name: 'Premium Luxury Cab',base_fare: 500.00, per_km_rate: 50.00,  capacity: 4 }
+};
+
 class VehicleController {
   static getVehicleTypes = asyncHandler(async (req, res) => {
-    const types = await executeQuery('SELECT * FROM vehicle_types WHERE is_active = TRUE ORDER BY id ASC');
+    let types = await executeQuery('SELECT * FROM vehicle_types WHERE is_active = TRUE ORDER BY id ASC');
+    if (!types || types.length === 0) {
+      types = Object.keys(VEHICLE_PRICING).map((k, idx) => ({
+        id: idx + 1,
+        type_key: k,
+        ...VEHICLE_PRICING[k],
+        is_active: 1
+      }));
+    }
     return res.status(200).json(new ApiResponse(200, types, 'Vehicle categories retrieved.'));
   });
 
@@ -27,20 +45,29 @@ class VehicleController {
 
   static estimateFare = asyncHandler(async (req, res) => {
     const { category = 'sedan', distanceKm = 5.0 } = req.body;
-    const types = await executeQuery(`SELECT * FROM vehicle_types WHERE type_key = ? LIMIT 1`, [category]);
-    const type = types.length > 0 ? types[0] : { base_fare: 65.00, per_km_rate: 16.00 };
+    const catKey = String(category).toLowerCase().trim();
+    const fallbackObj = VEHICLE_PRICING[catKey] || VEHICLE_PRICING['sedan'];
 
-    const baseFare = parseFloat(type.base_fare || 65);
-    const perKmRate = parseFloat(type.per_km_rate || 16);
-    const dist = parseFloat(distanceKm || 5.0);
-    const distanceCharge = Math.round(dist * perKmRate * 100) / 100;
-    const taxesFees = Math.round((baseFare + distanceCharge) * 0.12 * 100) / 100;
+    let baseFare = fallbackObj.base_fare;
+    let perKmRate = fallbackObj.per_km_rate;
+
+    try {
+      const types = await executeQuery(`SELECT * FROM vehicle_types WHERE type_key = ? LIMIT 1`, [catKey]);
+      if (types && types.length > 0 && types[0].base_fare) {
+        baseFare = parseFloat(types[0].base_fare);
+        perKmRate = parseFloat(types[0].per_km_rate);
+      }
+    } catch (_) {}
+
+    const dist = Math.max(parseFloat(distanceKm || 5.0), 0.5);
+    const distanceCharge = Math.round(dist * perKmRate * 10) / 10;
+    const taxesFees = Math.round((baseFare + distanceCharge) * 0.12 * 10) / 10;
     const estimatedFare = Math.round(baseFare + distanceCharge + taxesFees);
 
     return res.status(200).json(
       new ApiResponse(
         200,
-        { category, distanceKm: dist, baseFare, perKmRate, distanceCharge, taxesFees, estimatedFare, currency: 'INR' },
+        { category: catKey, distanceKm: dist, baseFare, perKmRate, distanceCharge, taxesFees, estimatedFare, currency: 'INR' },
         'Dynamic fare estimate calculated.'
       )
     );
@@ -65,15 +92,23 @@ class VehicleController {
       throw new ApiError(401, 'Authentication required.');
     }
     const userId = parseInt(req.user.id, 10);
+    const catKey = String(category).toLowerCase().trim();
     const dist = parseFloat(distanceKm || 5.5);
 
-    // Fetch matching vehicle category configuration
-    const types = await executeQuery(`SELECT * FROM vehicle_types WHERE type_key = ? LIMIT 1`, [category]);
-    const typeObj = types.length > 0 ? types[0] : { base_fare: 80, per_km_rate: 18 };
-    const baseFare = parseFloat(typeObj.base_fare || 80);
-    const perKmRate = parseFloat(typeObj.per_km_rate || 18);
-    const distanceCharge = Math.round(dist * perKmRate * 100) / 100;
-    const taxesFees = Math.round((baseFare + distanceCharge) * 0.12 * 100) / 100;
+    const fallbackObj = VEHICLE_PRICING[catKey] || VEHICLE_PRICING['sedan'];
+    let baseFare = fallbackObj.base_fare;
+    let perKmRate = fallbackObj.per_km_rate;
+
+    try {
+      const types = await executeQuery(`SELECT * FROM vehicle_types WHERE type_key = ? LIMIT 1`, [catKey]);
+      if (types && types.length > 0 && types[0].base_fare) {
+        baseFare = parseFloat(types[0].base_fare);
+        perKmRate = parseFloat(types[0].per_km_rate);
+      }
+    } catch (_) {}
+
+    const distanceCharge = Math.round(dist * perKmRate * 10) / 10;
+    const taxesFees = Math.round((baseFare + distanceCharge) * 0.12 * 10) / 10;
     const calculatedFare = Math.round(baseFare + distanceCharge + taxesFees);
 
     // Query dynamic available driver from database matching category or create distinct driver record
