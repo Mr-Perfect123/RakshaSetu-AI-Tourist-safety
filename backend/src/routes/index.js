@@ -18,6 +18,8 @@ const zoneRoutes = require('./zoneRoutes');
 const alertRoutes = require('./alertRoutes');
 const travelRoutes = require('./travelRoutes');
 const activityRoutes = require('./activityRoutes');
+const weatherRoutes = require('./weatherRoutes');
+const temporaryAlertRoutes = require('./temporaryAlertRoutes');
 
 router.get('/health', (req, res) => {
   res.status(200).json({
@@ -46,5 +48,8 @@ router.use('/danger-zones', zoneRoutes);
 router.use('/alerts', alertRoutes);
 router.use('/travel', travelRoutes);
 router.use('/activities', activityRoutes);
+router.use('/weather', weatherRoutes);
+router.use('/temporary-alerts', temporaryAlertRoutes);
+router.use('/temporary-safety-alerts', temporaryAlertRoutes);
 
 module.exports = router;

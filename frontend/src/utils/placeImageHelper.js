@@ -20,7 +20,7 @@ const LANDMARK_IMAGE_MAP = [
   },
   {
     match: ['brihadeeswara', 'thanjavur big temple', 'thanjavur', 'chola temple'],
-    url: 'https://images.unsplash.com/photo-1600100397608-f010f444f4ab?auto=format&fit=crop&w=800&q=80' // Chola granite Big Temple
+    url: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=800&q=80' // Chola granite Big Temple
   },
   {
     match: ['marina beach', 'chennai beach', 'elliot beach'],
@@ -28,11 +28,11 @@ const LANDMARK_IMAGE_MAP = [
   },
   {
     match: ['rameswaram', 'ramanathaswamy', 'pamban bridge', 'dhanushkodi'],
-    url: 'https://images.unsplash.com/photo-1600100397608-f010f444f4ab?auto=format&fit=crop&w=800&q=80' // Grand temple corridor & island
+    url: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=800&q=80' // Grand temple corridor & island
   },
   {
     match: ['mahabalipuram', 'mamallapuram', 'shore temple', 'pancha rathas'],
-    url: 'https://images.unsplash.com/photo-1600100397608-f010f444f4ab?auto=format&fit=crop&w=800&q=80' // UNESCO Shore Temple & rock reliefs
+    url: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=800&q=80' // UNESCO Shore Temple & rock reliefs
   },
   {
     match: ['kanyakumari', 'vivekananda rock', 'thiruvalluvar statue'],
@@ -72,11 +72,11 @@ const LANDMARK_IMAGE_MAP = [
   // ── Karnataka ──
   {
     match: ['mysore palace', 'mysuru palace', 'mysore', 'mysuru', 'wadiyar'],
-    url: 'https://images.unsplash.com/photo-1600100397608-f010f444f4ab?auto=format&fit=crop&w=800&q=80' // Majestic royal Mysore Palace illuminated facade
+    url: 'https://images.unsplash.com/photo-1590766940554-634a7ed41450?auto=format&fit=crop&w=800&q=80' // Majestic royal Mysore Palace illuminated facade
   },
   {
     match: ['hampi', 'virupaksha', 'stone chariot', 'vijayanagara', 'vittala'],
-    url: 'https://images.unsplash.com/photo-1600100397608-f010f444f4ab?auto=format&fit=crop&w=800&q=80' // Ancient stone chariot & ruins
+    url: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=800&q=80' // Ancient stone chariot & ruins
   },
   {
     match: ['coorg', 'kodagu', 'madikeri', 'chikmagalur', 'abbey falls', 'raja seat'],
@@ -146,7 +146,7 @@ const LANDMARK_IMAGE_MAP = [
   // ── Punjab ──
   {
     match: ['golden temple', 'harmandir sahib', 'amritsar', 'amrit sarovar'],
-    url: 'https://images.unsplash.com/photo-1588096344356-9b49741e57a2?auto=format&fit=crop&w=800&q=80' // Golden Temple shining in the holy pool
+    url: 'https://images.unsplash.com/photo-1584551246679-0daf3d275d0f?auto=format&fit=crop&w=800&q=80' // Golden Temple shining in the holy pool
   },
   {
     match: ['wagah border', 'wagah'],
@@ -186,7 +186,7 @@ const LANDMARK_IMAGE_MAP = [
   },
   {
     match: ['ajanta', 'ellora', 'kailasa temple', 'aurangabad'],
-    url: 'https://images.unsplash.com/photo-1600100397608-f010f444f4ab?auto=format&fit=crop&w=800&q=80' // Ancient rock-cut monolithic caves
+    url: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=800&q=80' // Ancient rock-cut monolithic caves
   },
   {
     match: ['lonavala', 'khandala', 'mahabaleshwar', 'matheran'],
@@ -349,5 +349,8 @@ export const getPlaceImage = (place) => {
   }
 
   // Default Landmark Architectural Photo (India Gate)
-  return 'https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=800&q=80';
+  return FALLBACK_PLACE_IMAGE;
 };
+
+export const FALLBACK_PLACE_IMAGE = 'https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=800&q=80';
+

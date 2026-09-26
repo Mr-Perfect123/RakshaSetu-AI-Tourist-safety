@@ -206,10 +206,28 @@ const broadcastTouristActivity = (activity) => {
   }
 };
 
+const broadcastTemporaryAlertEvent = (action, alertData) => {
+  if (ioInstance) {
+    logger.info(`[WebSocket Temporary Alert] Event: ${action} - ID: ${alertData?.id || alertData?.alert_code}`);
+    // Broadcast to all connected clients (tourist apps and admin dispatch)
+    ioInstance.emit(action, {
+      ...alertData,
+      eventTimestamp: new Date().toISOString()
+    });
+    // Also emit generic event for unified listeners
+    ioInstance.emit('temporary_alert_event', {
+      action,
+      alert: alertData,
+      eventTimestamp: new Date().toISOString()
+    });
+  }
+};
+
 module.exports = {
   initializeSocket,
   emitSocketLocationRevoked,
   broadcastSosAlert,
   broadcastSosStatusChange,
-  broadcastTouristActivity
+  broadcastTouristActivity,
+  broadcastTemporaryAlertEvent
 };

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Shield, ShieldAlert, AlertTriangle, ShieldCheck, Users, Activity, CheckCircle, Clock, Bell, Car, Utensils, Ticket, MapPin } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Shield, ShieldAlert, AlertTriangle, ShieldCheck, Users, Activity, CheckCircle, Clock, Bell, Car, Utensils, Ticket, MapPin, CloudRain, Zap, ArrowRight, Compass } from 'lucide-react';
 import SosLiveMap from '../components/SosLiveMap';
 import api from '../services/api';
 import socket from '../services/socket';
@@ -7,6 +8,9 @@ import { useLanguage } from '../context/LanguageContext';
 
 const Dashboard = () => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
+  const [temporaryAlertsList, setTemporaryAlertsList] = useState([]);
+  const [weatherOverview, setWeatherOverview] = useState(null);
   const [stats, setStats] = useState({
     activeSosCount: 3,
     totalUsersCount: 1248,
@@ -58,6 +62,10 @@ const Dashboard = () => {
 
   useEffect(() => {
     const loadStats = async () => {
+      const token = localStorage.getItem('rakshasetu_admin_token') || localStorage.getItem('rakshasetu_token') || localStorage.getItem('token');
+      if (!token || token === 'undefined' || token === 'null' || token === 'demo_token') {
+        return;
+      }
       try {
         const res = await api.get('/admin/stats');
         const payload = res.data?.data || res.data || {};
@@ -98,6 +106,23 @@ const Dashboard = () => {
       } catch (err) {
         console.warn('Using default safe locations');
       }
+
+      // Fetch active temporary safety alert zones
+      try {
+        const tempRes = await api.get('/temporary-alerts/active');
+        const tempList = tempRes.data?.data || tempRes.data || [];
+        if (Array.isArray(tempList)) {
+          setTemporaryAlertsList(tempList);
+        }
+      } catch (err) {}
+
+      // Fetch global weather overview
+      try {
+        const wRes = await api.get('/weather/overview');
+        if (wRes.data?.data) {
+          setWeatherOverview(wRes.data.data);
+        }
+      } catch (err) {}
 
       // Fetch recent tourist activities
       try {
@@ -349,7 +374,7 @@ const Dashboard = () => {
       )}
 
       {/* Top Banner KPI Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white/95 backdrop-blur-md p-5 rounded-2xl border border-red-100 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('dashboard.activeSosKpi', 'Active Emergency SOS')}</p>
@@ -361,6 +386,20 @@ const Dashboard = () => {
           </div>
           <div className="w-12 h-12 rounded-xl bg-danger/10 text-danger flex items-center justify-center">
             <ShieldAlert className="w-6 h-6" />
+          </div>
+        </div>
+
+        <div className="bg-white/95 backdrop-blur-md p-5 rounded-2xl border border-amber-200 shadow-xs flex items-center justify-between cursor-pointer hover:border-amber-400 transition" onClick={() => navigate('/temporary-alerts')}>
+          <div>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Temporary Safety Alerts</p>
+            <h3 className="text-3xl font-extrabold text-amber-600 mt-1">{temporaryAlertsList.length}</h3>
+            <p className="text-xs text-amber-700 font-semibold mt-1 flex items-center gap-1">
+              <Zap className={`w-3.5 h-3.5 ${temporaryAlertsList.length > 0 ? 'text-amber-500 animate-pulse' : ''}`} />
+              {temporaryAlertsList.length > 0 ? `${temporaryAlertsList.length} Active Hazard Zones` : 'All Clear'}
+            </p>
+          </div>
+          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+            <Zap className="w-6 h-6" />
           </div>
         </div>
 
@@ -400,6 +439,41 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Worldwide Weather & Temporary Safety Telemetry Bar */}
+      {weatherOverview && weatherOverview.highlights && weatherOverview.highlights.length > 0 && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-900 to-[#0a2540] text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-md">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-300 flex items-center justify-center shrink-0">
+              <CloudRain className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-full bg-blue-400/20 text-blue-200 text-[10px] font-black uppercase tracking-wider border border-blue-400/30">
+                  Worldwide Weather Feed
+                </span>
+                <span className="text-[11px] font-bold text-slate-300">Live Forecast Monitoring</span>
+              </div>
+              <div className="flex items-center gap-4 mt-1 flex-wrap text-xs">
+                {weatherOverview.highlights.slice(0, 4).map((h, i) => (
+                  <span key={i} className="flex items-center gap-1.5 font-semibold text-slate-200">
+                    <span className="text-amber-300 font-bold">{h.cityName}:</span>
+                    <span>{h.weather?.tempC}°C {h.weather?.weatherDesc}</span>
+                    {h.weather?.warning && <span className="text-red-400 font-bold text-[10px]">⚠️ {h.weather.warning.message}</span>}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/temporary-alerts')}
+            className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white flex items-center gap-1 shrink-0 cursor-pointer border border-white/10"
+          >
+            <span>Manage Alerts</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Main Grid: Interactive Map & Live SOS Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

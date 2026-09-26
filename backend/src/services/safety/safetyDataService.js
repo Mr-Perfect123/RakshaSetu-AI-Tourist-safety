@@ -99,7 +99,12 @@ class SafetyDataService {
     try {
       rows = await executeQuery(sql, params);
     } catch (err) {
-      rows = [];
+      // Fallback if status column does not exist in older danger_zones schema
+      try {
+        rows = await executeQuery('SELECT * FROM danger_zones WHERE is_active = 1 ORDER BY id DESC LIMIT ? OFFSET ?', [parseInt(limit, 10) || 200, parseInt(offset, 10) || 0]);
+      } catch (_) {
+        rows = [];
+      }
     }
 
     let combined = [...(rows || [])];
@@ -345,7 +350,36 @@ class SafetyDataService {
       throw new Error('routeCoordinates array is required for safety analysis.');
     }
 
-    const zones = await this.getZones({ showAll: false, limit: 1000 });
+    const permanentZones = await this.getZones({ showAll: false, limit: 1000 });
+    let temporaryAlerts = [];
+    try {
+      const TemporaryAlertService = require('../temporaryAlertService');
+      temporaryAlerts = await TemporaryAlertService.getActiveAlerts({ limit: 500 });
+    } catch (_) {}
+
+    const mappedTempZones = (temporaryAlerts || []).map(a => ({
+      id: a.id,
+      temporaryAlertId: a.id,
+      zone_code: a.alert_code,
+      title: a.title,
+      name: `[TEMPORARY ALERT] ${a.title}`,
+      category: a.alert_type,
+      danger_type: a.alert_type,
+      severity: a.severity,
+      geometry_type: a.geometry_type,
+      latitude: parseFloat(a.latitude),
+      longitude: parseFloat(a.longitude),
+      radius_meters: a.radius_meters,
+      warning_distance_meters: a.warning_distance_meters || 200,
+      polygon_coordinates: a.polygon_coordinates,
+      safety_instructions: a.safety_instruction,
+      source: `${a.source_name || a.source_type || 'District Admin'} (Temporary Alert)`,
+      confidence: a.is_verified ? 'VERIFIED' : 'MEDIUM',
+      description: a.description,
+      isTemporaryAlert: true
+    }));
+
+    const zones = [...permanentZones, ...mappedTempZones];
     const warnings = [];
     const matchedZoneIds = new Set();
 

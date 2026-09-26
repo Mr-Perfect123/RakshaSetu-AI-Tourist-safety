@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Flame, ShieldAlert, Sparkles, MapPin, AlertTriangle, CheckCircle, Navigation, Clock } from 'lucide-react';
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
+import AdminGoogleMap from '../components/AdminGoogleMap';
 import api from '../services/api';
 
 const HeatmapPage = () => {
@@ -65,16 +64,49 @@ const HeatmapPage = () => {
 
   const getMarkerColor = (level) => {
     switch (level) {
-      case 'danger_zone':
-        return '#D32F2F';
-      case 'high':
-        return '#F57C00';
-      case 'moderate':
-        return '#E65100';
-      default:
-        return '#2E7D32';
+      case 'danger_zone': return '#D32F2F';
+      case 'high': return '#F57C00';
+      case 'moderate': return '#E65100';
+      default: return '#2E7D32';
     }
   };
+
+  // Convert crime zones into AdminGoogleMap circles
+  const crimeCircles = crimeZones.map((zone) => {
+    const lat = parseFloat(zone.latitude);
+    const lng = parseFloat(zone.longitude);
+    if (isNaN(lat) || isNaN(lng)) return null;
+    const color = getMarkerColor(zone.risk_level);
+    const riskRadius = zone.risk_level === 'danger_zone' ? 500 : 350;
+    return {
+      lat, lng,
+      radius: riskRadius,
+      strokeColor: color,
+      fillColor: color,
+      fillOpacity: 0.4,
+      strokeWeight: 2,
+      infoHtml: `
+        <div style="font-family:sans-serif;padding:6px;max-width:200px;">
+          <div style="font-size:13px;font-weight:900;color:#0f172a;">${zone.title || zone.crime_type}</div>
+          <div style="font-size:11px;color:#475569;margin-top:2px;">Risk Level: <strong style="text-transform:uppercase;">${zone.risk_level}</strong></div>
+          <div style="font-size:10px;color:#64748b;">Rate Index: ${zone.crime_rate_index}</div>
+        </div>
+      `
+    };
+  }).filter(Boolean);
+
+  // Center markers for each crime zone
+  const crimeMarkers = crimeZones.map((zone) => {
+    const lat = parseFloat(zone.latitude);
+    const lng = parseFloat(zone.longitude);
+    if (isNaN(lat) || isNaN(lng)) return null;
+    return {
+      lat, lng,
+      color: getMarkerColor(zone.risk_level),
+      scale: zone.risk_level === 'danger_zone' ? 9 : 7,
+      title: zone.title || zone.crime_type
+    };
+  }).filter(Boolean);
 
   return (
     <div className="space-y-6 pb-12">
@@ -91,7 +123,7 @@ const HeatmapPage = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Leaflet Map displaying crime risk circles */}
+        {/* Google Maps displaying crime risk circles */}
         <div className="lg:col-span-2 bg-white/85 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col h-[560px]">
           <div className="flex items-center justify-between mb-3 px-1">
             <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
@@ -105,30 +137,13 @@ const HeatmapPage = () => {
           </div>
 
           <div className="flex-1 w-full rounded-xl overflow-hidden border border-slate-200">
-            <MapContainer center={[28.6300, 77.2200]} zoom={12} style={{ height: '100%', width: '100%' }}>
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-              {crimeZones.map((zone) => (
-                <CircleMarker
-                  key={zone.id}
-                  center={[parseFloat(zone.latitude), parseFloat(zone.longitude)]}
-                  radius={zone.risk_level === 'danger_zone' ? 24 : 16}
-                  pathOptions={{
-                    color: getMarkerColor(zone.risk_level),
-                    fillColor: getMarkerColor(zone.risk_level),
-                    fillOpacity: 0.4,
-                    weight: 2
-                  }}
-                >
-                  <Popup>
-                    <div className="p-1 space-y-1 font-sans">
-                      <p className="font-bold text-xs text-slate-800">{zone.title || zone.crime_type}</p>
-                      <p className="text-[11px] text-slate-600">Risk Level: <strong className="uppercase">{zone.risk_level}</strong></p>
-                      <p className="text-[10px] text-slate-500">Rate Index: {zone.crime_rate_index}</p>
-                    </div>
-                  </Popup>
-                </CircleMarker>
-              ))}
-            </MapContainer>
+            <AdminGoogleMap
+              center={{ lat: 28.6300, lng: 77.2200 }}
+              zoom={12}
+              height="100%"
+              markers={crimeMarkers}
+              circles={crimeCircles}
+            />
           </div>
         </div>
 

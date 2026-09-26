@@ -6,26 +6,9 @@ import {
   ArrowLeft, Clock, ExternalLink, Loader2, Globe, Info, ChevronRight,
   X, RefreshCw
 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import api from '../services/api';
 import { useLanguage } from '../context/LanguageContext';
-import { getPlaceImage } from '../utils/placeImageHelper';
-
-// Fix Leaflet default icon issue in Vite/React
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-});
-
-const destinationIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
-});
+import { getPlaceImage, FALLBACK_PLACE_IMAGE } from '../utils/placeImageHelper';
 
 const isValidCoord = (lat, lng) => {
   const la = parseFloat(lat), lo = parseFloat(lng);
@@ -81,6 +64,11 @@ const PlaceDetails = ({ darkMode }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [heroImgSrc, setHeroImgSrc] = useState(() => getPlaceImage(null));
 
+  // Live Weather & Safety Alerts state
+  const [placeWeather, setPlaceWeather] = useState(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [activeAlerts, setActiveAlerts] = useState([]);
+
   useEffect(() => {
     if (place) setHeroImgSrc(getPlaceImage(place));
   }, [place]);
@@ -104,32 +92,65 @@ const PlaceDetails = ({ darkMode }) => {
           setSafetyAnalysis(safeRes.value.data?.data || safeRes.value.data);
         }
 
-        // Fetch nearby facilities if we have coordinates
-        if (placeData?.latitude && placeData?.longitude && isValidCoord(placeData.latitude, placeData.longitude)) {
+        // Fetch nearby facilities, weather & active safety alerts if we have coordinates or name
+        if (placeData) {
           const lat = placeData.latitude;
           const lng = placeData.longitude;
-          const [hRes, pRes, htRes, rRes] = await Promise.allSettled([
-            api.get(`/places/nearby?lat=${lat}&lng=${lng}&category=hospital`),
-            api.get(`/places/nearby?lat=${lat}&lng=${lng}&category=police`),
-            api.get(`/places/nearby?lat=${lat}&lng=${lng}&category=hotel`),
-            api.get(`/places/nearby?lat=${lat}&lng=${lng}&category=restaurant`)
-          ]);
+          const hasCoords = isValidCoord(lat, lng);
 
-          if (hRes.status === 'fulfilled') {
-            const list = hRes.value.data?.data || hRes.value.data || [];
-            setNearbyHospitals(Array.isArray(list) ? list.slice(0, 3) : []);
+          // 1. Fetch live Open-Meteo weather
+          if (hasCoords) {
+            setWeatherLoading(true);
+            api.get(`/weather/current?lat=${lat}&lng=${lng}&name=${encodeURIComponent(placeData.name)}&state=${encodeURIComponent(placeData.state || '')}&country=${encodeURIComponent(placeData.country || '')}`)
+              .then(wRes => setPlaceWeather(wRes.data?.data || wRes.data))
+              .catch(() => setPlaceWeather(null))
+              .finally(() => setWeatherLoading(false));
           }
-          if (pRes.status === 'fulfilled') {
-            const list = pRes.value.data?.data || pRes.value.data || [];
-            setNearbyPolice(Array.isArray(list) ? list.slice(0, 3) : []);
-          }
-          if (htRes.status === 'fulfilled') {
-            const list = htRes.value.data?.data || htRes.value.data || [];
-            setNearbyHotels(Array.isArray(list) ? list.slice(0, 3) : []);
-          }
-          if (rRes.status === 'fulfilled') {
-            const list = rRes.value.data?.data || rRes.value.data || [];
-            setNearbyRestaurants(Array.isArray(list) ? list.slice(0, 3) : []);
+
+          // 2. Fetch active temporary safety alerts for this destination
+          api.get('/temporary-alerts/active')
+            .then(aRes => {
+              const list = aRes.data?.data || aRes.data || [];
+              const pName = (placeData.name || '').toLowerCase();
+              const pCity = (placeData.city || '').toLowerCase();
+              const pState = (placeData.state || '').toLowerCase();
+              const matching = list.filter(alert => {
+                const aLoc = (alert.locationName || '').toLowerCase();
+                const aState = (alert.stateRegion || '').toLowerCase();
+                return (
+                  (pName && (aLoc.includes(pName) || pName.includes(aLoc))) ||
+                  (pCity && (aLoc.includes(pCity) || pCity.includes(aLoc))) ||
+                  (pState && (aState.includes(pState) || aLoc.includes(pState)))
+                );
+              });
+              setActiveAlerts(matching);
+            })
+            .catch(() => setActiveAlerts([]));
+
+          if (hasCoords) {
+            const [hRes, pRes, htRes, rRes] = await Promise.allSettled([
+              api.get(`/places/nearby?lat=${lat}&lng=${lng}&category=hospital`),
+              api.get(`/places/nearby?lat=${lat}&lng=${lng}&category=police`),
+              api.get(`/places/nearby?lat=${lat}&lng=${lng}&category=hotel`),
+              api.get(`/places/nearby?lat=${lat}&lng=${lng}&category=restaurant`)
+            ]);
+
+            if (hRes.status === 'fulfilled') {
+              const list = hRes.value.data?.data || hRes.value.data || [];
+              setNearbyHospitals(Array.isArray(list) ? list.slice(0, 3) : []);
+            }
+            if (pRes.status === 'fulfilled') {
+              const list = pRes.value.data?.data || pRes.value.data || [];
+              setNearbyPolice(Array.isArray(list) ? list.slice(0, 3) : []);
+            }
+            if (htRes.status === 'fulfilled') {
+              const list = htRes.value.data?.data || htRes.value.data || [];
+              setNearbyHotels(Array.isArray(list) ? list.slice(0, 3) : []);
+            }
+            if (rRes.status === 'fulfilled') {
+              const list = rRes.value.data?.data || rRes.value.data || [];
+              setNearbyRestaurants(Array.isArray(list) ? list.slice(0, 3) : []);
+            }
           }
         }
       } catch (_) {
@@ -257,7 +278,7 @@ const PlaceDetails = ({ darkMode }) => {
           crossOrigin="anonymous"
           alt={place.name}
           className="w-full h-full object-cover"
-          onError={() => setHeroImgSrc(getPlaceImage(place))}
+          onError={() => { if (heroImgSrc !== FALLBACK_PLACE_IMAGE) setHeroImgSrc(FALLBACK_PLACE_IMAGE); }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
 
@@ -342,6 +363,96 @@ const PlaceDetails = ({ darkMode }) => {
           </div>
         ))}
       </div>
+
+      {/* ── Active Temporary Safety Alert Banner (if any active alerts exist) ───────────────── */}
+      {activeAlerts.length > 0 && (
+        <div className="space-y-3">
+          {activeAlerts.map(alert => (
+            <div
+              key={alert.id}
+              className="p-4 rounded-3xl bg-rose-600/10 border-2 border-rose-500 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-3 text-rose-950 dark:text-rose-100"
+            >
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-black uppercase tracking-wide flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> TEMPORARY SAFETY ALERT
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-rose-200/80 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200 text-[10px] font-bold">
+                    Type: {alert.alertType}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 text-[10px] font-bold">
+                    Severity: {alert.severity}
+                  </span>
+                </div>
+                <h4 className="text-sm font-black m-0 leading-tight">
+                  {alert.title} — Tourist access may currently be restricted.
+                </h4>
+                <p className="text-xs text-rose-800 dark:text-rose-200 m-0 leading-relaxed">
+                  {alert.description}
+                </p>
+                {alert.safetyInstruction && (
+                  <p className="text-[11px] font-bold text-rose-700 dark:text-rose-300 m-0">
+                    Safety Advice: {alert.safetyInstruction}
+                  </p>
+                )}
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 m-0">
+                  Valid until: {new Date(alert.expiresAt).toLocaleString()} • Source: {alert.sourceName || 'Official Safety Authority'}
+                </p>
+              </div>
+
+              <Link
+                to={`/map?lat=${alert.latitude}&lng=${alert.longitude}&alertId=${alert.id}&zoom=12`}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs shrink-0 flex items-center justify-center gap-1 shadow-sm no-underline"
+              >
+                <Globe className="w-3.5 h-3.5" /> View Safety Area
+              </Link>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Live Weather Card ─────────────────────────────────────────────────── */}
+      {placeWeather && (
+        <div className="p-4 md:p-5 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-2xl bg-blue-50 border border-blue-100 text-2xl">
+              {placeWeather.weatherIcon || '☀️'}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-black text-slate-900 m-0">
+                  Current Weather at {place.name}
+                </h4>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-100 text-blue-800">
+                  Live Open-Meteo
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium m-0 mt-0.5">
+                {placeWeather.condition} • Feels like {placeWeather.feelsLike ?? placeWeather.temperature}°C
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 text-xs font-semibold text-slate-700">
+            <div className="text-center">
+              <span className="text-xl font-black text-slate-900 block">{placeWeather.temperature}°C</span>
+              <span className="text-[10px] text-slate-400 uppercase font-bold">Temperature</span>
+            </div>
+            <div className="text-center">
+              <span className="text-sm font-black text-slate-900 block">{placeWeather.humidity ?? '--'}%</span>
+              <span className="text-[10px] text-slate-400 uppercase font-bold">Humidity</span>
+            </div>
+            <div className="text-center">
+              <span className="text-sm font-black text-slate-900 block">{placeWeather.windSpeed ?? '--'} km/h</span>
+              <span className="text-[10px] text-slate-400 uppercase font-bold">Wind</span>
+            </div>
+            <div className="text-center">
+              <span className="text-sm font-black text-slate-900 block">{placeWeather.precipitation ?? '0'} mm</span>
+              <span className="text-[10px] text-slate-400 uppercase font-bold">Precip</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Tab Navigation ────────────────────────────────────────────────── */}
       <div className="flex gap-1.5 p-1 rounded-2xl border border-slate-200 bg-slate-100/90 w-fit">
@@ -520,24 +631,17 @@ const PlaceDetails = ({ darkMode }) => {
           </div>
 
           {hasMap ? (
-            <div className="h-72 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700">
-              <MapContainer
-                center={[place.latitude, place.longitude]}
-                zoom={13}
-                style={{ height: '100%', width: '100%' }}
-                scrollWheelZoom={false}
-              >
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution='&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>'
-                />
-                <Marker position={[place.latitude, place.longitude]} icon={destinationIcon}>
-                  <Popup>
-                    <strong>{place.name}</strong><br />
-                    {place.city}, {place.state}
-                  </Popup>
-                </Marker>
-              </MapContainer>
+            <div className="h-72 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 relative">
+              <iframe
+                title={`Map for ${place.name}`}
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                loading="lazy"
+                allowFullScreen
+                referrerPolicy="no-referrer-when-downgrade"
+                src={`https://www.google.com/maps?q=${place.latitude},${place.longitude}&hl=en&z=14&output=embed`}
+              />
             </div>
           ) : (
             <div className="h-48 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">

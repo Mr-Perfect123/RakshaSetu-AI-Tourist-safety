@@ -8,10 +8,15 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import TouristMap from '../components/TouristMap';
 import StateExplorer from '../components/StateExplorer';
+import IndiaStateExplorer from '../components/IndiaStateExplorer';
+import WorldwideLocationExplorer from '../components/WorldwideLocationExplorer';
+import WeatherCard from '../components/WeatherCard';
+import WeatherExplorerModal from '../components/WeatherExplorerModal';
+import TemporaryAlertDetailsModal from '../components/TemporaryAlertDetailsModal';
 import api from '../services/api';
 import axios from 'axios';
 import { useLanguage } from '../context/LanguageContext';
-import { getPlaceImage } from '../utils/placeImageHelper';
+import { getPlaceImage, FALLBACK_PLACE_IMAGE } from '../utils/placeImageHelper';
 
 const Dashboard = ({ tourist, darkMode }) => {
   const { t } = useLanguage();
@@ -21,8 +26,15 @@ const Dashboard = ({ tourist, darkMode }) => {
   const [currentGpsLocation, setCurrentGpsLocation] = useState({ lat: 11.0168, lng: 76.9558 });
   const [addressText, setAddressText] = useState(() => localStorage.getItem('rakshasetu_user_city') || 'Coimbatore, Tamil Nadu');
   const [weatherData, setWeatherData] = useState(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [isWeatherExplorerOpen, setIsWeatherExplorerOpen] = useState(false);
   const [safetyScore] = useState(92);
   const [riskLevel] = useState('Safe (Green)');
+
+  // ── Active Temporary Safety Alerts ──────────────────────────────────────────
+  const [activeTemporaryAlerts, setActiveTemporaryAlerts] = useState([]);
+  const [selectedAlertForDetails, setSelectedAlertForDetails] = useState(null);
+  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
 
   // ── Search ───────────────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
@@ -32,6 +44,23 @@ const Dashboard = ({ tourist, darkMode }) => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const searchRef = useRef(null);
   const abortRef = useRef(null);
+
+  // ── Load Real-Time Weather ────────────────────────────────────────────────────
+  const loadRealWeather = useCallback(async (lat, lng, name = '') => {
+    setWeatherLoading(true);
+    try {
+      const res = await api.get(`/weather/current?lat=${lat}&lng=${lng}${name ? `&name=${encodeURIComponent(name)}` : ''}`);
+      const wData = res.data?.data || res.data;
+      if (wData) setWeatherData(wData);
+    } catch (_) {
+      try {
+        const wRes = await api.get(`/places/weather?lat=${lat}&lng=${lng}`);
+        if (wRes.data?.data) setWeatherData(wRes.data.data);
+      } catch (_) {}
+    } finally {
+      setWeatherLoading(false);
+    }
+  }, []);
 
   // ── Category Counts ──────────────────────────────────────────────────────────
   const [categoryCounts, setCategoryCounts] = useState({
@@ -58,13 +87,21 @@ const Dashboard = ({ tourist, darkMode }) => {
   // ── Explore Section Tabs ─────────────────────────────────────────────────────
   const [exploreTab, setExploreTab] = useState('featured'); // 'featured' | 'states'
 
-  // ── Init: Geolocation + Weather + Category Counts + Danger Zones ────────────
+  // ── Init: Geolocation + Weather + Category Counts + Danger Zones + Temp Alerts ────────────
   useEffect(() => {
-    // Fetch danger zones
+    // Fetch active danger zones
     api.get('/zones')
       .then(res => {
         const list = res.data?.data || res.data || [];
         if (Array.isArray(list)) setDangerZones(list);
+      })
+      .catch(() => {});
+
+    // Fetch active temporary alerts
+    api.get('/temporary-alerts/active')
+      .then(res => {
+        const list = res.data?.data || res.data || [];
+        if (Array.isArray(list)) setActiveTemporaryAlerts(list);
       })
       .catch(() => {});
 
@@ -95,29 +132,31 @@ const Dashboard = ({ tourist, darkMode }) => {
               const clean = `${city}${state ? `, ${state}` : ''}`;
               setAddressText(clean);
               localStorage.setItem('rakshasetu_user_city', clean);
+              loadRealWeather(lat, lng, clean);
             } else if (res.data?.display_name) {
               const clean = res.data.display_name.split(',').slice(0, 3).join(', ');
               setAddressText(clean);
               localStorage.setItem('rakshasetu_user_city', clean);
+              loadRealWeather(lat, lng, clean);
             }
           } catch (_) {
             if (!localStorage.getItem('rakshasetu_user_city')) {
               setAddressText('Coimbatore, Tamil Nadu');
             }
+            loadRealWeather(lat, lng, 'Coimbatore, Tamil Nadu');
           }
-          try {
-            const wRes = await api.get(`/places/weather?lat=${lat}&lng=${lng}`);
-            if (wRes.data?.data) setWeatherData(wRes.data.data);
-          } catch (_) {}
         },
         () => {
           const savedCity = localStorage.getItem('rakshasetu_user_city') || 'Coimbatore, Tamil Nadu';
           setAddressText(savedCity);
+          loadRealWeather(11.0168, 76.9558, savedCity);
         },
         { timeout: 5000, maximumAge: 30000, enableHighAccuracy: false }
       );
+    } else {
+      loadRealWeather(11.0168, 76.9558, 'Coimbatore, Tamil Nadu');
     }
-  }, []);
+  }, [loadRealWeather]);
 
   // ── Fetch Explore Destinations ───────────────────────────────────────────────
   useEffect(() => {
@@ -391,45 +430,110 @@ const Dashboard = ({ tourist, darkMode }) => {
         </div>
       </div>
 
-      {/* ── 2. WEATHER & SAFETY INDEX CARD ──────────────────────────────────── */}
-      <div className="p-6 rounded-3xl bg-white/95 border border-slate-200/90 shadow-sm backdrop-blur-md text-slate-900 space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-          <div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 block mb-0.5">
-              Live Location Sentinel
-            </span>
-            <h3 className="text-xl font-black text-slate-900 m-0 flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-red-500 shrink-0" />
-              <span className="truncate">{addressText}</span>
-            </h3>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="px-3.5 py-1.5 rounded-2xl bg-emerald-50 text-emerald-700 text-xs font-black border border-emerald-200 whitespace-nowrap shadow-xs">
-              🛡️ Safety: {safetyScore}/100
-            </span>
-            <span className="px-3.5 py-1.5 rounded-2xl bg-blue-50 text-blue-700 text-xs font-black border border-blue-200 whitespace-nowrap shadow-xs">
-              {riskLevel}
-            </span>
-          </div>
+      {/* ── 2. REAL-TIME WEATHER SENTINEL & SAFETY ──────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Weather Card (2 cols on large screens) */}
+        <div className="lg:col-span-2">
+          <WeatherCard
+            weather={weatherData}
+            loading={weatherLoading}
+            onRefresh={() => loadRealWeather(currentGpsLocation.lat, currentGpsLocation.lng, addressText)}
+            onOpenExplorer={() => setIsWeatherExplorerOpen(true)}
+            darkMode={darkMode}
+          />
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
-          {[
-            { label: 'Temperature', value: weatherData?.temperature ? `${weatherData.temperature}°C` : '28°C', icon: Sun, color: 'text-amber-600' },
-            { label: 'Condition', value: weatherData?.condition || 'Clear & Pleasant', icon: CloudRain, color: 'text-blue-600' },
-            { label: 'Humidity', value: weatherData?.humidity ? `${weatherData.humidity}%` : '62%', icon: null, color: 'text-slate-800' },
-            { label: 'Wind Speed', value: weatherData?.windSpeed ? `${weatherData.windSpeed} km/h` : '12 km/h', icon: null, color: 'text-slate-800' }
-          ].map((item, i) => (
-            <div key={i} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 shadow-xs">
-              <span className="text-[10px] font-black text-slate-400 uppercase block mb-1">{item.label}</span>
-              <span className={`text-sm font-black ${item.color} flex items-center gap-1`}>
-                {item.icon && <item.icon className="w-4 h-4" />}
-                {item.value}
+        {/* Live Safety Sentinel Index Card */}
+        <div className={`p-6 rounded-3xl border shadow-sm backdrop-blur-md flex flex-col justify-between space-y-4 ${
+          darkMode ? 'bg-slate-900/90 border-slate-800 text-white' : 'bg-white/95 border-slate-200 text-slate-900'
+        }`}>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 block">
+                Live Location Sentinel
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-black border border-emerald-200 dark:border-emerald-800">
+                ACTIVE
               </span>
             </div>
-          ))}
+            <h3 className="text-base font-black m-0 flex items-center gap-1.5 truncate">
+              <MapPin className="w-4 h-4 text-red-500 shrink-0" />
+              <span className="truncate">{addressText}</span>
+            </h3>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium m-0 mt-1">
+              Real-time geofence & emergency dispatch monitoring active for this sector.
+            </p>
+          </div>
+
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Safety Index</span>
+              <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{safetyScore}/100</span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full" style={{ width: `${safetyScore}%` }} />
+            </div>
+            <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 pt-1">
+              <span>Risk Assessment</span>
+              <span className="text-blue-600 dark:text-blue-400">{riskLevel}</span>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* ── Active Temporary Safety Alerts Banner on Dashboard ── */}
+      {activeTemporaryAlerts && activeTemporaryAlerts.length > 0 && (
+        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-red-600/10 via-amber-600/10 to-orange-600/10 border border-red-200 dark:border-red-900/60 shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">⚠️</span>
+              <h3 className="text-xs sm:text-sm font-extrabold text-red-700 dark:text-red-400 uppercase tracking-wider m-0">
+                Active Temporary Safety Alerts ({activeTemporaryAlerts.length})
+              </h3>
+            </div>
+            <Link
+              to="/safety-map"
+              className="text-xs font-bold text-[#0D47A1] dark:text-blue-400 hover:underline flex items-center gap-1"
+            >
+              <span>View On Live Map</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            {activeTemporaryAlerts.slice(0, 4).map((alert) => (
+              <div
+                key={alert.id}
+                onClick={() => {
+                  setSelectedAlertForDetails(alert);
+                  setIsAlertModalOpen(true);
+                }}
+                className={`p-3.5 rounded-2xl border cursor-pointer transition-all hover:scale-[1.01] flex items-start justify-between gap-3 ${
+                  darkMode ? 'bg-slate-900/90 border-slate-800 hover:border-red-800' : 'bg-white border-red-100 hover:border-red-300'
+                }`}
+              >
+                <div className="space-y-1 min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-red-600 text-white">
+                      {alert.alert_type}
+                    </span>
+                    <span className="text-xs font-black truncate">{alert.title}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 m-0 truncate">
+                    📍 {alert.location_name} {alert.city ? `(${alert.city})` : ''}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="px-2.5 py-1 rounded-xl bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-300 text-[11px] font-bold shrink-0"
+                >
+                  Details
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── 3. QUICK ACTIONS GRID ───────────────────────────────────────────── */}
       <div className="p-6 rounded-3xl bg-white/95 border border-slate-200/90 shadow-sm backdrop-blur-md text-slate-900 space-y-4">
@@ -472,7 +576,7 @@ const Dashboard = ({ tourist, darkMode }) => {
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex gap-1.5 p-1 rounded-2xl border border-slate-200 bg-slate-100/90 w-fit">
+        <div className="flex gap-1.5 p-1 rounded-2xl border border-slate-200 bg-slate-100/90 w-fit flex-wrap">
           <button
             onClick={() => setExploreTab('featured')}
             className={`px-4 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
@@ -491,7 +595,17 @@ const Dashboard = ({ tourist, darkMode }) => {
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Flag className="w-3.5 h-3.5" /> Explore by Indian State
+            <Flag className="w-3.5 h-3.5 text-orange-500" /> 🇮🇳 India States & UTs (36)
+          </button>
+          <button
+            onClick={() => setExploreTab('world')}
+            className={`px-4 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+              exploreTab === 'world'
+                ? 'bg-[#0D47A1] text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5 text-blue-500" /> 🌍 Worldwide Explorer
           </button>
         </div>
 
@@ -508,8 +622,13 @@ const Dashboard = ({ tourist, darkMode }) => {
               />
             ))}
           </div>
+        ) : exploreTab === 'states' ? (
+          <IndiaStateExplorer
+            darkMode={darkMode}
+            currentGpsLocation={currentGpsLocation}
+          />
         ) : (
-          <StateExplorer
+          <WorldwideLocationExplorer
             darkMode={darkMode}
             currentGpsLocation={currentGpsLocation}
           />
@@ -637,7 +756,16 @@ const Dashboard = ({ tourist, darkMode }) => {
           </Link>
         </div>
         <div className="h-72 rounded-2xl overflow-hidden border border-slate-200 shadow-inner">
-          <TouristMap location={currentGpsLocation} dangerZones={dangerZones} darkMode={false} />
+          <TouristMap
+            location={currentGpsLocation}
+            dangerZones={dangerZones}
+            temporaryAlerts={activeTemporaryAlerts}
+            onSelectTemporaryAlert={(alert) => {
+              setSelectedAlertForDetails(alert);
+              setIsAlertModalOpen(true);
+            }}
+            darkMode={darkMode}
+          />
         </div>
       </div>
 
@@ -718,6 +846,29 @@ const Dashboard = ({ tourist, darkMode }) => {
           </div>
         )}
       </div>
+
+      {/* Worldwide Weather Explorer Modal */}
+      <WeatherExplorerModal
+        isOpen={isWeatherExplorerOpen}
+        onClose={() => setIsWeatherExplorerOpen(false)}
+        onSelectWeather={(selected) => {
+          setWeatherData(selected);
+          if (selected.locationName) setAddressText(selected.locationName);
+        }}
+        userLocation={currentGpsLocation}
+        darkMode={darkMode}
+      />
+
+      {/* Temporary Safety Alert Details Modal */}
+      <TemporaryAlertDetailsModal
+        isOpen={isAlertModalOpen}
+        onClose={() => {
+          setIsAlertModalOpen(false);
+          setSelectedAlertForDetails(null);
+        }}
+        alert={selectedAlertForDetails}
+        darkMode={darkMode}
+      />
     </div>
   );
 };
@@ -744,7 +895,7 @@ const FeaturedDestinationCard = ({ dest, darkMode, isSaved, onSave, onDirections
             crossOrigin="anonymous"
             alt={dest.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            onError={() => setImgSrc(getPlaceImage(dest))}
+            onError={() => { if (imgSrc !== FALLBACK_PLACE_IMAGE) setImgSrc(FALLBACK_PLACE_IMAGE); }}
             loading="lazy"
           />
           <button
@@ -826,7 +977,7 @@ const CategoryModalCard = ({ item, darkMode, isSaved, onSave, onDirections, onVi
             crossOrigin="anonymous"
             alt={item.name}
             className="w-full h-full object-cover"
-            onError={() => setImgSrc(getPlaceImage(item))}
+            onError={() => { if (imgSrc !== FALLBACK_PLACE_IMAGE) setImgSrc(FALLBACK_PLACE_IMAGE); }}
             loading="lazy"
           />
           {item.safetyScore && (
@@ -900,7 +1051,7 @@ const SearchResultRow = ({ place, darkMode, onSelect, onDirections, onSave, isSa
             crossOrigin="anonymous"
             alt={place.name}
             className="w-full h-full object-cover"
-            onError={() => setImgSrc(getPlaceImage(place))}
+            onError={() => { if (imgSrc !== FALLBACK_PLACE_IMAGE) setImgSrc(FALLBACK_PLACE_IMAGE); }}
           />
         </div>
 

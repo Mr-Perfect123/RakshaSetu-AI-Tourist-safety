@@ -4,20 +4,9 @@ import {
   Clock, Search, Activity, RefreshCw, Check, X, ShieldAlert,
   ArrowRight, ShieldCheck, Map
 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import AdminGoogleMap from '../components/AdminGoogleMap';
 import api from '../services/api';
 import socket from '../services/socket';
-
-const markerIcon = new L.Icon({
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-  shadowSize: [41, 41]
-});
 
 const Incidents = () => {
   const [incidents, setIncidents] = useState([]);
@@ -322,24 +311,32 @@ const Incidents = () => {
                 </div>
               </div>
 
-              {/* Map Preview (Requirement 19 - View on Map) */}
               {selectedIncident.latitude && selectedIncident.longitude && (
                 <div className="space-y-1.5">
                   <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Incident Location Preview</span>
                   <div className="h-44 rounded-2xl overflow-hidden border border-slate-200 relative z-0">
-                    <MapContainer
-                      center={[parseFloat(selectedIncident.latitude), parseFloat(selectedIncident.longitude)]}
+                    <AdminGoogleMap
+                      center={{ lat: parseFloat(selectedIncident.latitude), lng: parseFloat(selectedIncident.longitude) }}
                       zoom={14}
-                      zoomControl={false}
-                      scrollWheelZoom={false}
-                      className="w-full h-full"
-                    >
-                      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                      <Marker
-                        position={[parseFloat(selectedIncident.latitude), parseFloat(selectedIncident.longitude)]}
-                        icon={markerIcon}
-                      />
-                    </MapContainer>
+                      height="176px"
+                      markers={[{
+                        lat: parseFloat(selectedIncident.latitude),
+                        lng: parseFloat(selectedIncident.longitude),
+                        color: '#DC2626',
+                        scale: 9,
+                        title: selectedIncident.title,
+                        infoHtml: `<div style="font-family:sans-serif;padding:4px;"><strong>${selectedIncident.title}</strong><div style="font-size:10px;color:#64748b;">${selectedIncident.location_name || ''}</div></div>`
+                      }]}
+                      circles={[{
+                        lat: parseFloat(selectedIncident.latitude),
+                        lng: parseFloat(selectedIncident.longitude),
+                        radius: 300,
+                        strokeColor: '#DC2626',
+                        fillColor: '#EF4444',
+                        fillOpacity: 0.25
+                      }]}
+                      scrollWheel={false}
+                    />
                   </div>
                 </div>
               )}

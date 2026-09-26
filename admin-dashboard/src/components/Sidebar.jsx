@@ -16,7 +16,8 @@ import {
   Car,
   Utensils,
   ShieldAlert,
-  Ticket
+  Ticket,
+  Zap
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -25,6 +26,7 @@ const Sidebar = () => {
   const menuItems = [
     { name: t('sidebar.dashboard', 'Live Command Dashboard'), path: '/', icon: LayoutDashboard },
     { name: t('sidebar.sos', 'Emergency SOS Feed'), path: '/sos', icon: AlertOctagon, badge: 'Live' },
+    { name: t('sidebar.temporaryAlerts', 'Temporary Safety Alerts'), path: '/temporary-alerts', icon: Zap, badge: 'Dynamic' },
     { name: t('sidebar.alerts', 'Red Emergency Alerts'), path: '/red-alerts', icon: ShieldAlert, badge: 'Critical' },
     { name: t('sidebar.ai', 'AI Safety Chatbot'), path: '/ai-chat', icon: Bot, badge: 'Gemini' },
     { name: t('sidebar.incidents', 'Incident Reports'), path: '/incidents', icon: FileText },

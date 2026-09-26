@@ -6,6 +6,7 @@ import {
   MapPin, Sparkles
 } from 'lucide-react';
 import TouristMap, { calculateDistanceMeters, formatDistance, isValidCoord, getDangerZoneTheme, isPointInPolygon } from '../components/TouristMap';
+import TemporaryAlertDetailsModal from '../components/TemporaryAlertDetailsModal';
 import GeofenceEngine from '../utils/geofence';
 import api from '../services/api';
 import socket from '../services/socket';
@@ -37,6 +38,8 @@ const SafetyMap = ({ darkMode }) => {
       return [];
     }
   });
+  const [temporaryAlerts, setTemporaryAlerts] = useState([]);
+  const [selectedTemporaryAlert, setSelectedTemporaryAlert] = useState(null);
   const [safeLocations, setSafeLocations] = useState([]);
   const [nearbyHospitals, setNearbyHospitals] = useState([]);
   const [nearbyPolice, setNearbyPolice] = useState([]);
@@ -190,6 +193,7 @@ const SafetyMap = ({ darkMode }) => {
   // ── Layer Toggle Controls ─────────────────────────────────────────────────────
   const [layers, setLayers] = useState({
     safetyZones: true,
+    temporaryAlerts: true,
     dangerZones: true,
     highRiskZones: true,
     safeZones: true,
@@ -222,10 +226,10 @@ const SafetyMap = ({ darkMode }) => {
     let currentlyInsideZone = null;
 
     zonesList.forEach(zone => {
-      if (!zone.is_active && zone.is_active !== undefined) return;
+      if (!zone.is_active && zone.is_active !== undefined && zone.status !== 'ACTIVE') return;
       const zLat = parseFloat(zone.latitude);
       const zLng = parseFloat(zone.longitude);
-      if (!isValidCoord(zLat, zLng)) return;
+      if (!isValidCoord(zLat, zLng) && zone.geometry_type !== 'polygon') return;
 
       const zoneState = GeofenceEngine.getZoneState([curLat, curLng], zone);
       const newState = zoneState.state;
@@ -234,6 +238,8 @@ const SafetyMap = ({ darkMode }) => {
 
       const zoneId = zone.id || zone.zone_code || `${zLat}-${zLng}`;
       const prevState = zoneStatesRef.current[zoneId] || 'OUTSIDE';
+      const zoneName = zone.name || zone.title || 'Hazard Zone';
+      const hazardType = zone.danger_type || zone.alert_type || zone.crime_type || 'Safety Hazard';
 
       // State Transition Logic
       if (newState !== prevState) {
@@ -244,11 +250,11 @@ const SafetyMap = ({ darkMode }) => {
           setActiveEmergencyZone({ zone, dist, distanceInside });
           setMinimizedDangerBanner({ zone, dist, distanceInside });
           setApproachingAlert(null); // Clear approaching if jumped into inside
-          addAlertHistory(`🚨 Entered: ${zone.name} (${zone.danger_type || zone.crime_type || 'Hazard'})`);
+          addAlertHistory(`🚨 Entered: ${zoneName} (${hazardType})`);
         } else if (newState === 'APPROACHING' && prevState === 'OUTSIDE') {
           // APPROACHING -> Trigger warning toast
           setApproachingAlert({ zone, dist: Math.round(dist) });
-          addAlertHistory(`⚠️ Approaching: ${zone.name}`);
+          addAlertHistory(`⚠️ Approaching: ${zoneName}`);
           // Auto-dismiss approaching toast after 8 seconds
           setTimeout(() => setApproachingAlert(prev => (prev?.zone?.id === zone.id ? null : prev)), 8000);
         } else if (prevState === 'INSIDE' && newState !== 'INSIDE') {
@@ -256,7 +262,7 @@ const SafetyMap = ({ darkMode }) => {
           setActiveEmergencyZone(null);
           setMinimizedDangerBanner(null);
           setExitAlert({ zone });
-          addAlertHistory(`✅ Exited: ${zone.name}`);
+          addAlertHistory(`✅ Exited: ${zoneName}`);
           setTimeout(() => setExitAlert(null), 7000);
         }
       }
@@ -304,8 +310,8 @@ const SafetyMap = ({ darkMode }) => {
         return prev;
       });
 
-      // Run geofencing check
-      evaluateGeofences(lat, lng, dangerZones);
+      // Run geofencing check against permanent danger zones and dynamic temporary alerts
+      evaluateGeofences(lat, lng, [...dangerZones, ...temporaryAlerts]);
     };
 
     const onPositionError = (err) => {
@@ -349,16 +355,60 @@ const SafetyMap = ({ darkMode }) => {
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
     };
-  }, [evaluateGeofences, dangerZones]);
+  }, [evaluateGeofences, dangerZones, temporaryAlerts]);
+
+  // ── Socket.IO Real-Time Listener for Temporary Safety Alerts ───────────────────
+  useEffect(() => {
+    const handleAlertCreated = (alert) => {
+      if (!alert) return;
+      setTemporaryAlerts(prev => [alert, ...prev.filter(a => a.id !== alert.id)]);
+      addAlertHistory(`⚡ New Temporary Alert: ${alert.title}`);
+    };
+
+    const handleAlertUpdated = (alert) => {
+      if (!alert) return;
+      setTemporaryAlerts(prev => {
+        if (alert.status !== 'ACTIVE') {
+          return prev.filter(a => a.id !== alert.id);
+        }
+        return prev.map(a => a.id === alert.id ? alert : a);
+      });
+      addAlertHistory(`⚡ Alert Updated: ${alert.title}`);
+    };
+
+    const handleAlertResolved = (data) => {
+      const id = data?.id || data;
+      setTemporaryAlerts(prev => prev.filter(a => a.id !== id));
+      addAlertHistory(`✅ Alert Resolved`);
+    };
+
+    const handleAlertDeleted = (data) => {
+      const id = data?.id || data;
+      setTemporaryAlerts(prev => prev.filter(a => a.id !== id));
+    };
+
+    socket.on('temporary_alert_created', handleAlertCreated);
+    socket.on('temporary_alert_updated', handleAlertUpdated);
+    socket.on('temporary_alert_resolved', handleAlertResolved);
+    socket.on('temporary_alert_deleted', handleAlertDeleted);
+
+    return () => {
+      socket.off('temporary_alert_created', handleAlertCreated);
+      socket.off('temporary_alert_updated', handleAlertUpdated);
+      socket.off('temporary_alert_resolved', handleAlertResolved);
+      socket.off('temporary_alert_deleted', handleAlertDeleted);
+    };
+  }, [addAlertHistory]);
 
   // ── Parallel API Data Fetching with Local Caching ─────────────────────────────
   useEffect(() => {
     const fetchMapLayersData = async () => {
       setDataLoading(true);
       try {
-        const [zRes, sRes, hRes, pRes, htRes, rRes, aRes] = await Promise.allSettled([
+        const [zRes, tempRes, sRes, hRes, pRes, htRes, rRes, aRes] = await Promise.allSettled([
           api.get('/zones'),
-          api.get('/admin/safe-locations'),
+          api.get('/temporary-alerts/active'),
+          api.get('/locations/safe-locations'),
           api.get(`/places/nearby?lat=${mapCenter.lat}&lng=${mapCenter.lng}&category=hospital`),
           api.get(`/places/nearby?lat=${mapCenter.lat}&lng=${mapCenter.lng}&category=police`),
           api.get(`/places/nearby?lat=${mapCenter.lat}&lng=${mapCenter.lng}&category=hotel`),
@@ -373,6 +423,14 @@ const SafetyMap = ({ darkMode }) => {
             localStorage.setItem('rakshasetu_cached_danger_zones', JSON.stringify(list));
             // Trigger geofence evaluation with fresh data
             evaluateGeofences(gpsLocation.lat, gpsLocation.lng, list);
+          }
+        }
+
+        if (tempRes.status === 'fulfilled') {
+          const list = tempRes.value.data?.data || tempRes.value.data || [];
+          if (Array.isArray(list)) {
+            setTemporaryAlerts(list);
+            evaluateGeofences(gpsLocation.lat, gpsLocation.lng, [...dangerZones, ...list]);
           }
         }
 
@@ -742,6 +800,7 @@ const SafetyMap = ({ darkMode }) => {
 
   const layerCounts = {
     safetyZones: dangerZones.length + safeLocations.length,
+    temporaryAlerts: temporaryAlerts.length,
     dangerZones: dangerZones.filter(z => getSev(z) === 'critical' || getSev(z) === 'danger').length,
     highRiskZones: dangerZones.filter(z => getSev(z) === 'high').length,
     safeZones: safeLocations.length + dangerZones.filter(z => getSev(z) === 'safe' || getSev(z) === 'low').length,
@@ -1064,6 +1123,7 @@ const SafetyMap = ({ darkMode }) => {
           <div className="space-y-2 text-xs">
             {[
               { key: 'safetyZones', label: 'Safety Zones Overview', count: layerCounts.safetyZones, color: 'text-emerald-700 font-bold' },
+              { key: 'temporaryAlerts', label: '⚡ Temporary Safety Alerts', count: layerCounts.temporaryAlerts, color: 'text-amber-600 font-bold' },
               { key: 'dangerZones', label: '🔴 Danger Zones (Red)', count: layerCounts.dangerZones, color: 'text-red-600 font-bold' },
               { key: 'highRiskZones', label: '🟠 High Risk Zones (Orange)', count: layerCounts.highRiskZones, color: 'text-amber-600 font-bold' },
               { key: 'safeZones', label: '🟢 Safe Zones (Green)', count: layerCounts.safeZones, color: 'text-emerald-600 font-bold' },
@@ -1178,6 +1238,8 @@ const SafetyMap = ({ darkMode }) => {
             dangerZones={filteredDangerZones}
             safeLocations={filteredSafeLocations}
             nearbyPlaces={activeNearbyPlaces}
+            temporaryAlerts={layers.temporaryAlerts ? temporaryAlerts : []}
+            onSelectTemporaryAlert={(alert) => setSelectedTemporaryAlert(alert)}
             showRoute={Boolean(searchedDestination)}
             routeGeometry={osrmRouteGeometry}
             gpsAccuracy={gpsAccuracy}
@@ -1487,6 +1549,14 @@ const SafetyMap = ({ darkMode }) => {
             )}
           </div>
         </div>
+      )}
+
+      {/* Dynamic Temporary Alert Details Modal */}
+      {selectedTemporaryAlert && (
+        <TemporaryAlertDetailsModal
+          alert={selectedTemporaryAlert}
+          onClose={() => setSelectedTemporaryAlert(null)}
+        />
       )}
 
     </div>

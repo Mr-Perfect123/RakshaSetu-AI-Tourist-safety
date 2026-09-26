@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, PhoneCall, Sparkles, LogOut, Sun, Moon, Car, Utensils, Map, Ticket, Globe, Bookmark, User, MapPin } from 'lucide-react';
+import { Shield, PhoneCall, Sparkles, LogOut, Sun, Moon, Car, Utensils, Map, Ticket, Globe, Bookmark, User, MapPin, Compass } from 'lucide-react';
+
 import { Link, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import NotificationCenter from './NotificationCenter';
@@ -98,6 +99,15 @@ const Navbar = ({ tourist, onLogout, darkMode, toggleDarkMode }) => {
           <>
             {/* Nav Quick Links for Desktop */}
             <div className="hidden xl:flex items-center gap-1.5">
+              <Link
+                to="/explore"
+                className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1 transition-all ${
+                  darkMode ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <Compass className="w-3.5 h-3.5 text-blue-500" /> Explore
+              </Link>
+
               <Link
                 to="/safety-map"
                 className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1 transition-all ${

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Shield, Lock, Mail, ShieldAlert, ArrowRight, KeyRound } from 'lucide-react';
-import { useDispatch, useSelector } from 'react-redux';
+import { Shield, Lock, Mail, ShieldAlert, ArrowRight, KeyRound, Zap } from 'lucide-react';
+import { useDispatch } from 'react-redux';
 import { loginUser } from '../redux/authSlice';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
@@ -8,7 +8,7 @@ import api from '../services/api';
 const Login = () => {
   const [role, setRole] = useState('Admin');
   const [email, setEmail] = useState('admin@rakshasetu.com');
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState('Password@123');
   const [step, setStep] = useState(1); // 1 = Password, 2 = 2FA OTP
   const [otpCode, setOtpCode] = useState('');
   const [testOtp, setTestOtp] = useState('');
@@ -19,10 +19,10 @@ const Login = () => {
   const navigate = useNavigate();
 
   const rolePresets = {
-    Admin: { email: 'admin@rakshasetu.com', password: '', label: 'Admin Command' },
-    Police: { email: 'police@rakshasetu.gov.in', password: '', label: 'Police Dispatch' },
-    Hospital: { email: 'hospital@rakshasetu.gov.in', password: '', label: 'Hospital Emergency' },
-    Tourist: { email: 'john.tourist@example.com', password: '', label: 'Tourist Portal' }
+    Admin: { email: 'admin@rakshasetu.com', password: 'Password@123', label: 'Admin Command' },
+    Police: { email: 'police@rakshasetu.gov.in', password: 'Password@123', label: 'Police Dispatch' },
+    Hospital: { email: 'hospital@rakshasetu.gov.in', password: 'Password@123', label: 'Hospital Emergency' },
+    Tourist: { email: 'john.tourist@example.com', password: 'Password@123', label: 'Tourist Portal' }
   };
 
   const handleRoleSelect = (selectedRole) => {
@@ -33,6 +33,54 @@ const Login = () => {
     setLocalError('');
   };
 
+  const saveTokensAndNavigate = (token, user, refreshToken) => {
+    if (token) {
+      localStorage.setItem('token', token);
+      localStorage.setItem('rakshasetu_token', token);
+      localStorage.setItem('rakshasetu_admin_token', token);
+    }
+    if (refreshToken) {
+      localStorage.setItem('rakshasetu_refresh_token', refreshToken);
+    }
+    if (user) {
+      localStorage.setItem('rakshasetu_user', JSON.stringify(user));
+    }
+    window.location.href = '/';
+  };
+
+  const handleQuickAdminLogin = async () => {
+    setLoading(true);
+    setLocalError('');
+    try {
+      const res = await api.post('/auth/login', {
+        email: 'admin@rakshasetu.com',
+        password: 'Password@123'
+      });
+      const payload = res.data || res;
+      const token = payload.accessToken || res.accessToken;
+      const user = payload.user || res.user;
+      const refreshToken = payload.refreshToken || res.refreshToken;
+
+      if (token) {
+        saveTokensAndNavigate(token, user, refreshToken);
+      } else {
+        throw new Error('Token not received from login endpoint');
+      }
+    } catch (err) {
+      // Direct dispatch fallback
+      try {
+        const result = await dispatch(loginUser({ email: 'admin@rakshasetu.com', password: 'Password@123' }));
+        if (loginUser.fulfilled.match(result)) {
+          window.location.href = '/';
+          return;
+        }
+      } catch (_) {}
+      setLocalError(err.response?.data?.message || err.message || 'Quick Admin Login failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleStep1Submit = async (e) => {
     e.preventDefault();
     setLocalError('');
@@ -41,26 +89,35 @@ const Login = () => {
     try {
       if (role === 'Admin') {
         const res = await api.post('/auth/admin/login-step1', { email, password });
-        if (res.data && res.data.requiresOtp) {
-          setTestOtp(res.data.testAdminOtp || '');
+        const payload = res.data || res;
+        if (payload && payload.requiresOtp) {
+          const otp = payload.testAdminOtp || '123456';
+          setTestOtp(otp);
+          setOtpCode(otp);
           setStep(2);
         } else {
           // Direct login fallback
           const result = await dispatch(loginUser({ email, password }));
-          if (loginUser.fulfilled.match(result)) navigate('/');
+          if (loginUser.fulfilled.match(result)) {
+            window.location.href = '/';
+          }
         }
       } else {
         const result = await dispatch(loginUser({ email, password }));
-        if (loginUser.fulfilled.match(result)) navigate('/');
+        if (loginUser.fulfilled.match(result)) {
+          window.location.href = '/';
+        }
       }
     } catch (err) {
       // Fallback direct login attempt
-      const result = await dispatch(loginUser({ email, password }));
-      if (loginUser.fulfilled.match(result)) {
-        navigate('/');
-      } else {
-        setLocalError(err.response?.data?.message || err.message || 'Invalid login credentials.');
-      }
+      try {
+        const result = await dispatch(loginUser({ email, password }));
+        if (loginUser.fulfilled.match(result)) {
+          window.location.href = '/';
+          return;
+        }
+      } catch (_) {}
+      setLocalError(err.response?.data?.message || err.message || 'Invalid login credentials.');
     } finally {
       setLoading(false);
     }
@@ -73,18 +130,21 @@ const Login = () => {
 
     try {
       const res = await api.post('/auth/admin/verify-otp', { email, otp_code: otpCode });
-      if (res.data && res.data.accessToken) {
-        localStorage.setItem('token', res.data.accessToken);
-        localStorage.setItem('rakshasetu_token', res.data.accessToken);
-        localStorage.setItem('rakshasetu_user', JSON.stringify(res.data.user));
-        window.location.href = '/';
+      const payload = res.data || res;
+      const token = payload.accessToken || res.accessToken;
+      const user = payload.user || res.user;
+      const refreshToken = payload.refreshToken || res.refreshToken;
+
+      if (token) {
+        saveTokensAndNavigate(token, user, refreshToken);
+      } else {
+        throw new Error('Access token missing in OTP response');
       }
     } catch (err) {
       setLocalError(err.response?.data?.message || err.message || 'Invalid 2FA OTP verification code.');
     } finally {
       setLoading(false);
     }
-
   };
 
   return (
@@ -170,11 +230,23 @@ const Login = () => {
                 </>
               )}
             </button>
+
+            {/* Quick 1-Click Dev Admin Login */}
+            <button
+              type="button"
+              onClick={handleQuickAdminLogin}
+              disabled={loading}
+              className="w-full py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs border border-amber-300 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+            >
+              <Zap className="w-4 h-4 text-amber-600 fill-amber-500" />
+              <span>⚡ 1-Click Instant Admin Access</span>
+            </button>
           </form>
         ) : (
           <form onSubmit={handleVerifyAdminOtp} className="space-y-4">
             <div className="p-3 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-[11px] font-bold text-center">
               🔐 2FA OTP Dispatched to {email}
+              {testOtp && <span className="block text-xs font-mono text-purple-700 mt-1">Dev Code: <strong>{testOtp}</strong></span>}
             </div>
 
             <div>
@@ -188,7 +260,7 @@ const Login = () => {
                   placeholder="Enter 6-digit OTP"
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-slate-900 bg-slate-50 text-xs font-mono tracking-widest font-bold focus:ring-2 focus:ring-[#0D47A1] focus:bg-white focus:outline-none"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-slate-900 bg-slate-50 text-xs font-mono tracking-widest font-bold focus:ring-2 focus:ring-[#0D47A1] focus:bg-white focus:outline-none text-center text-lg"
                 />
               </div>
             </div>

@@ -23,6 +23,7 @@ import LiveChat from './pages/LiveChat';
 import MyBookings from './pages/MyBookings';
 import SavedPlaces from './pages/SavedPlaces';
 import ProfilePage from './pages/ProfilePage';
+import ExplorePage from './pages/ExplorePage';
 import FloatingChatbot from './components/FloatingChatbot';
 import PrivacySettings from './pages/PrivacySettings';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -224,6 +225,7 @@ function App() {
               <Route path="/privacy" element={tourist ? <PrivacySettings darkMode={darkMode} /> : <Navigate to="/login" replace />} />
               <Route path="/chat" element={tourist ? <LiveChat tourist={tourist} darkMode={darkMode} /> : <Navigate to="/login" replace />} />
               <Route path="/bookings" element={tourist ? <MyBookings darkMode={darkMode} /> : <Navigate to="/login" replace />} />
+              <Route path="/explore" element={<ExplorePage darkMode={darkMode} />} />
               <Route path="/saved" element={tourist ? <SavedPlaces darkMode={darkMode} /> : <Navigate to="/login" replace />} />
               <Route path="/profile" element={tourist ? <ProfilePage tourist={tourist} onLogout={() => handleLogout(false)} darkMode={darkMode} /> : <Navigate to="/login" replace />} />
 

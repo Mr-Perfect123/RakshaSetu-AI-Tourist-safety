@@ -10,7 +10,8 @@ class LocationController {
   static getNearbySafeLocations = asyncHandler(async (req, res) => {
     const { latitude, longitude, radiusKm = 10, type } = req.query;
     if (!latitude || !longitude) {
-      throw new ApiError(400, 'Latitude and longitude coordinates are required for finding nearby safe locations.');
+      const locations = await SafeLocation.findAll();
+      return res.status(200).json(new ApiResponse(200, locations, 'Safe locations retrieved.'));
     }
     const lat = parseFloat(latitude);
     const lng = parseFloat(longitude);

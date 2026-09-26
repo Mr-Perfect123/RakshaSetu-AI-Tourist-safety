@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const PlaceController = require('../controllers/placeController');
+const LocationController = require('../controllers/locationController');
 
 router.get('/category-counts', PlaceController.getCategoryCounts);
 router.get('/states', PlaceController.getStates);
@@ -11,6 +12,7 @@ router.get('/details', PlaceController.getGooglePlaceDetails);
 router.get('/nearby', PlaceController.getNearbyPlaces);
 router.get('/weather', PlaceController.getWeather);
 router.get('/details/:id', PlaceController.getPlaceDetails);
+router.get('/safe-locations', LocationController.getNearbySafeLocations);
 router.get('/:id/safety-analysis', PlaceController.getPlaceSafetyAnalysis);
 router.get('/:id', PlaceController.getPlaceDetails);
 

@@ -20,6 +20,7 @@ const pool = mysql.createPool(dbConfig);
 const inMemoryStore = {
   users: [
     { id: 1, full_name: 'Admin Controller', email: 'admin@rakshasetu.gov.in', phone: '+919876543210', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Admin', status: 'active', is_verified: 1, email_verified: 1, phone_verified: 1, latitude: 28.6139, longitude: 77.2090, nationality: 'Indian' },
+    { id: 10, full_name: 'Admin Command', email: 'admin@rakshasetu.com', phone: '+919876543299', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Admin', status: 'active', is_verified: 1, email_verified: 1, phone_verified: 1, latitude: 28.6139, longitude: 77.2090, nationality: 'Indian' },
     { id: 2, full_name: 'Police HQ Dispatcher', email: 'police@rakshasetu.gov.in', phone: '+919876543211', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Police', status: 'active', is_verified: 1, email_verified: 1, phone_verified: 1, latitude: 28.6145, longitude: 77.2085, nationality: 'Indian' },
     { id: 3, full_name: 'City Hospital Emergency', email: 'hospital@rakshasetu.gov.in', phone: '+919876543212', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Hospital', status: 'active', is_verified: 1, email_verified: 1, phone_verified: 1, latitude: 28.6160, longitude: 77.2110, nationality: 'Indian' },
     { id: 4, full_name: 'John Doe Tourist', email: 'john.tourist@example.com', phone: '+919876543213', password: '$2a$10$7vN3gW.t.dGgQ6K2KxR0eu/x3b2mGzB9o1x8t3y0z1w2v3u4t5s6e', role: 'Tourist', status: 'in_emergency', is_verified: 0, email_verified: 0, phone_verified: 0, latitude: 28.6120, longitude: 77.2050, nationality: 'American', passport_number: 'US-98421034', gender: 'male', hotel_address: 'The Grand Heritage Hotel, Connaught Place, New Delhi', blood_group: 'O+', emergency_medical_info: 'Asthma - Carries inhaler' },
@@ -54,6 +55,38 @@ const inMemoryStore = {
     { id: 2, user_id: 5, contact_name: 'Pierre Laurent', contact_phone: '+33699887766', relationship: 'Father', priority_order: 1, is_primary: 1 },
     { id: 3, user_id: 6, contact_name: 'Yoko Sato', contact_phone: '+819088776655', relationship: 'Wife', priority_order: 1, is_primary: 1 },
     { id: 4, user_id: 7, contact_name: 'David Jenkins', contact_phone: '+447700900112', relationship: 'Brother', priority_order: 1, is_primary: 1 }
+  ],
+  temporary_safety_alerts: [
+    {
+      id: 1,
+      alert_code: 'TSA-CBE-ROAD-001',
+      title: 'Temporary Road Closure',
+      description: 'road construction and road maintenance',
+      alert_type: 'Temporary Road Closure',
+      severity: 'low',
+      status: 'ACTIVE',
+      location_name: 'coimbatore, tamilnadu',
+      country: 'India',
+      state: 'Tamil Nadu',
+      city: 'Coimbatore',
+      latitude: 11.0168,
+      longitude: 76.9558,
+      geometry_type: 'circle',
+      radius_meters: 1000,
+      warning_distance_meters: 200,
+      polygon_coordinates: null,
+      safety_instruction: 'Road construction active. Follow local diversion signs and drive with caution.',
+      source_type: 'Official Authority',
+      source_name: 'Coimbatore City Traffic Police',
+      source_url: 'https://coimbatorepolice.tn.gov.in',
+      is_verified: 1,
+      starts_at: new Date(Date.now() - 3600000).toISOString(),
+      expires_at: new Date(Date.now() + 7 * 86400000).toISOString(),
+      resolved_at: null,
+      created_by: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
   ],
   danger_zones: [
   {
@@ -3522,6 +3555,11 @@ const testConnection = async () => {
     
     // Ensure all global metadata columns exist on danger_zones table
     const columnsToAdd = [
+      { name: 'category', type: 'VARCHAR(100) DEFAULT NULL' },
+      { name: 'danger_type', type: 'VARCHAR(100) DEFAULT NULL' },
+      { name: 'geometry_type', type: "ENUM('circle', 'polygon') DEFAULT 'circle'" },
+      { name: 'status', type: "ENUM('active', 'inactive', 'pending_review', 'expired', 'rejected') DEFAULT 'active'" },
+      { name: 'is_verified', type: 'BOOLEAN DEFAULT TRUE' },
       { name: 'source', type: 'VARCHAR(255) DEFAULT NULL' },
       { name: 'source_url', type: 'VARCHAR(255) DEFAULT NULL' },
       { name: 'confidence', type: 'VARCHAR(50) DEFAULT "MEDIUM"' },
@@ -3531,7 +3569,12 @@ const testConnection = async () => {
       { name: 'expires_at', type: 'TIMESTAMP NULL DEFAULT NULL' },
       { name: 'incident_count', type: 'INT DEFAULT 1' },
       { name: 'related_incident_ids', type: 'TEXT DEFAULT NULL' },
-      { name: 'last_incident_at', type: 'TIMESTAMP NULL DEFAULT NULL' }
+      { name: 'last_incident_at', type: 'TIMESTAMP NULL DEFAULT NULL' },
+      { name: 'warning_distance_meters', type: 'INT DEFAULT 200' },
+      { name: 'safety_instructions', type: 'TEXT DEFAULT NULL' },
+      { name: 'recommended_action', type: 'TEXT DEFAULT NULL' },
+      { name: 'network_status', type: "VARCHAR(50) DEFAULT 'available'" },
+      { name: 'is_sample_data', type: 'BOOLEAN DEFAULT FALSE' }
     ];
 
     for (const col of columnsToAdd) {
@@ -3555,10 +3598,20 @@ const testConnection = async () => {
 
 testConnection();
 
+const isoDateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z?$/;
+
+const sanitizeParam = (p) => {
+  if (typeof p === 'string' && isoDateRegex.test(p)) {
+    return p.slice(0, 19).replace('T', ' ');
+  }
+  return p;
+};
+
 const executeQuery = async (sql, params = []) => {
+  const cleanParams = Array.isArray(params) ? params.map(sanitizeParam) : params;
   if (dbConnected) {
     try {
-      const [rows] = await pool.execute(sql, params);
+      const [rows] = await pool.query(sql, cleanParams);
       return rows;
     } catch (err) {
       console.error(`[Database Error] SQL Execution failed: ${err.message}. Falling back to in-memory store.`);
@@ -3980,6 +4033,87 @@ const executeQuery = async (sql, params = []) => {
     if (cleanSql.includes('delete from')) {
       const id = parseInt(params[0], 10);
       inMemoryStore.danger_zones = inMemoryStore.danger_zones.filter(z => z.id !== id);
+      return { affectedRows: 1 };
+    }
+  }
+
+  if (cleanSql.includes('temporary_safety_alerts')) {
+    if (!inMemoryStore.temporary_safety_alerts) inMemoryStore.temporary_safety_alerts = [];
+
+    if (cleanSql.includes('select')) {
+      let list = [...inMemoryStore.temporary_safety_alerts];
+      if (cleanSql.includes('id =')) {
+        const id = parseInt(params[0], 10);
+        return list.filter(a => a.id === id);
+      }
+      if (cleanSql.includes("status = 'active'") || cleanSql.includes("status = 'ACTIVE'")) {
+        const now = new Date().toISOString();
+        return list.filter(a => (a.status === 'ACTIVE' || a.status === 'active') && (!a.expires_at || new Date(a.expires_at) > new Date()));
+      }
+      if (params.length > 0 && typeof params[0] === 'string' && ['ACTIVE', 'DRAFT', 'RESOLVED', 'EXPIRED', 'DISABLED'].includes(params[0].toUpperCase())) {
+        const s = params[0].toUpperCase();
+        return list.filter(a => (a.status || '').toUpperCase() === s);
+      }
+      return list;
+    }
+
+    if (cleanSql.includes('insert into')) {
+      const newAlert = {
+        id: inMemoryStore.temporary_safety_alerts.length + 1,
+        alert_code: params[0] || `TSA-${Date.now().toString().slice(-6)}`,
+        title: params[1] || 'Temporary Safety Alert',
+        description: params[2] || '',
+        alert_type: params[3] || 'Other',
+        severity: params[4] || 'high',
+        status: params[5] || 'ACTIVE',
+        location_name: params[6] || 'Monitored Area',
+        country: params[7] || null,
+        state: params[8] || null,
+        city: params[9] || null,
+        latitude: parseFloat(params[10]) || 0,
+        longitude: parseFloat(params[11]) || 0,
+        geometry_type: params[12] || 'circle',
+        radius_meters: parseInt(params[13], 10) || 500,
+        warning_distance_meters: parseInt(params[14], 10) || 200,
+        polygon_coordinates: params[15] || null,
+        safety_instruction: params[16] || null,
+        source_type: params[17] || 'Official Authority',
+        source_name: params[18] || 'District Administration',
+        source_url: params[19] || null,
+        is_verified: params[20] !== undefined ? params[20] : 1,
+        starts_at: params[21] || new Date().toISOString(),
+        expires_at: params[22] || null,
+        created_by: params[23] || 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      inMemoryStore.temporary_safety_alerts.unshift(newAlert);
+      return { insertId: newAlert.id, affectedRows: 1 };
+    }
+
+    if (cleanSql.includes('update')) {
+      const id = parseInt(params[params.length - 1], 10);
+      const alert = inMemoryStore.temporary_safety_alerts.find(a => a.id === id);
+      if (alert) {
+        if (cleanSql.includes("status = 'RESOLVED'") || cleanSql.includes("status = 'resolved'")) {
+          alert.status = 'RESOLVED';
+          alert.resolved_at = new Date().toISOString();
+        } else if (cleanSql.includes("status = 'DISABLED'") || cleanSql.includes("status = 'disabled'")) {
+          alert.status = 'DISABLED';
+        } else if (cleanSql.includes("status = 'EXPIRED'") || cleanSql.includes("status = 'expired'")) {
+          alert.status = 'EXPIRED';
+        } else if (cleanSql.includes("status = 'ACTIVE'") || cleanSql.includes("status = 'active'")) {
+          alert.status = 'ACTIVE';
+        }
+        alert.updated_at = new Date().toISOString();
+        return { affectedRows: 1 };
+      }
+      return { affectedRows: 0 };
+    }
+
+    if (cleanSql.includes('delete from')) {
+      const id = parseInt(params[0], 10);
+      inMemoryStore.temporary_safety_alerts = inMemoryStore.temporary_safety_alerts.filter(a => a.id !== id);
       return { affectedRows: 1 };
     }
   }

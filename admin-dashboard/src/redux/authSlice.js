@@ -11,7 +11,9 @@ export const loginUser = createAsyncThunk('auth/loginUser', async (credentials, 
     const user = payload.user || res.user;
 
     if (token) {
+      localStorage.setItem('token', token);
       localStorage.setItem('rakshasetu_token', token);
+      localStorage.setItem('rakshasetu_admin_token', token);
     }
     if (refreshToken) {
       localStorage.setItem('rakshasetu_refresh_token', refreshToken);

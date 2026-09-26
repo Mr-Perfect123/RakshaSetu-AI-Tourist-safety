@@ -1,12 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   AlertTriangle, Plus, ShieldCheck, MapPin, CheckCircle2, 
   ToggleLeft, ToggleRight, Trash2, Edit3, X, Save, RefreshCw,
   Radio, Eye, AlertOctagon, Info
 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup, Circle, Polygon, Polyline, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import AdminGoogleMap from '../components/AdminGoogleMap';
 import api from '../services/api';
 
 // Danger type options with standard categories
@@ -25,15 +23,7 @@ const DANGER_TYPES = [
   { value: 'OTHER', label: '🛡️ Other Safety Hazard', color: '#64748B' }
 ];
 
-// Map Click Picker component for Admin coordinate selection
-const MapClickPicker = ({ onLocationSelected }) => {
-  useMapEvents({
-    click(e) {
-      onLocationSelected(e.latlng.lat, e.latlng.lng);
-    }
-  });
-  return null;
-};
+
 
 const DangerZonesMgmt = () => {
   const [zones, setZones] = useState([]);
@@ -498,7 +488,7 @@ const DangerZonesMgmt = () => {
         {/* Spatial Preview Map & Zone Directory (Cols 2 & 3) */}
         <div className="lg:col-span-2 space-y-6">
           
-          {/* Interactive Leaflet Placement Map */}
+          {/* Google Maps Interactive Placement Map */}
           <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-black text-slate-900 uppercase tracking-wider m-0 flex items-center gap-1.5">
@@ -510,89 +500,69 @@ const DangerZonesMgmt = () => {
             </div>
 
             <div className="h-64 rounded-2xl overflow-hidden border border-slate-200 shadow-inner relative z-0">
-              <MapContainer center={[curLat, curLng]} zoom={13} scrollWheelZoom={true} className="w-full h-full">
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                <MapClickPicker onLocationSelected={handleMapLocationSelect} />
-
-                {/* Current Active Form Preview Circle or Polygon */}
-                {geometryType === 'polygon' && polygonPoints.length >= 2 ? (
-                  <>
-                    <Polyline positions={polygonPoints} pathOptions={{ color: '#7C3AED', weight: 3, dashArray: '4, 4' }} />
-                    {polygonPoints.length >= 3 && (
-                      <Polygon positions={polygonPoints} pathOptions={{ color: '#7C3AED', fillColor: '#A78BFA', fillOpacity: 0.35, weight: 3 }} />
-                    )}
-                  </>
-                ) : (
-                  <Circle
-                    center={[curLat, curLng]}
-                    radius={curRadius}
-                    pathOptions={{ color: '#DC2626', fillColor: '#EF4444', fillOpacity: 0.35, weight: 3 }}
-                  />
-                )}
-
-                {/* All Existing Registered Zones (Circle & Polygon) */}
-                {zones.map((z) => {
-                  const lat = parseFloat(z.latitude);
-                  const lng = parseFloat(z.longitude);
-                  if (isNaN(lat) || isNaN(lng)) return null;
-
-                  let zPoly = null;
-                  if (z.geometry_type === 'polygon' && z.polygon_coordinates) {
-                    try {
-                      const raw = typeof z.polygon_coordinates === 'string' ? JSON.parse(z.polygon_coordinates) : z.polygon_coordinates;
-                      if (Array.isArray(raw) && raw.length >= 3) {
-                        zPoly = raw.map(pt => Array.isArray(pt) ? [parseFloat(pt[0]), parseFloat(pt[1])] : [parseFloat(pt.lat ?? pt.latitude), parseFloat(pt.lng ?? pt.longitude)]);
-                      }
-                    } catch {}
-                  }
-
-                  const popupContent = (
-                    <Popup>
-                      <div className="p-1 text-xs space-y-1">
-                        <strong className="block text-slate-900">{z.name}</strong>
-                        <span className="text-[10px] font-bold text-slate-500">{z.geometry_type === 'polygon' ? '🔷 Polygon' : '🔵 Circle'} • {z.danger_type || 'THEFT'}</span>
-                      </div>
-                    </Popup>
-                  );
-
-                  if (zPoly) {
-                    return (
-                      <Polygon
-                        key={`preview-zone-${z.id}`}
-                        positions={zPoly}
-                        pathOptions={{
-                          color: z.is_active ? '#7C3AED' : '#94A3B8',
+              <AdminGoogleMap
+                center={{ lat: curLat, lng: curLng }}
+                zoom={13}
+                height="256px"
+                drawingMode={geometryType}
+                onMapClick={handleMapLocationSelect}
+                markers={[
+                  // Current form center marker
+                  ...(!isNaN(curLat) && !isNaN(curLng) && geometryType === 'circle' ? [{
+                    lat: curLat, lng: curLng,
+                    color: '#DC2626', scale: 8,
+                    title: `Selected: ${curLat.toFixed(4)}, ${curLng.toFixed(4)}`
+                  }] : []),
+                  // Polygon vertex markers
+                  ...polygonPoints.map((pt, i) => ({
+                    lat: pt[0], lng: pt[1],
+                    color: '#7C3AED', scale: 7,
+                    title: `Vertex ${i + 1}`
+                  }))
+                ]}
+                circles={[
+                  // Current form circle preview
+                  ...(geometryType === 'circle' && !isNaN(curLat) ? [{
+                    lat: curLat, lng: curLng, radius: curRadius,
+                    strokeColor: '#DC2626', fillColor: '#EF4444', fillOpacity: 0.35
+                  }] : []),
+                  // Existing zone circles
+                  ...zones
+                    .filter(z => z.geometry_type !== 'polygon' && !isNaN(parseFloat(z.latitude)))
+                    .map(z => ({
+                      lat: parseFloat(z.latitude), lng: parseFloat(z.longitude),
+                      radius: z.radius_meters || 500,
+                      strokeColor: z.is_active ? '#EA580C' : '#94A3B8',
+                      fillColor: z.is_active ? '#F97316' : '#CBD5E1',
+                      fillOpacity: 0.2,
+                      infoHtml: `<div style="font-family:sans-serif;padding:4px;"><strong style="font-size:12px;">${z.name}</strong><div style="font-size:10px;color:#64748b;">🔵 Circle • ${z.danger_type || 'THEFT'}</div></div>`
+                    }))
+                ]}
+                polygons={[
+                  // Current form polygon preview
+                  ...(geometryType === 'polygon' && polygonPoints.length >= 3 ? [{
+                    paths: polygonPoints,
+                    strokeColor: '#7C3AED', fillColor: '#A78BFA', fillOpacity: 0.35
+                  }] : []),
+                  // Existing zone polygons
+                  ...zones
+                    .filter(z => z.geometry_type === 'polygon' && z.polygon_coordinates)
+                    .map(z => {
+                      try {
+                        const raw = typeof z.polygon_coordinates === 'string' ? JSON.parse(z.polygon_coordinates) : z.polygon_coordinates;
+                        if (!Array.isArray(raw) || raw.length < 3) return null;
+                        return {
+                          paths: raw.map(pt => Array.isArray(pt) ? [parseFloat(pt[0]), parseFloat(pt[1])] : [parseFloat(pt.lat ?? pt.latitude), parseFloat(pt.lng ?? pt.longitude)]),
+                          strokeColor: z.is_active ? '#7C3AED' : '#94A3B8',
                           fillColor: z.is_active ? '#8B5CF6' : '#CBD5E1',
                           fillOpacity: 0.25,
-                          weight: 2
-                        }}
-                      >
-                        {popupContent}
-                      </Polygon>
-                    );
-                  }
-
-                  return (
-                    <Circle
-                      key={`preview-zone-${z.id}`}
-                      center={[lat, lng]}
-                      radius={z.radius_meters || 500}
-                      pathOptions={{
-                        color: z.is_active ? '#EA580C' : '#94A3B8',
-                        fillColor: z.is_active ? '#F97316' : '#CBD5E1',
-                        fillOpacity: 0.2,
-                        weight: 1.5,
-                        dashArray: z.is_active ? null : '4, 6'
-                      }}
-                    >
-                      {popupContent}
-                    </Circle>
-                  );
-                })}
-              </MapContainer>
+                          infoHtml: `<div style="font-family:sans-serif;padding:4px;"><strong>${z.name}</strong><div style="font-size:10px;color:#64748b;">🔷 Polygon • ${z.danger_type || 'THEFT'}</div></div>`
+                        };
+                      } catch { return null; }
+                    })
+                    .filter(Boolean)
+                ]}
+              />
             </div>
           </div>
 

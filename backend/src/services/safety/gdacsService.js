@@ -6,7 +6,7 @@
 const SafetyValidationService = require('./safetyValidationService');
 
 class GdacsService {
-  static FEED_URL = 'https://www.gdacs.org/gdacsapi/api/events/geteventlist/geojson';
+  static FEED_URL = 'https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?pagesize=50';
 
   /**
    * Fetch and normalize active disaster events from GDACS

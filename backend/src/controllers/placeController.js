@@ -4,6 +4,7 @@ const ApiError = require('../utils/apiError');
 const axios = require('axios');
 const { executeQuery } = require('../config/database');
 const GooglePlacesService = require('../services/googlePlacesService');
+const WeatherService = require('../services/weatherService');
 
 // ─── Phonetic & Misspelling Aliases ───────────────────────────────────────────
 const SPELLING_ALIASES = {
@@ -89,7 +90,7 @@ const DESTINATIONS = [
     address: 'Brihadeeswara Temple, Thanjavur, Tamil Nadu 613001, India',
     latitude: 10.7828, longitude: 79.1317,
     description: 'A UNESCO World Heritage Site and masterpiece of Chola architecture. The 66-metre granite vimana (tower) is one of the tallest temple towers in the world.',
-    photos: ['https://images.unsplash.com/photo-1600100397608-f010f444f4ab?auto=format&fit=crop&w=800&q=80'],
+    photos: ['https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=800&q=80'],
     openingHours: '06:00 AM – 12:30 PM, 04:00 PM – 08:30 PM', rating: 4.8, safetyScore: 95, riskLevel: 'Safe (Green)'
   },
   {
@@ -100,7 +101,7 @@ const DESTINATIONS = [
     address: 'Ramanathaswamy Temple, Rameswaram, Ramanathapuram, Tamil Nadu 623526, India',
     latitude: 9.2881, longitude: 79.3174,
     description: 'One of the twelve Jyotirlinga temples sacred to Hinduism, located on Pamban Island. Known for its magnificent corridors, the longest in any Hindu temple.',
-    photos: ['https://images.unsplash.com/photo-1600100397608-f010f444f4ab?auto=format&fit=crop&w=800&q=80'],
+    photos: ['https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=800&q=80'],
     openingHours: '05:00 AM – 01:00 PM, 03:00 PM – 09:00 PM', rating: 4.9, safetyScore: 94, riskLevel: 'Safe (Green)'
   },
   {
@@ -111,7 +112,7 @@ const DESTINATIONS = [
     address: 'Shore Temple, Mamallapuram (Mahabalipuram), Chengalpattu, Tamil Nadu 603104, India',
     latitude: 12.6269, longitude: 80.1927,
     description: 'UNESCO World Heritage Site featuring 7th–8th century Pallava rock-cut monuments and temples. The Shore Temple overlooking the Bay of Bengal is an iconic sight.',
-    photos: ['https://images.unsplash.com/photo-1600100397608-f010f444f4ab?auto=format&fit=crop&w=800&q=80'],
+    photos: ['https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=800&q=80'],
     openingHours: '06:00 AM – 06:00 PM', rating: 4.7, safetyScore: 91, riskLevel: 'Safe (Green)'
   },
 
@@ -260,7 +261,7 @@ const DESTINATIONS = [
     address: 'City Palace, Tulsi Marg, Gangori Bazaar, Jaipur, Rajasthan 302002, India',
     latitude: 26.9258, longitude: 75.8237,
     description: 'Royal complex of palaces, courtyards, and gardens in the heart of the Pink City. Home to the Maharaja of Jaipur and the iconic Hawa Mahal (Palace of Winds).',
-    photos: ['https://images.unsplash.com/photo-1603262110263-fb010d6e59d4?auto=format&fit=crop&w=800&q=80'],
+    photos: ['https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=800&q=80'],
     openingHours: '09:30 AM – 05:00 PM', rating: 4.7, safetyScore: 88, riskLevel: 'Safe (Green)'
   },
   {
@@ -328,7 +329,7 @@ const DESTINATIONS = [
     address: 'Ajanta Caves, Aurangabad, Maharashtra 431117, India',
     latitude: 20.5519, longitude: 75.7033,
     description: 'UNESCO World Heritage Site — 30 rock-cut Buddhist cave monuments dating from the 2nd century BCE to 480 CE with extraordinary paintings and sculptures.',
-    photos: ['https://images.unsplash.com/photo-1600100397608-f010f444f4ab?auto=format&fit=crop&w=800&q=80'],
+    photos: ['https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=800&q=80'],
     openingHours: '09:00 AM – 05:30 PM (Closed Mondays)', rating: 4.8, safetyScore: 92, riskLevel: 'Safe (Green)'
   },
   {
@@ -604,7 +605,7 @@ const DESTINATIONS = [
     address: 'Hampi, Vijayanagara, Karnataka 583239, India',
     latitude: 15.3350, longitude: 76.4600,
     description: 'UNESCO World Heritage Site and former capital of the Vijayanagara Empire. Boulder-strewn landscape peppered with 500+ monuments including the Virupaksha Temple, Stone Chariot, and Vittala Temple.',
-    photos: ['https://images.unsplash.com/photo-1600100397608-f010f444f4ab?auto=format&fit=crop&w=800&q=80'],
+    photos: ['https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=800&q=80'],
     openingHours: '06:00 AM – 06:00 PM', rating: 4.8, safetyScore: 89, riskLevel: 'Safe (Green)'
   },
   {
@@ -615,7 +616,7 @@ const DESTINATIONS = [
     address: 'Mysore Palace, Sayyaji Rao Rd, Mysuru, Karnataka 570001, India',
     latitude: 12.3052, longitude: 76.6552,
     description: 'Historical palace that was the residence of the Wadiyar dynasty. One of the most visited monuments in India, especially spectacular when illuminated with 97,000 light bulbs during Dasara.',
-    photos: ['https://images.unsplash.com/photo-1600100397608-f010f444f4ab?auto=format&fit=crop&w=800&q=80'],
+    photos: ['https://images.unsplash.com/photo-1590766940554-634a7ed41450?auto=format&fit=crop&w=800&q=80'],
     openingHours: '10:00 AM – 05:30 PM', rating: 4.9, safetyScore: 93, riskLevel: 'Safe (Green)'
   },
   {
@@ -696,7 +697,7 @@ const DESTINATIONS = [
     address: 'Golden Temple Rd, Atta Mandi, Katra Ahluwalia, Amritsar, Punjab 143006, India',
     latitude: 31.6200, longitude: 74.8765,
     description: 'The holiest shrine of Sikhism, a stunning gold-plated gurdwara set in a sacred pool (Amrit Sarovar). Serves langar (free community meals) to 100,000 people daily regardless of religion.',
-    photos: ['https://images.unsplash.com/photo-1588096344356-9b49741e57a2?auto=format&fit=crop&w=800&q=80'],
+    photos: ['https://images.unsplash.com/photo-1584551246679-0daf3d275d0f?auto=format&fit=crop&w=800&q=80'],
     openingHours: 'Open 24 Hours', rating: 5.0, safetyScore: 97, riskLevel: 'Very Safe (Green)'
   },
   {
@@ -779,7 +780,7 @@ const DESTINATIONS = [
     address: 'Sun Temple, Konark, Puri, Odisha 752111, India',
     latitude: 19.8876, longitude: 86.0944,
     description: 'UNESCO World Heritage Site — a 13th-century Sun Temple conceived as a colossal stone chariot of the Sun God Surya with 24 decorated wheels and seven horses.',
-    photos: ['https://images.unsplash.com/photo-1600100397608-f010f444f4ab?auto=format&fit=crop&w=800&q=80'],
+    photos: ['https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=800&q=80'],
     openingHours: 'Open 24 Hours (Museum: 10:00 AM – 05:00 PM)', rating: 4.8, safetyScore: 92, riskLevel: 'Safe (Green)'
   },
 
@@ -1366,29 +1367,25 @@ class PlaceController {
 
     const latitude = parseFloat(lat);
     const longitude = parseFloat(lng);
-    let fullAddress = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
 
-    try {
-      const geoRes = await axios.get(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
-        { headers: { 'User-Agent': 'RakshaSetu/2.0' }, timeout: 4000 }
-      );
-      if (geoRes.data?.address) {
-        const a = geoRes.data.address;
-        const city = a.city || a.town || a.village || a.suburb || a.county || 'Sector';
-        fullAddress = [city, a.state, a.country].filter(Boolean).join(', ');
-      }
-    } catch (_) {}
+    const weather = await WeatherService.getWeatherByCoordinates({
+      lat: latitude,
+      lng: longitude
+    });
 
     return res.status(200).json(
       new ApiResponse(200, {
-        temperature: 28,
-        condition: 'Clear & Pleasant',
-        humidity: 62,
-        windSpeed: 12,
-        locationName: fullAddress,
-        fullAddress
-      }, 'Weather retrieved.')
+        temperature: weather.temperature,
+        condition: weather.weatherCondition,
+        humidity: weather.humidity,
+        windSpeed: weather.windSpeed,
+        precipitation: weather.precipitation,
+        precipitationProbability: weather.precipitationProbability,
+        icon: weather.icon,
+        locationName: weather.locationName,
+        fullAddress: weather.locationName,
+        warnings: weather.warnings || []
+      }, 'Live weather retrieved.')
     );
   });
 

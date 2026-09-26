@@ -14,6 +14,7 @@ import DatabaseMgmt from './pages/DatabaseMgmt';
 import AiChat from './pages/AiChat';
 import DangerZonesMgmt from './pages/DangerZonesMgmt';
 import RedAlertsAdmin from './pages/RedAlertsAdmin';
+import TemporaryAlertsAdmin from './pages/TemporaryAlertsAdmin';
 import VehicleBookingsAdmin from './pages/VehicleBookingsAdmin';
 import FoodOrdersAdmin from './pages/FoodOrdersAdmin';
 import TravelBookingsAdmin from './pages/TravelBookingsAdmin';
@@ -57,7 +58,14 @@ class ErrorBoundary extends React.Component {
 
 /* ── App ───────────────────────────────────────────────────────── */
 const App = () => {
-  const token = localStorage.getItem('rakshasetu_token') || localStorage.getItem('token') || 'demo_token';
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem('rakshasetu_user') || 'null');
+  } catch (_) {}
+
+  const rawToken = localStorage.getItem('rakshasetu_admin_token') || localStorage.getItem('rakshasetu_token') || localStorage.getItem('token');
+  const isTourist = user && (user.role || '').toLowerCase() === 'tourist';
+  const token = (rawToken && rawToken !== 'undefined' && rawToken !== 'null' && rawToken !== 'demo_token' && !isTourist) ? rawToken : null;
 
   return (
     <LanguageProvider>
@@ -85,6 +93,7 @@ const App = () => {
                           <Route path="/responders" element={<RespondersPage />} />
                           <Route path="/analytics" element={<AnalyticsPage />} />
                           <Route path="/zones" element={<DangerZonesMgmt />} />
+                          <Route path="/temporary-alerts" element={<TemporaryAlertsAdmin />} />
                           <Route path="/red-alerts" element={<RedAlertsAdmin />} />
                           <Route path="/vehicle-bookings" element={<VehicleBookingsAdmin />} />
                           <Route path="/travel-bookings" element={<TravelBookingsAdmin />} />

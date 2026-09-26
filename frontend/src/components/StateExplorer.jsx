@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { MapPin, Navigation, Heart, Star, Shield, ChevronRight, X, Loader2, AlertCircle, Globe, Flag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { getPlaceImage } from '../utils/placeImageHelper';
+import { getPlaceImage, FALLBACK_PLACE_IMAGE } from '../utils/placeImageHelper';
 
 // State emoji flags & representative images for quick recognition
 const STATE_META = {
@@ -49,7 +49,7 @@ const DestinationCard = ({ dest, darkMode, savedIds, onToggleSave, onDirections 
           crossOrigin="anonymous"
           alt={dest.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          onError={() => setImgSrc(getPlaceImage(dest))}
+          onError={() => { if (imgSrc !== FALLBACK_PLACE_IMAGE) setImgSrc(FALLBACK_PLACE_IMAGE); }}
           loading="lazy"
         />
 

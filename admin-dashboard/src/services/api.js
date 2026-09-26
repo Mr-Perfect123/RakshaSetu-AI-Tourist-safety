@@ -50,11 +50,11 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = 
-      localStorage.getItem("token") || 
+      localStorage.getItem("rakshasetu_admin_token") || 
       localStorage.getItem("rakshasetu_token") || 
-      localStorage.getItem("rakshasetu_admin_token");
+      localStorage.getItem("token");
       
-    if (token && token !== 'undefined' && token !== 'null') {
+    if (token && token !== 'undefined' && token !== 'null' && token !== 'demo_token') {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -66,6 +66,18 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
+    const isAuthError = error.response?.status === 401;
+    const isRoleError = error.response?.status === 403 && String(error.response?.data?.message || '').toLowerCase().includes('tourist');
+
+    if (isAuthError || isRoleError) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("rakshasetu_token");
+      localStorage.removeItem("rakshasetu_admin_token");
+      localStorage.removeItem("rakshasetu_user");
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
     const errorData = error.response?.data;
     const message = (typeof errorData === 'object' && errorData?.message) || (typeof errorData === 'string' && errorData) || error.message || 'Bad Request (400)';
     const customError = new Error(typeof message === 'string' ? message : JSON.stringify(message));
