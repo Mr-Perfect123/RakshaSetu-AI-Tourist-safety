@@ -123,7 +123,7 @@ const Dashboard = ({ tourist, darkMode }) => {
           try {
             const res = await axios.get(
               `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
-              { headers: { 'User-Agent': 'RakshaSetu/2.0' }, timeout: 3500 }
+              { timeout: 3500 }
             );
             if (res.data?.address) {
               const addr = res.data.address;

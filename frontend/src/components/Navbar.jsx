@@ -19,7 +19,6 @@ const Navbar = ({ tourist, onLogout, darkMode, toggleDarkMode }) => {
           const lng = pos.coords.longitude;
           try {
             const res = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
-              headers: { 'User-Agent': 'RakshaSetu/1.0' },
               timeout: 3000
             });
             if (res.data?.address) {

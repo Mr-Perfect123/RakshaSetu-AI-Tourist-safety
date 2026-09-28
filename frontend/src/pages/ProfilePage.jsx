@@ -22,11 +22,43 @@ const ProfilePage = ({ tourist, onLogout, darkMode }) => {
   const [activeTab, setActiveTab] = useState('profile');
 
   useEffect(() => {
+    if (tourist) {
+      setProfileData((prev) => ({
+        ...prev,
+        full_name: tourist.full_name || prev.full_name,
+        email: tourist.email || prev.email,
+        phone: tourist.phone || prev.phone,
+        nationality: tourist.nationality || prev.nationality,
+        passport_number: tourist.passport_number || prev.passport_number,
+        emergency_contact_name: tourist.emergency_contact_name || prev.emergency_contact_name,
+        emergency_contact_phone: tourist.emergency_contact_phone || prev.emergency_contact_phone
+      }));
+    }
+  }, [tourist]);
+
+  useEffect(() => {
     const fetchProfile = async () => {
       try {
         const res = await api.get('/tourist/profile');
         if (res.data?.data) {
-          setProfileData((prev) => ({ ...prev, ...res.data.data }));
+          const d = res.data.data;
+          const u = d.user || d;
+          const primaryContact = Array.isArray(d.emergency_contacts) && d.emergency_contacts.length > 0
+            ? d.emergency_contacts[0]
+            : null;
+
+          setProfileData((prev) => ({
+            ...prev,
+            full_name: u.full_name || prev.full_name,
+            email: u.email || prev.email,
+            phone: u.phone || prev.phone,
+            nationality: u.nationality || prev.nationality,
+            passport_number: u.passport_number || prev.passport_number,
+            emergency_contact_name: d.emergency_contact_name || u.emergency_contact_name || primaryContact?.contact_name || prev.emergency_contact_name,
+            emergency_contact_phone: d.emergency_contact_phone || u.emergency_contact_phone || primaryContact?.contact_phone || prev.emergency_contact_phone,
+            medical_info: d.health?.medical_conditions || prev.medical_info,
+            preferred_language: u.preferred_language || prev.preferred_language
+          }));
         }
       } catch (e) {}
     };

@@ -1,5 +1,6 @@
 const SosRequest = require('../models/SosRequest');
 const EmergencyContact = require('../models/EmergencyContact');
+const User = require('../models/User');
 const NotificationService = require('../services/notificationService');
 const { broadcastSosAlert, broadcastSosStatusChange } = require('../socket/sosSocket');
 const ApiResponse = require('../utils/response');
@@ -41,8 +42,75 @@ class SosController {
     const emergencyMedicalInfo = req.user?.emergency_medical_info || sos.emergency_medical_info || 'None reported';
 
     // Fetch Emergency Contacts to send SMS & Push
-    const contacts = await EmergencyContact.findByUserId(userId);
-    NotificationService.notifyEmergencyContacts(contacts, touristName, latitude, longitude, sos.sos_code);
+    let contacts = await EmergencyContact.findByUserId(userId);
+    if (!Array.isArray(contacts)) contacts = [];
+
+    // Also fetch fresh user to get latest emergency_contacts JSON array & phone
+    let dbUser = req.user;
+    if (userId) {
+      try {
+        const fresh = await User.findById(userId);
+        if (fresh) dbUser = fresh;
+      } catch (_) {}
+    }
+
+    // Merge contacts from users.emergency_contacts JSON array
+    if (dbUser?.emergency_contacts) {
+      let extraContacts = dbUser.emergency_contacts;
+      if (typeof extraContacts === 'string') {
+        try {
+          extraContacts = JSON.parse(extraContacts);
+        } catch (_) {
+          extraContacts = [];
+        }
+      }
+      if (Array.isArray(extraContacts)) {
+        for (const ec of extraContacts) {
+          const ph = ec.phone || ec.contact_phone;
+          if (ph && !contacts.some(c => (c.contact_phone || c.phone) === ph)) {
+            contacts.push({
+              contact_name: ec.name || ec.contact_name || 'Emergency Contact',
+              contact_phone: ph,
+              relationship: ec.relationship || 'Family',
+              is_primary: Boolean(ec.is_primary)
+            });
+          }
+        }
+      }
+    }
+
+    // Also include direct emergency contact from users table if configured
+    const userEmergencyPhone = dbUser?.emergency_contact_phone;
+    const userEmergencyName = dbUser?.emergency_contact_name || 'Emergency Contact';
+    if (userEmergencyPhone) {
+      const alreadyIncluded = contacts.some(c => (c.contact_phone || c.phone) === userEmergencyPhone);
+      if (!alreadyIncluded) {
+        contacts.unshift({
+          contact_name: userEmergencyName,
+          contact_phone: userEmergencyPhone,
+          relationship: 'Primary Contact',
+          is_primary: 1
+        });
+      }
+    }
+
+    if (contacts.length === 0 && touristPhone) {
+      contacts = [
+        {
+          contact_name: touristName,
+          contact_phone: touristPhone,
+          relationship: 'Self'
+        }
+      ];
+    }
+    NotificationService.notifyEmergencyContacts(contacts, touristName, latitude, longitude, sos.sos_code, {
+      userId,
+      customerId: userId,
+      userPhone: touristPhone,
+      emergencyType: dangerType || triggerType || 'SOS Emergency',
+      sosId: sos.id,
+      address
+    }).catch(() => {});
     NotificationService.notifyAdminsOfSos(touristName, latitude, longitude, sos.sos_code, address);
 
     const dangerInfoPrefix = dangerType ? `[⚠️ DANGER ZONE: ${dangerType} (${severity || 'HIGH'})] ` : '';

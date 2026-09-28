@@ -339,7 +339,6 @@ const SafetyMap = ({ darkMode }) => {
         const { latitude, longitude } = pos.coords;
         try {
           const res = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`, {
-            headers: { 'User-Agent': 'RakshaSetu/2.0' },
             timeout: 3500
           });
           if (res.data?.display_name) {

@@ -1,13 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Heart, Plus, Trash2, Phone, User, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 
 const EmergencyContacts = ({ tourist, darkMode }) => {
-  const [contacts, setContacts] = useState([
-    { id: 1, contact_name: 'Jane Doe', contact_phone: '+14155550199', relationship: 'Spouse', is_primary: 1 },
-    { id: 2, contact_name: 'Robert Doe', contact_phone: '+14155550299', relationship: 'Brother', is_primary: 0 }
-  ]);
+  const [contacts, setContacts] = useState(
+    tourist?.emergency_contact_phone
+      ? [{
+          id: 1,
+          contact_name: tourist?.emergency_contact_name || 'Emergency Contact',
+          contact_phone: tourist?.emergency_contact_phone,
+          relationship: 'Primary Contact',
+          is_primary: 1
+        }]
+      : [
+          { id: 1, contact_name: 'Jane Doe', contact_phone: '+14155550199', relationship: 'Spouse', is_primary: 1 },
+          { id: 2, contact_name: 'Robert Doe', contact_phone: '+14155550299', relationship: 'Brother', is_primary: 0 }
+        ]
+  );
 
   const [newContact, setNewContact] = useState({ contactName: '', contactPhone: '', relationship: 'Family' });
   const [medicalInfo, setMedicalInfo] = useState({
@@ -18,20 +28,50 @@ const EmergencyContacts = ({ tourist, darkMode }) => {
 
   const [savedSuccess, setSavedSuccess] = useState(false);
 
+  useEffect(() => {
+    let isMounted = true;
+    const fetchContacts = async () => {
+      try {
+        const res = await api.get('/user/emergency-contacts');
+        const list = Array.isArray(res?.data?.data) ? res.data.data : (Array.isArray(res?.data) ? res.data : []);
+        if (isMounted && Array.isArray(list) && list.length > 0) {
+          setContacts(list);
+        }
+      } catch (e) {
+        // Retain default contacts fallback
+      }
+    };
+    fetchContacts();
+    return () => { isMounted = false; };
+  }, []);
+
   const handleAddContact = async (e) => {
     e.preventDefault();
     if (!newContact.contactName || !newContact.contactPhone) return;
 
     try {
-      await api.post('/user/emergency-contacts', newContact);
+      const res = await api.post('/user/emergency-contacts', newContact);
+      const created = res?.data?.data || res?.data || res;
+      setContacts((prev) => [
+        ...prev,
+        {
+          id: created?.id || Date.now(),
+          contact_name: created?.contactName || created?.contact_name || newContact.contactName,
+          contact_phone: created?.contactPhone || created?.contact_phone || newContact.contactPhone,
+          relationship: created?.relationship || newContact.relationship,
+          is_primary: created?.isPrimary ? 1 : 0
+        }
+      ]);
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3000);
     } catch (err) {
       console.log('Added to local contacts');
+      setContacts((prev) => [
+        ...prev,
+        { id: Date.now(), contact_name: newContact.contactName, contact_phone: newContact.contactPhone, relationship: newContact.relationship, is_primary: 0 }
+      ]);
     }
 
-    setContacts((prev) => [
-      ...prev,
-      { id: Date.now(), contact_name: newContact.contactName, contact_phone: newContact.contactPhone, relationship: newContact.relationship, is_primary: 0 }
-    ]);
     setNewContact({ contactName: '', contactPhone: '', relationship: 'Family' });
   };
 
@@ -88,7 +128,14 @@ const EmergencyContacts = ({ tourist, darkMode }) => {
                 <p className="text-xs font-mono font-bold text-primary">{c.contact_phone}</p>
               </div>
               <button
-                onClick={() => setContacts((prev) => prev.filter((item) => item.id !== c.id))}
+                onClick={async () => {
+                  if (c.id && typeof c.id === 'number') {
+                    try {
+                      await api.delete(`/user/emergency-contacts/${c.id}`);
+                    } catch (_) {}
+                  }
+                  setContacts((prev) => prev.filter((item) => item.id !== c.id));
+                }}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-danger hover:bg-white"
               >
                 <Trash2 className="w-4 h-4" />

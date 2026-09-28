@@ -57,8 +57,8 @@ class AuthController {
       const bcrypt = require('bcryptjs');
       const hashedPassword = await bcrypt.hash(password, 10);
       await executeQuery(
-        `UPDATE users SET full_name = ?, phone = ?, password = ?, nationality = ?, gender = ?, is_verified = FALSE, email_verified = FALSE, phone_verified = FALSE WHERE id = ?`,
-        [full_name, phone, hashedPassword, nationality, gender, userIdToUse]
+        `UPDATE users SET full_name = ?, phone = ?, password = ?, nationality = ?, gender = ?, emergency_contact_phone = ?, emergency_contact_name = ?, is_verified = FALSE, email_verified = FALSE, phone_verified = FALSE WHERE id = ?`,
+        [full_name, phone, hashedPassword, nationality, gender, emergency_contact_phone || null, emergency_contact_name || null, userIdToUse]
       );
     }
 
@@ -87,14 +87,16 @@ class AuthController {
         password,
         role: 'Tourist',
         nationality,
-        gender
+        gender,
+        emergency_contact_phone: emergency_contact_phone || null,
+        emergency_contact_name: emergency_contact_name || null
       });
     }
 
     // Update extended identity columns
     await executeQuery(
-      `UPDATE users SET dob = ?, profile_image_path = ?, id_type = ?, id_number = ?, id_proof_url = ?, email_verified = FALSE, phone_verified = FALSE, is_verified = FALSE WHERE id = ?`,
-      [dob || null, profile_image_path, id_type || null, id_number || null, id_proof_url, user.id]
+      `UPDATE users SET dob = ?, profile_image_path = ?, id_type = ?, id_number = ?, id_proof_url = ?, emergency_contact_phone = ?, emergency_contact_name = ?, email_verified = FALSE, phone_verified = FALSE, is_verified = FALSE WHERE id = ?`,
+      [dob || null, profile_image_path, id_type || null, id_number || null, id_proof_url, emergency_contact_phone || null, emergency_contact_name || null, user.id]
     );
 
     // 2. Insert Government ID Document record
@@ -125,6 +127,16 @@ class AuthController {
       await executeQuery(
         `INSERT INTO emergency_contacts (user_id, contact_name, contact_phone, relationship, email, is_primary) VALUES (?, ?, ?, ?, ?, TRUE)`,
         [user.id, emergency_contact_name, emergency_contact_phone, emergency_contact_relationship || 'Family', emergency_contact_email || null]
+      );
+      const contactsArray = [{
+        name: emergency_contact_name,
+        phone: emergency_contact_phone,
+        relationship: emergency_contact_relationship || 'Family',
+        is_primary: true
+      }];
+      await executeQuery(
+        `UPDATE users SET emergency_contacts = ? WHERE id = ?`,
+        [JSON.stringify(contactsArray), user.id]
       );
     }
 

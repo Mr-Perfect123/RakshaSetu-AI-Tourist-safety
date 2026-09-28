@@ -1,8 +1,10 @@
 const rateLimit = require('express-rate-limit');
 
+const isDev = process.env.NODE_ENV !== 'production' || process.env.DEV_OTP_ENABLED === 'true';
+
 const globalRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300, // limit each IP to 300 requests per windowMs
+  max: isDev ? 10000 : 500, // Generous limit in dev to allow interactive dashboard testing
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -14,7 +16,7 @@ const globalRateLimiter = rateLimit({
 
 const authRateLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  max: 20, // max 20 login/register attempts
+  max: isDev ? 500 : 30, // max attempts
   message: {
     success: false,
     statusCode: 429,
@@ -24,7 +26,7 @@ const authRateLimiter = rateLimit({
 
 const sosRateLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
-  max: 10, // Allows rapid SOS triggers in genuine panic without crashing server
+  max: isDev ? 100 : 15, // Allows rapid SOS triggers in genuine panic without crashing server
   message: {
     success: false,
     statusCode: 429,

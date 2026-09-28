@@ -290,7 +290,7 @@ const VehicleBooking = ({ darkMode }) => {
       // Bias results to India; also send countrycodes=in for most accurate results
       const res = await axios.get(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(text)}&format=json&limit=3&countrycodes=in&addressdetails=1`,
-        { headers: { 'User-Agent': 'RakshaSetu/2.0' }, timeout: 2500 }
+        { timeout: 2500 }
       );
       if (res.data && res.data.length > 0) {
         // Prefer results that have 'India' or have a state/city classification

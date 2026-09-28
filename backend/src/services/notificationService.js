@@ -1,5 +1,6 @@
 const firebaseApp = require('../config/firebase');
 const twilioClient = require('../config/twilio');
+const textBeeService = require('./textBeeService');
 const logger = require('../utils/logger');
 require('dotenv').config();
 
@@ -122,19 +123,76 @@ class NotificationService {
   }
 
   /**
-   * Dispatch Emergency SOS Alert to All Contacts
+   * Dispatch Emergency SOS Alert to All Contacts via TextBee & Fallback
    */
-  static async notifyEmergencyContacts(contacts, touristName, latitude, longitude, sosCode) {
-    const mapsLink = `https://maps.google.com/?q=${latitude},${longitude}`;
-    const smsMessage = `🚨 EMERGENCY ALERT: ${touristName} triggered RakshaSetu SOS! Code: ${sosCode}. GPS Location: ${mapsLink}. Emergency Responders Notified!`;
+  static async notifyEmergencyContacts(contacts, touristName, latitude, longitude, sosCode, metadata = {}) {
+    const mapsLink = (latitude !== undefined && latitude !== null && longitude !== undefined && longitude !== null)
+      ? `https://www.google.com/maps?q=${latitude},${longitude}`
+      : 'Location broadcast unavailable';
+    const legacySmsMessage = `🚨 EMERGENCY ALERT: It's emergency help me! ${touristName} triggered RakshaSetu SOS! Code: ${sosCode}. GPS Location: ${mapsLink}. Emergency Responders Notified!`;
 
     const results = [];
-    for (const contact of contacts) {
-      if (contact.contact_phone) {
-        const res = await this.sendSMS(contact.contact_phone, smsMessage);
-        results.push({ contact: contact.contact_name, phone: contact.contact_phone, status: res });
+
+    if (!Array.isArray(contacts) || contacts.length === 0) {
+      logger.info(`[NotificationService] No emergency contacts registered for ${touristName}. Emergency SMS skipped.`);
+      return results;
+    }
+
+    // Collect all valid unique phone numbers across contacts
+    const phoneList = [];
+    for (const c of contacts) {
+      const p = c.contact_phone || c.phone;
+      if (p && !phoneList.includes(p)) {
+        phoneList.push(p);
       }
     }
+
+    if (phoneList.length === 0) {
+      logger.info(`[NotificationService] No phone numbers found in emergency contacts for ${touristName}.`);
+      return results;
+    }
+
+    logger.info(`[NotificationService] Dispatching emergency SOS alert to all ${phoneList.length} contact numbers: ${phoneList.join(', ')}`);
+
+    // 1. Dispatch via TextBee REST API to all emergency contact numbers
+    let textBeeBatchRes = null;
+    try {
+      textBeeBatchRes = await textBeeService.sendEmergencySMS({
+        customerId: metadata.userId || metadata.customerId,
+        customerName: touristName,
+        customerPhone: metadata.userPhone || metadata.touristPhone,
+        recipientPhones: phoneList,
+        latitude,
+        longitude,
+        sosCode,
+        sosId: metadata.sosId
+      });
+    } catch (tbErr) {
+      logger.error(`[NotificationService] TextBee batch dispatch exception: ${tbErr.message}`);
+      textBeeBatchRes = { success: false, error: tbErr.message };
+    }
+
+    // 2. Loop through each contact to record result & legacy fallback
+    for (const contact of contacts) {
+      const phone = contact.contact_phone || contact.phone;
+      const contactName = contact.contact_name || contact.name || 'Emergency Contact';
+      if (!phone) continue;
+
+      let legacyRes = null;
+      try {
+        legacyRes = await this.sendSMS(phone, legacySmsMessage);
+      } catch (err) {
+        legacyRes = { success: false, error: err.message };
+      }
+
+      results.push({
+        contact: contactName,
+        phone,
+        textBee: textBeeBatchRes,
+        status: legacyRes
+      });
+    }
+
     return results;
   }
 

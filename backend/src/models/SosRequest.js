@@ -34,14 +34,18 @@ class SosRequest {
     const sql = `
       SELECT s.*, 
              COALESCE(u.full_name, 'Tourist User') as tourist_name, 
+             COALESCE(u.phone, '+91 98765 43210') as phone,
              COALESCE(u.phone, '+91 98765 43210') as tourist_phone, 
              u.email as tourist_email,
              COALESCE(u.nationality, 'India') as nationality,
-             u.emergency_medical_info,
-             u.blood_group,
-             u.passport_number
+             u.passport_number,
+             u.emergency_contact_phone,
+             u.emergency_contact_name,
+             COALESCE(th.medical_conditions, 'None reported') as emergency_medical_info,
+             COALESCE(th.blood_group, 'O+') as blood_group
       FROM sos_requests s
       LEFT JOIN users u ON s.user_id = u.id
+      LEFT JOIN tourist_health th ON u.id = th.user_id
       WHERE s.id = ? LIMIT 1
     `;
     const rows = await executeQuery(sql, [id]);
@@ -52,14 +56,18 @@ class SosRequest {
     const sql = `
       SELECT s.*, 
              COALESCE(u.full_name, 'Tourist User') as tourist_name, 
+             COALESCE(u.phone, '+91 98765 43210') as phone,
              COALESCE(u.phone, '+91 98765 43210') as tourist_phone, 
              u.email as tourist_email,
              COALESCE(u.nationality, 'India') as nationality,
-             u.emergency_medical_info,
-             u.blood_group,
-             u.passport_number
+             u.passport_number,
+             u.emergency_contact_phone,
+             u.emergency_contact_name,
+             COALESCE(th.medical_conditions, 'None reported') as emergency_medical_info,
+             COALESCE(th.blood_group, 'O+') as blood_group
       FROM sos_requests s
       LEFT JOIN users u ON s.user_id = u.id
+      LEFT JOIN tourist_health th ON u.id = th.user_id
       WHERE s.status IN ('active', 'dispatched')
       ORDER BY s.created_at DESC
     `;

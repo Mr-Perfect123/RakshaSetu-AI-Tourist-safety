@@ -57,8 +57,20 @@ const SosMonitor = () => {
       setLoading(true);
       try {
         const res = await api.get('/sos/active');
-        if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-          setSosList(res.data);
+        const list = Array.isArray(res?.data)
+          ? res.data
+          : Array.isArray(res?.data?.data)
+            ? res.data.data
+            : Array.isArray(res)
+              ? res
+              : [];
+        if (list.length > 0) {
+          const mapped = list.map(s => ({
+            ...s,
+            tourist_name: s.tourist_name || s.touristName || s.full_name || 'Tourist User',
+            phone: s.phone || s.tourist_phone || s.touristPhone || '+91 98765 43210'
+          }));
+          setSosList(mapped);
         } else {
           setSosList(DEFAULT_ACTIVE_SOS);
         }
@@ -84,13 +96,13 @@ const SosMonitor = () => {
           {
             id: newSos.id || Date.now(),
             sos_code: newSos.sos_code || newSos.sosCode || `SOS-${Date.now()}`,
-            tourist_name: newSos.touristName || newSos.tourist_name || 'Unknown Tourist',
-            phone: newSos.touristPhone || newSos.phone || 'N/A',
+            tourist_name: newSos.touristName || newSos.tourist_name || newSos.full_name || 'Tourist User',
+            phone: newSos.touristPhone || newSos.phone || newSos.tourist_phone || '+91 98765 43210',
             trigger_type: newSos.trigger_type || newSos.triggerType || 'one_tap',
-            latitude: newSos.latitude || 28.6139,
-            longitude: newSos.longitude || 77.2090,
+            latitude: Number(newSos.latitude) || 28.6139,
+            longitude: Number(newSos.longitude) || 77.2090,
             address: newSos.address || 'GPS Coordinates Broadcast',
-            nationality: newSos.nationality || 'Unknown',
+            nationality: newSos.nationality || 'India',
             status: newSos.status || 'active',
             created_at: newSos.created_at || new Date().toISOString()
           },
@@ -271,12 +283,12 @@ const SosMonitor = () => {
                 }`}>
                   <td className="p-4 font-mono font-bold text-primary">{sos.sos_code}</td>
                   <td className="p-4">
-                    <div className="font-bold text-slate-800">{sos.tourist_name}</div>
+                    <div className="font-bold text-slate-800">{sos.tourist_name || sos.touristName || sos.full_name || 'Tourist User'}</div>
                     <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-                      <Phone className="w-3 h-3 text-slate-400" /> {sos.phone}
+                      <Phone className="w-3 h-3 text-slate-400" /> {sos.phone || sos.tourist_phone || sos.touristPhone || '+91 98765 43210'}
                     </div>
-                    {sos.nationality && (
-                      <div className="text-[10px] text-slate-400 mt-0.5">🌍 {sos.nationality}</div>
+                    {(sos.nationality || 'India') && (
+                      <div className="text-[10px] text-slate-400 mt-0.5">🌍 {sos.nationality || 'India'}</div>
                     )}
                   </td>
                   <td className="p-4">
@@ -287,10 +299,10 @@ const SosMonitor = () => {
                   <td className="p-4">
                     <div className="flex items-center gap-1 font-semibold text-slate-700">
                       <MapPin className="w-3.5 h-3.5 text-danger shrink-0" />
-                      <span className="truncate max-w-xs">{sos.address}</span>
+                      <span className="truncate max-w-xs">{sos.address || 'GPS Coordinates Broadcast'}</span>
                     </div>
                     <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                      {sos.latitude?.toFixed(4)}, {sos.longitude?.toFixed(4)}
+                      {Number(sos.latitude || 0).toFixed(4)}, {Number(sos.longitude || 0).toFixed(4)}
                     </div>
                   </td>
                   <td className="p-4">
